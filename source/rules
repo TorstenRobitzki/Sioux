@@ -1,0 +1,239 @@
+#######################################################################
+## 
+## Ritter rules file
+## 
+## use folowing macros and then just include this file
+##
+## objects      = 
+##   - objects to build for latter linkage to an executable
+## 
+## executables  = 
+##   - list of executables to build
+##
+## librarys     =
+##   - list of user librarys to link against the executables
+##
+## lib_objects  =
+##   - list of object to build and to put into the library to build
+##
+## library      =
+##   - name of the library to build
+##
+#######################################################################
+
+.SUFFIXES:
+.SUFFIXES: .cpp .o .d .lib
+
+# Buildtype
+# debug, release or profile
+BUILD_TYPE     = release
+
+# Toolset
+# gcc, mingw or msvc
+TOOL_SET       = gcc
+
+# Pfadangaben
+SOURCEPATH     = src/
+EXEPATH        = $(RITTER_ROOT)/exe/$(TOOL_SET)/$(BUILD_TYPE)/
+LIBPATH        = $(RITTER_ROOT)/lib/$(TOOL_SET)/$(BUILD_TYPE)/
+
+BOOSTPATH      = "C:/Boost/lib/"
+BOOSTLIBS      = filesystem thread regex
+BOOSTVERSION   = 1_33_1
+
+empty          =
+space          = $(empty) $(empty)
+
+# CPlusPlus
+# Gnu Compiler Collection
+ifeq ($(TOOL_SET), gcc)
+  CXXINCLUDE      = -I./ -I$(RITTER_ROOT)/include -I- \
+                    -I"c:/boost/include/boost-$(BOOSTVERSION)" 
+  CXXDEFAULTFLAGS = -MMD -Wall -W -Wno-unused -Wno-long-long -Wreturn-type -pipe -mthreads -mno-cygwin -frtti -fexceptions
+  CXXOBJECT_SWITCH= -o$(space)
+  CXX             = g++
+
+  LINKER          = g++
+  LINKFLAGS       = -mno-cygwin -mthreads -Wl,-Map -Wl,map.map -L$(LIBPATH) -L$(BOOSTPATH) \
+                    -lMswsock -lWs2_32
+  LINKADDLIB      = -l
+  LINKADDDIR      = 
+  LINKADDOUTPUT   = -o$(space)
+  LINKLIBREFIX    = 
+
+  LIBRARY         = ar -rc$(space)
+  LIBRARY_EXT     = a
+
+  BOOST_TOOLSET   = gcc-mt
+  BOOST_PREFIX    = libboost_
+
+  ifeq ($(BUILD_TYPE), release)
+  CXXFLAGS      = $(CXXDEFAULTFLAGS) -O3
+  endif
+
+  ifeq ($(BUILD_TYPE), debug)
+  CXXFLAGS      = $(CXXDEFAULTFLAGS) -O0 -ggdb
+  endif
+
+  ifeq ($(BUILD_TYPE), profile)
+  CXXFLAGS      = $(CXXDEFAULTFLAGS) -O3 -pg 
+  endif
+
+endif # gcc
+
+# Gnu Compiler Collection; MinGW
+ifeq ($(TOOL_SET), mingw)
+  CXXINCLUDE      = -I. -I$(RITTER_ROOT)/include -I- \
+                    -I"c:/boost/include/boost-$(BOOSTVERSION)" 
+  CXXDEFAULTFLAGS = -MMD -Wall -W -Wno-unused -Wno-long-long -Wreturn-type -pipe -mthreads -frtti -fexceptions
+  CXXOBJECT_SWITCH= -o$(space)
+  CXX             = mingw32-g++
+
+  LINKER          = mingw32-g++
+  LINKFLAGS       = -mno-cygwin -mthreads -Wl,-Map -Wl,map.map -L$(LIBPATH) -L$(BOOSTPATH) \
+                    -lMswsock -lWs2_32
+  LINKADDLIB      = -l
+  LINKADDDIR      = 
+  LINKADDOUTPUT   = -o$(space)
+  LINKLIBREFIX    = 
+
+  LIBRARY         = ar -rc$(space)
+  LIBRARY_EXT     = a
+
+  BOOST_TOOLSET   = gcc-mt
+  BOOST_PREFIX    = boost_
+
+  ifeq ($(BUILD_TYPE), release)
+  CXXFLAGS      = $(CXXDEFAULTFLAGS) -O2
+  endif
+
+  ifeq ($(BUILD_TYPE), debug)
+  CXXFLAGS      = $(CXXDEFAULTFLAGS) -O0 -ggdb
+  endif
+
+  ifeq ($(BUILD_TYPE), profile)
+  CXXFLAGS      = $(CXXDEFAULTFLAGS) -O3 -pg 
+  endif
+
+endif # gcc
+
+# Microsoft Visiual C++
+ifeq ($(TOOL_SET), msvc)
+  CXXINCLUDE      = /I./ /I$(RITTER_ROOT)/include \
+                  /I"C:\Programme\Microsoft Visual Studio .NET 2003\Vc7\include" \
+                  /I"C:\Programme\Microsoft Visual Studio .NET 2003\Vc7\PlatformSDK\Include" \
+                  /I"C:\boost\include\boost-$(BOOSTVERSION)" 
+  CXXDEFAULTFLAGS = /EHs /Za /GR /nologo /W4 /WX /wd4130 /wd4800 /wd4512 /wd4189 /wd4275 \
+                    /wd4505 /wd4511 /wd4127 /wd4355
+  CXXOBJECT_SWITCH = /Fo
+  CXX             = cl
+  
+  # Linker
+  LINKER          = link
+  LINKFLAGS       = /LIBPATH:$(LIBPATH) /LIBPATH:$(BOOSTPATH) /MAP \
+                    /LIBPATH:"C:\Programme\Microsoft Visual Studio .NET 2003\Vc7\lib" \
+                    /LIBPATH:"C:\Programme\Microsoft Visual Studio .NET 2003\Vc7\PlatformSDK\Lib"
+  LINKADDLIB      = 
+  LINKADDDIR      = 
+  LINKADDOUTPUT   = /OUT:
+  LINKLIBREFIX    = lib
+
+  LIBRARY         = lib
+  LIBRARY_EXT     = lib
+
+  BOOST_TOOLSET   = vc71-mt
+  
+  ifeq ($(BUILD_TYPE), release)
+  CXXFLAGS      = $(CXXDEFAULTFLAGS) /MD
+  endif
+
+  ifeq ($(BUILD_TYPE), debug)
+  CXXFLAGS      = $(CXXDEFAULTFLAGS) /MDd /Od /RTC1
+  endif
+
+  ifeq ($(BUILD_TYPE), profile)
+  CXXFLAGS      = $(CXXDEFAULTFLAGS)
+  endif
+
+endif # msvc
+
+# Buildtypedependent Definitions
+ifeq ($(BUILD_TYPE), release)
+  BOOSTLIBSEL   = 
+endif
+
+ifeq ($(BUILD_TYPE), debug)
+  BOOSTLIBSEL   = 
+endif
+
+ifeq ($(BUILD_TYPE), profile)
+  BOOSTLIBSEL   = 
+endif
+
+# assemble libraries for the linker comandline
+BOOST_LIBRARY_NAMES  = $(BOOSTLIBS:%=$(LINKADDLIB)$(BOOST_PREFIX)%-$(BOOST_TOOLSET)$(BOOSTLIBSEL)-$(BOOSTVERSION))
+RITTER_LIBRARY_NAMES = $(librarys:%=$(LINKADDLIB)$(LINKLIBREFIX)%)
+LIBRARYS             = $(RITTER_LIBRARY_NAMES) $(BOOST_LIBRARY_NAMES)
+
+# Default Rules
+
+# compile (c++) / dependence
+%.o %.d : %.cpp
+	$(CXX) $(CXXFLAGS) $(CXXINCLUDE) -c $< $(CXXOBJECT_SWITCH)$*.o
+
+# linkage
+$(EXEPATH)% : $(OBJECTPATH)%.o 
+	mkdir -p $(EXEPATH)                    ;\
+	$(LINKER) $< $(LIBRARYS) $(LINKFLAGS) $(LINKADDOUTPUT)$@ ;\
+
+$(EXEPATH)%.dll : $(OBJECTPATH)%.o
+	mkdir -p $(EXEPATH)			;\
+	$(LINKER) -shared $< $(SOURCEPATH)$(*F).def \
+	$(LIBRARYS) $(LINKFLAGS) -o $@ -Wl,--out-implib -Wl,$(LIBPATH)$(*F).dll.a ;\
+
+# library
+# A library object
+$(LIBPATH)$(library)(%.o) : %.o
+	mkdir -p $(LIBPATH)
+	$(LIBRARY)$@.$(LIBRARY_EXT) $<
+
+# a whole library
+%.$(LIBRARY_EXT) : $(lib_objects)
+	mkdir -p $(LIBPATH)
+	$(LIBRARY) /OUT:"$@" $?
+
+.PHONY: build
+build : build_lib build_exe
+
+.PHONY: build_lib
+ifeq ($(TOOL_SET), msvc)
+build_lib : $(subst /,\,$(LIBPATH))$(library).$(LIBRARY_EXT)
+else
+build_lib : $(lib_objects:%.o=$(LIBPATH)$(library).$(LIBRARY_EXT)(%.o))
+endif
+
+.PHONY: build_exe
+build_exe : $(objects:%=$(OBJECTPATH)%) $(executables:%=$(EXEPATH)%) 	
+
+.PHONY: clean
+clean : 
+	rm -vrf *.map *.o *.d *.log *.stackdump *.obj *.lis
+
+.PHONY: test
+test : 
+
+.PHONY: all
+all : clean build
+
+#dependencies
+ifneq ($(MAKECMDGOALS),clean)
+  ifneq ($(lib_objects),)
+    include $(lib_objects:%.o=%.d)
+  endif
+  ifneq ($(objects),)
+    include $(objects:%.o=%.d)
+  endif
+endif
+
+
+
