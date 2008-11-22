@@ -1,0 +1,8 @@
+objects      =
+executables  =
+librarys     =
+lib_objects  = src\log.o
+library      = libtools
+
+include ./../rules
+

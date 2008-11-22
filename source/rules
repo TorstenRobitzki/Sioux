@@ -30,7 +30,7 @@ BUILD_TYPE     = release
 
 # Toolset
 # gcc, mingw or msvc
-TOOL_SET       = gcc
+TOOL_SET       = mingw
 
 # Pfadangaben
 SOURCEPATH     = src/
@@ -44,10 +44,12 @@ BOOSTVERSION   = 1_33_1
 empty          =
 space          = $(empty) $(empty)
 
+CLEAN		   = del /F /S /Q
+
 # CPlusPlus
 # Gnu Compiler Collection
 ifeq ($(TOOL_SET), gcc)
-  CXXINCLUDE      = -I./ -I$(RITTER_ROOT)/include -I- \
+  CXXINCLUDE      = -I./ -I$(RITTER_ROOT)/source -I- \
                     -I"c:/boost/include/boost-$(BOOSTVERSION)" 
   CXXDEFAULTFLAGS = -MMD -Wall -W -Wno-unused -Wno-long-long -Wreturn-type -pipe -mthreads -mno-cygwin -frtti -fexceptions
   CXXOBJECT_SWITCH= -o$(space)
@@ -67,6 +69,8 @@ ifeq ($(TOOL_SET), gcc)
   BOOST_TOOLSET   = gcc-mt
   BOOST_PREFIX    = libboost_
 
+  CLEAN           = rm -vrf
+  
   ifeq ($(BUILD_TYPE), release)
   CXXFLAGS      = $(CXXDEFAULTFLAGS) -O3
   endif
@@ -217,7 +221,7 @@ build_exe : $(objects:%=$(OBJECTPATH)%) $(executables:%=$(EXEPATH)%)
 
 .PHONY: clean
 clean : 
-	rm -vrf *.map *.o *.d *.log *.stackdump *.obj *.lis
+	$(CLEAN) *.map *.o *.d *.log *.stackdump *.obj *.lis
 
 .PHONY: test
 test : 
@@ -228,10 +232,10 @@ all : clean build
 #dependencies
 ifneq ($(MAKECMDGOALS),clean)
   ifneq ($(lib_objects),)
-    include $(lib_objects:%.o=%.d)
+    include $(lib_objects:%.o=./src/%.d)
   endif
   ifneq ($(objects),)
-    include $(objects:%.o=%.d)
+    include $(objects:%.o=./src/%.d)
   endif
 endif
 
