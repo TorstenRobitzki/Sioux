@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<workbench progressCount="16" version="2.0">
+<workbench progressCount="19" version="2.0">
 <workbenchAdvisor/>
-<window height="768" maximized="true" width="1024" x="43" y="50">
+<window height="941" width="1184" x="51" y="27">
 <fastViewData fastViewLocation="1024"/>
 <perspectiveBar>
 <itemSize x="160"/>
@@ -18,6 +18,8 @@
 <coolItem id="group.nav" itemType="typeGroupMarker"/>
 <coolItem id="org.eclipse.ui.workbench.navigate" itemType="typeToolBarContribution" x="185" y="22"/>
 <coolItem id="group.editor" itemType="typeGroupMarker"/>
+<coolItem id="org.eclipse.ui.browser.editor" itemType="typePlaceholder" x="-1" y="-1"/>
+<coolItem id="org.eclipse.ui.DefaultTextEditor" itemType="typeToolBarContribution" x="-1" y="-1"/>
 <coolItem id="org.eclipse.cdt.make.editor" itemType="typeToolBarContribution" x="-1" y="-1"/>
 <coolItem id="org.eclipse.cdt.ui.editor.CEditor" itemType="typeToolBarContribution" x="-1" y="-1"/>
 <coolItem id="group.help" itemType="typeGroupMarker"/>
@@ -32,21 +34,31 @@
 <part id="0"/>
 <part id="1"/>
 <part id="2"/>
+<part id="3"/>
+<part id="4"/>
 </presentation>
 </folder>
 </info>
 </editorArea>
-<editor id="org.eclipse.cdt.ui.editor.CEditor" name="log.cpp" partName="log.cpp" path="C:/cwork/sioux2/source/tools/src/log.cpp" title="log.cpp" tooltip="tools/src/log.cpp" workbook="DefaultEditorWorkbook">
-<input factoryID="org.eclipse.ui.part.FileEditorInputFactory" path="/tools/src/log.cpp"/>
-<editorState selectionHPixel="0" selectionLength="0" selectionOffset="26"/>
+<editor activePart="true" focus="true" id="org.eclipse.cdt.make.editor" name="makefile" partName="makefile" title="makefile" tooltip="C:\cwork\sioux2\source\makefile" workbook="DefaultEditorWorkbook">
+<input factoryID="org.eclipse.ui.ide.FileStoreEditorInputFactory" uri="file:/C:/cwork/sioux2/source/makefile"/>
+<editorState selectionHPixel="0" selectionLength="0" selectionOffset="0"/>
+</editor>
+<editor id="org.eclipse.cdt.ui.editor.CEditor" name="log.cpp" partName="log.cpp" path="C:/cwork/sioux2/source/tools/source/log.cpp" title="log.cpp" tooltip="tools/source/log.cpp" workbook="DefaultEditorWorkbook">
+<input factoryID="org.eclipse.ui.part.FileEditorInputFactory" path="/tools/source/log.cpp"/>
+<editorState selectionHPixel="0" selectionLength="0" selectionOffset="0"/>
+</editor>
+<editor id="org.eclipse.cdt.ui.editor.CEditor" name="log.h" partName="log.h" path="C:/cwork/sioux2/source/tools/log.h" title="log.h" tooltip="tools/log.h" workbook="DefaultEditorWorkbook">
+<input factoryID="org.eclipse.ui.part.FileEditorInputFactory" path="/tools/log.h"/>
+<editorState selectionHPixel="0" selectionLength="0" selectionOffset="10888"/>
+</editor>
+<editor id="org.eclipse.ui.DefaultTextEditor" name="rules" partName="rules" title="rules" tooltip="C:/cwork/sioux2/source/rules" workbook="DefaultEditorWorkbook">
+<input factoryID="org.eclipse.cdt.ui.ExternalEditorInputFactory" path="C:\cwork\sioux2\source\rules" project="tools"/>
+<editorState selectionHPixel="0" selectionLength="0" selectionOffset="0"/>
 </editor>
 <editor id="org.eclipse.cdt.make.editor" name="makefile" partName="makefile" path="C:/cwork/sioux2/source/tools/makefile" title="makefile" tooltip="tools/makefile" workbook="DefaultEditorWorkbook">
 <input factoryID="org.eclipse.ui.part.FileEditorInputFactory" path="/tools/makefile"/>
-<editorState selectionHPixel="0" selectionLength="0" selectionOffset="0"/>
-</editor>
-<editor activePart="true" focus="true" id="org.eclipse.cdt.make.editor" name="makefile" partName="makefile" title="makefile" tooltip="C:\cwork\sioux2\source\makefile" workbook="DefaultEditorWorkbook">
-<input factoryID="org.eclipse.ui.ide.FileStoreEditorInputFactory" uri="file:/C:/cwork/sioux2/source/makefile"/>
-<editorState selectionHPixel="0" selectionLength="0" selectionOffset="434"/>
+<editorState selectionHPixel="0" selectionLength="11" selectionOffset="48"/>
 </editor>
 </editors>
 <views>
@@ -56,8 +68,10 @@
 <view id="org.eclipse.ui.views.PropertySheet" partName="Properties">
 <viewState/>
 </view>
-<view id="org.eclipse.cdt.make.ui.views.MakeView" partName="Make Targets">
-<viewState/>
+<view id="org.eclipse.search.ui.views.SearchView" partName="Search">
+<viewState isPinned="false">
+<view IMemento.internal.id="" org.eclipse.search.lastActivation="0"/>
+</viewState>
 </view>
 <view id="org.eclipse.ui.views.ProblemView" partName="Problems">
 <viewState columnWidth0="253" columnWidth1="78" columnWidth2="153" columnWidth3="63" columnWidth4="0" horizontalPosition="0" verticalPosition="0">
@@ -117,43 +131,30 @@
 <view id="org.eclipse.ui.views.ContentOutline"/>
 <view id="org.eclipse.ui.views.TaskList"/>
 <fastViewBars/>
-<layout>
-<mainWindow>
-<info folder="true" part="topLeft">
-<folder activePageID="org.eclipse.ui.navigator.ProjectExplorer" appearance="2" expanded="2">
-<page content="org.eclipse.ui.navigator.ProjectExplorer" label="Project Explorer"/>
+<layout>&#x0A;<mainWindow>&#x0A;<info folder="true" part="topLeft">&#x0A;<folder activePageID="org.eclipse.ui.navigator.ProjectExplorer" appearance="2" expanded="2">&#x0A;<page content="org.eclipse.ui.navigator.ProjectExplorer" label="Project Explorer"/>
 <page content="org.eclipse.ui.views.BookmarkView" label="LabelNotFound"/>
 <page content="org.eclipse.ui.views.ResourceNavigator" label="LabelNotFound"/>
 <page content="org.eclipse.team.ccvs.ui.RepositoriesView" label="LabelNotFound"/>
 <page content="org.eclipse.team.ccvs.ui.AnnotateView" label="LabelNotFound"/>
-<presentation id="org.eclipse.ui.internal.presentations.r33.WorkbenchPresentationFactory_33">
-<part id="0"/>
+<presentation id="org.eclipse.ui.internal.presentations.r33.WorkbenchPresentationFactory_33">&#x0A;<part id="0"/>
 </presentation>
 </folder>
 </info>
-<info folder="true" part="org.eclipse.ui.internal.ViewStack@1453d72" ratio="0.75" ratioLeft="756" ratioRight="252" relationship="2" relative="topLeft">
-<folder appearance="2" expanded="2">
-<page content="org.eclipse.help.ui.HelpView" label="LabelNotFound"/>
+<info folder="true" part="org.eclipse.ui.internal.ViewStack@1453d72" ratio="0.75" ratioLeft="756" ratioRight="252" relationship="2" relative="topLeft">&#x0A;<folder appearance="2" expanded="2">&#x0A;<page content="org.eclipse.help.ui.HelpView" label="LabelNotFound"/>
 <page content="org.eclipse.ui.internal.introview" label="LabelNotFound"/>
 <page content="org.eclipse.ui.cheatsheets.views.CheatSheetView" label="LabelNotFound"/>
 <presentation id="org.eclipse.ui.internal.presentations.r33.WorkbenchPresentationFactory_33"/>
 </folder>
 </info>
 <info part="org.eclipse.ui.editorss" ratio="0.25992063" ratioLeft="262" ratioRight="746" relationship="2" relative="topLeft"/>
-<info folder="true" part="bottomRight" ratio="0.65966386" ratioLeft="471" ratioRight="243" relationship="4" relative="org.eclipse.ui.editorss">
-<folder activePageID="org.eclipse.ui.views.TaskList" appearance="2" expanded="2">
-<page content="org.eclipse.ui.views.TaskList" label="Tasks"/>
+<info folder="true" part="bottomRight" ratio="0.65966386" ratioLeft="471" ratioRight="243" relationship="4" relative="org.eclipse.ui.editorss">&#x0A;<folder activePageID="org.eclipse.ui.views.TaskList" appearance="2" expanded="2">&#x0A;<page content="org.eclipse.ui.views.TaskList" label="Tasks"/>
 <page content="org.eclipse.team.ui.GenericHistoryView" label="LabelNotFound"/>
-<presentation id="org.eclipse.ui.internal.presentations.r33.WorkbenchPresentationFactory_33">
-<part id="0"/>
+<presentation id="org.eclipse.ui.internal.presentations.r33.WorkbenchPresentationFactory_33">&#x0A;<part id="0"/>
 </presentation>
 </folder>
 </info>
-<info folder="true" part="bottomLeft" ratio="0.5" ratioLeft="357" ratioRight="357" relationship="4" relative="topLeft">
-<folder activePageID="org.eclipse.ui.views.ContentOutline" appearance="2" expanded="2">
-<page content="org.eclipse.ui.views.ContentOutline" label="Outline"/>
-<presentation id="org.eclipse.ui.internal.presentations.r33.WorkbenchPresentationFactory_33">
-<part id="0"/>
+<info folder="true" part="bottomLeft" ratio="0.5" ratioLeft="357" ratioRight="357" relationship="4" relative="topLeft">&#x0A;<folder activePageID="org.eclipse.ui.views.ContentOutline" appearance="2" expanded="2">&#x0A;<page content="org.eclipse.ui.views.ContentOutline" label="Outline"/>
+<presentation id="org.eclipse.ui.internal.presentations.r33.WorkbenchPresentationFactory_33">&#x0A;<part id="0"/>
 </presentation>
 </folder>
 </info>
@@ -210,8 +211,7 @@
 <view id="org.eclipse.ui.views.TaskList"/>
 <view id="org.eclipse.ui.console.ConsoleView"/>
 <view id="org.eclipse.ui.views.PropertySheet"/>
-<view id="org.eclipse.ui.views.ContentOutline"/>
-<view id="org.eclipse.cdt.make.ui.views.MakeView"/>
+<view id="org.eclipse.search.ui.views.SearchView"/>
 <fastViewBars/>
 <layout>
 <mainWindow>
@@ -233,29 +233,28 @@
 <page content="org.eclipse.ui.cheatsheets.views.CheatSheetView" label="LabelNotFound"/>
 </folder>
 </info>
-<info part="org.eclipse.ui.editorss" ratio="0.2995025" ratioLeft="301" ratioRight="704" relationship="2" relative="topLeft"/>
-<info folder="true" part="bottom" ratio="0.6370531" ratioLeft="588" ratioRight="335" relationship="4" relative="org.eclipse.ui.editorss">
+<info part="org.eclipse.ui.editorss" ratio="0.09098712" ratioLeft="106" ratioRight="1059" relationship="2" relative="topLeft"/>
+<info folder="true" part="bottom" ratio="0.54981995" ratioLeft="458" ratioRight="375" relationship="4" relative="org.eclipse.ui.editorss">
 <folder activePageID="org.eclipse.ui.console.ConsoleView" appearance="2" expanded="2">
 <page content="org.eclipse.ui.views.ProblemView" label="Problems"/>
 <page content="org.eclipse.ui.views.TaskList" label="Tasks"/>
 <page content="org.eclipse.ui.console.ConsoleView" label="Console"/>
 <page content="org.eclipse.ui.views.PropertySheet" label="Properties"/>
+<page content="org.eclipse.search.ui.views.SearchView" label="Search"/>
 <presentation id="org.eclipse.ui.internal.presentations.r33.WorkbenchPresentationFactory_33">
 <part id="0"/>
 <part id="1"/>
 <part id="2"/>
 <part id="3"/>
+<part id="4"/>
 </presentation>
 </folder>
 </info>
 <info folder="true" part="topRight" ratio="0.75" ratioLeft="567" ratioRight="189" relationship="2" relative="org.eclipse.ui.editorss">
-<folder activePageID="org.eclipse.cdt.make.ui.views.MakeView" appearance="2" expanded="2">
-<page content="org.eclipse.ui.views.ContentOutline" label="Outline"/>
-<page content="org.eclipse.cdt.make.ui.views.MakeView" label="Make Targets"/>
-<presentation id="org.eclipse.ui.internal.presentations.r33.WorkbenchPresentationFactory_33">
-<part id="0"/>
-<part id="1"/>
-</presentation>
+<folder appearance="2" expanded="2">
+<page content="org.eclipse.ui.views.ContentOutline" label="LabelNotFound"/>
+<page content="org.eclipse.cdt.make.ui.views.MakeView" label="LabelNotFound"/>
+<presentation id="org.eclipse.ui.internal.presentations.r33.WorkbenchPresentationFactory_33"/>
 </folder>
 </info>
 </mainWindow>
@@ -265,48 +264,168 @@
 <workingSets/>
 <navigationHistory>
 <editors>
-<editor factoryID="org.eclipse.ui.part.FileEditorInputFactory" id="org.eclipse.cdt.ui.editor.CEditor" path="/tools/src/log.cpp"/>
-<editor factoryID="org.eclipse.cdt.ui.ExternalEditorInputFactory" id="org.eclipse.cdt.make.editor" path="C:\cwork\sioux2\source\tools\makefile" project="tools"/>
+<editor factoryID="org.eclipse.cdt.ui.ExternalEditorInputFactory" id="org.eclipse.ui.DefaultTextEditor" path="C:\cwork\sioux2\source\rules" project="tools"/>
+<editor factoryID="org.eclipse.ui.ide.FileStoreEditorInputFactory" id="org.eclipse.cdt.make.editor" uri="file:/C:/cwork/sioux2/source/makefile"/>
+<editor factoryID="org.eclipse.ui.part.FileEditorInputFactory" id="org.eclipse.cdt.make.editor" path="/tools/makefile"/>
+<editor factoryID="org.eclipse.ui.part.FileEditorInputFactory" id="org.eclipse.cdt.make.editor" path="/tools/makefile"/>
+<editor factoryID="org.eclipse.ui.part.FileEditorInputFactory" id="org.eclipse.cdt.ui.editor.CEditor" path="/tools/log.h"/>
+<editor factoryID="org.eclipse.ui.part.FileEditorInputFactory" id="org.eclipse.cdt.ui.editor.CEditor" path="/tools/log.h"/>
+<editor factoryID="org.eclipse.ui.ide.FileStoreEditorInputFactory" id="org.eclipse.cdt.make.editor" uri="file:/C:/cwork/sioux2/source/makefile"/>
+<editor factoryID="org.eclipse.ui.part.FileEditorInputFactory" id="org.eclipse.cdt.ui.editor.CEditor" path="/tools/source/log.h"/>
+<editor factoryID="org.eclipse.ui.part.FileEditorInputFactory" id="org.eclipse.cdt.ui.editor.CEditor" path="/tools/log.h"/>
+<editor factoryID="org.eclipse.cdt.ui.ExternalEditorInputFactory" id="org.eclipse.ui.DefaultTextEditor" path="C:\cwork\sioux2\source\rules" project="tools"/>
+<editor factoryID="org.eclipse.ui.part.FileEditorInputFactory" id="org.eclipse.cdt.ui.editor.CEditor" path="/tools/source/log.cpp"/>
 <editor factoryID="org.eclipse.ui.part.FileEditorInputFactory" id="org.eclipse.cdt.make.editor" path="/tools/makefile"/>
 <editor factoryID="org.eclipse.ui.ide.FileStoreEditorInputFactory" id="org.eclipse.cdt.make.editor" uri="file:/C:/cwork/sioux2/source/makefile"/>
 </editors>
-<item historyLabel="log.cpp" index="0">
-<position/>
+<item historyLabel="makefile" index="2">
+<position info="not_deleted" x="85" y="8"/>
 </item>
 <item historyLabel="makefile" index="1">
-<position/>
+<position info="not_deleted" x="496" y="0"/>
 </item>
 <item historyLabel="makefile" index="2">
-<position/>
+<position info="not_deleted" x="85" y="8"/>
+</item>
+<item historyLabel="rules" index="0">
+<position info="not_deleted" x="1067" y="0"/>
+</item>
+<item historyLabel="makefile" index="2">
+<position info="not_deleted" x="70" y="7"/>
 </item>
 <item historyLabel="makefile" index="1">
-<position info="not_deleted" x="119" y="0"/>
+<position info="not_deleted" x="496" y="0"/>
 </item>
 <item historyLabel="makefile" index="2">
+<position info="not_deleted" x="70" y="7"/>
+</item>
+<item historyLabel="rules" index="0">
+<position info="not_deleted" x="1067" y="0"/>
+</item>
+<item historyLabel="makefile" index="3">
 <position/>
 </item>
-<item historyLabel="makefile" index="1">
-<position info="not_deleted" x="119" y="0"/>
-</item>
-<item historyLabel="log.cpp" index="0">
-<position info="not_deleted" x="26" y="0"/>
-</item>
-<item historyLabel="makefile" index="2">
+<item historyLabel="rules" index="0">
 <position/>
 </item>
-<item historyLabel="log.cpp" index="0">
-<position info="not_deleted" x="26" y="0"/>
-</item>
-<item historyLabel="makefile" index="2">
+<item historyLabel="log.h" index="4">
 <position/>
 </item>
-<item historyLabel="log.cpp" index="0">
-<position info="not_deleted" x="26" y="0"/>
-</item>
-<item historyLabel="makefile" index="2">
+<item historyLabel="makefile" index="3">
 <position/>
 </item>
-<item active="true" historyLabel="makefile" index="3">
+<item historyLabel="rules" index="0">
+<position info="not_deleted" x="5336" y="0"/>
+</item>
+<item historyLabel="rules" index="0">
+<position info="not_deleted" x="5286" y="0"/>
+</item>
+<item historyLabel="log.h" index="5">
+<position info="not_deleted" x="10960" y="0"/>
+</item>
+<item historyLabel="rules" index="0">
+<position info="not_deleted" x="5560" y="10"/>
+</item>
+<item historyLabel="makefile" index="6">
+<position info="not_deleted" x="201" y="0"/>
+</item>
+<item historyLabel="log.h" index="5">
+<position info="not_deleted" x="10960" y="0"/>
+</item>
+<item historyLabel="rules" index="0">
+<position info="not_deleted" x="6462" y="0"/>
+</item>
+<item historyLabel="log.h" index="5">
+<position info="not_deleted" x="10881" y="0"/>
+</item>
+<item historyLabel="makefile" index="6">
+<position info="not_deleted" x="201" y="0"/>
+</item>
+<item historyLabel="rules" index="0">
+<position info="not_deleted" x="6462" y="0"/>
+</item>
+<item historyLabel="log.h" index="7">
+<position/>
+</item>
+<item historyLabel="rules" index="0">
+<position/>
+</item>
+<item historyLabel="log.h" index="8">
+<position/>
+</item>
+<item historyLabel="rules" index="0">
+<position info="not_deleted" x="5523" y="0"/>
+</item>
+<item historyLabel="log.h" index="8">
+<position info="not_deleted" x="10888" y="0"/>
+</item>
+<item historyLabel="rules" index="9">
+<position/>
+</item>
+<item historyLabel="makefile" index="6">
+<position info="not_deleted" x="201" y="0"/>
+</item>
+<item historyLabel="log.cpp" index="10">
+<position/>
+</item>
+<item historyLabel="makefile" index="11">
+<position/>
+</item>
+<item historyLabel="rules" index="9">
+<position/>
+</item>
+<item historyLabel="makefile" index="11">
+<position/>
+</item>
+<item historyLabel="rules" index="9">
+<position/>
+</item>
+<item historyLabel="makefile" index="11">
+<position/>
+</item>
+<item historyLabel="rules" index="9">
+<position info="not_deleted" x="6567" y="0"/>
+</item>
+<item historyLabel="rules" index="9">
+<position info="not_deleted" x="6329" y="0"/>
+</item>
+<item historyLabel="makefile" index="11">
+<position/>
+</item>
+<item historyLabel="makefile" index="6">
+<position info="not_deleted" x="201" y="0"/>
+</item>
+<item historyLabel="makefile" index="11">
+<position/>
+</item>
+<item historyLabel="rules" index="9">
+<position/>
+</item>
+<item historyLabel="makefile" index="11">
+<position/>
+</item>
+<item historyLabel="rules" index="9">
+<position info="not_deleted" x="6582" y="0"/>
+</item>
+<item historyLabel="makefile" index="11">
+<position/>
+</item>
+<item historyLabel="rules" index="9">
+<position info="not_deleted" x="6881" y="0"/>
+</item>
+<item historyLabel="makefile" index="11">
+<position/>
+</item>
+<item historyLabel="rules" index="9">
+<position info="not_deleted" x="6881" y="0"/>
+</item>
+<item historyLabel="rules" index="9">
+<position/>
+</item>
+<item historyLabel="rules" index="9">
+<position info="not_deleted" x="6829" y="0"/>
+</item>
+<item active="true" historyLabel="makefile" index="12">
 <position/>
 </item>
 </navigationHistory>
@@ -322,22 +441,30 @@
 <trimItem IMemento.internal.id="org.eclise.ui.internal.FastViewBar"/>
 <trimItem IMemento.internal.id="org.eclipse.jface.action.StatusLineManager"/>
 <trimItem IMemento.internal.id="org.eclipse.ui.internal.progress.ProgressRegion"/>
-<trimItem IMemento.internal.id="org.eclipse.ui.internal.intro.impl.presentations.IntroLaunchBar"/>
 </trimArea>
 </trimLayout>
 </window>
 <mruList>
-<file factoryID="org.eclipse.ui.ide.FileStoreEditorInputFactory" id="org.eclipse.cdt.make.editor" name="makefile" tooltip="C:\cwork\sioux2\source\makefile">
-<persistable uri="file:/C:/cwork/sioux2/source/makefile"/>
-</file>
 <file factoryID="org.eclipse.ui.part.FileEditorInputFactory" id="org.eclipse.cdt.make.editor" name="makefile" tooltip="tools/makefile">
 <persistable path="/tools/makefile"/>
 </file>
+<file factoryID="org.eclipse.cdt.ui.ExternalEditorInputFactory" id="org.eclipse.ui.DefaultTextEditor" name="rules" tooltip="C:/cwork/sioux2/source/rules">
+<persistable path="C:\cwork\sioux2\source\rules" project="tools"/>
+</file>
+<file factoryID="org.eclipse.ui.part.FileEditorInputFactory" id="org.eclipse.cdt.ui.editor.CEditor" name="log.h" tooltip="tools/log.h">
+<persistable path="/tools/log.h"/>
+</file>
+<file factoryID="org.eclipse.ui.ide.FileStoreEditorInputFactory" id="org.eclipse.ui.browser.editorSupport" name="arbeiten1.html" tooltip="C:\cwork\ina\www.inaweissflog.de\arbeiten1.html">
+<persistable uri="file:/C:/cwork/ina/www.inaweissflog.de/arbeiten1.html"/>
+</file>
+<file factoryID="org.eclipse.ui.ide.FileStoreEditorInputFactory" id="org.eclipse.cdt.make.editor" name="makefile" tooltip="C:\cwork\sioux\mingw_gcc\makefile">
+<persistable uri="file:/C:/cwork/sioux/mingw_gcc/makefile"/>
+</file>
+<file factoryID="org.eclipse.ui.ide.FileStoreEditorInputFactory" id="org.eclipse.cdt.make.editor" name="makefile" tooltip="C:\cwork\sioux2\source\makefile">
+<persistable uri="file:/C:/cwork/sioux2/source/makefile"/>
+</file>
 <file factoryID="org.eclipse.cdt.ui.ExternalEditorInputFactory" id="org.eclipse.cdt.make.editor" name="makefile" tooltip="C:/cwork/sioux2/source/tools/makefile">
 <persistable path="C:\cwork\sioux2\source\tools\makefile" project="tools"/>
-</file>
-<file factoryID="org.eclipse.ui.part.FileEditorInputFactory" id="org.eclipse.cdt.ui.editor.CEditor" name="log.cpp" tooltip="tools/src/log.cpp">
-<persistable path="/tools/src/log.cpp"/>
 </file>
 </mruList>
 </workbench>

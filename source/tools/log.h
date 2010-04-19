@@ -1,3 +1,7 @@
+// Copyright (c) Torrox GmbH & Co KG. All rights reserved.
+// Please note that the content of this file is confidential or protected by law.
+// Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
+
 #ifndef SOURCE_TOOLS_LOG_H
 #define SOURCE_TOOLS_LOG_H
 
@@ -23,10 +27,10 @@
  */
 
 /** 
- * @namespace log
- * logging facilities 
+ * @namespace logging
+ * logging facilities ; namespace is logging, not log because microsoft includes math.h somewhere and there log clashes with log()
  */
-namespace log {
+namespace logging {
 	
 /**
  * @brief Type to express the severity of the message to be logged
@@ -64,7 +68,7 @@ std::ostream& operator<<(std::ostream& output, log_level level);
  * @brief reads a log_level from the given input stream
  * 
  * Extracts a string from the input and then compares this string to the name
- * of the enumeration members. If that string compares equal to one and only one
+ * of the enumeration members. If that string compares equal to the front of one and only one
  * of the members name, that enumeration member will return. If no member fits, or
  * more than one member fits, the fail bit of input will be set and level will not
  * be altered. 
@@ -82,17 +86,17 @@ std::istream& operator>>(std::istream& input, log_level& level);
  * Example:
  * @code
  * 
- * struct test_context_t : log::context {} const test_context;
- * struct new_context_t  : log::context {} const new_context;
+ * struct test_context_t : logging::context {} const test_context;
+ * struct new_context_t  : logging::context {} const new_context;
  *
  * void f(int i)
  * {
  *     // make sure, the following message will go to the output 
- *     log::set_level(test_context, log::main);
+ *     logging::set_level(test_context, log::main);
  *     LOG_MAIN(test_context << "entering f() i = " << i);
  * 
  *     // make sure, the next message won't not go to the output
- *     log::set_level(new_context, log::error);
+ *     logging::set_level(new_context, log::error);
  *     LOG_WARNING(new_context << "this function is pointless.");
  *
  *     // the loglevel for test_context is still log::main, so the next message will apear in the logs 
@@ -228,39 +232,39 @@ void remove_output(std::ostream& output);
 	try { \
 		std::ostringstream tmp_log_output_stream;\
 		tmp_log_output_stream << expression;\
-		log::add_message(tmp_log_output_stream, level);\
+		logging::add_message(tmp_log_output_stream, level);\
 	} catch (...) {}
 	
 
 /**
  * @brief convenience marco to log a line with log::fatal severity
  */
-#define LOG_FATAL(e) LOG_MESSAGE(e, log::fatal)
+#define LOG_FATAL(e) LOG_MESSAGE(e, logging::fatal)
 
 /**
  * @brief convenience marco to log a line with log::error severity
  */
-#define LOG_ERROR(e) LOG_MESSAGE(e, log::error)
+#define LOG_ERROR(e) LOG_MESSAGE(e, logging::error)
 
 /**
  * @brief convenience marco to log a line with log::warning severity
  */
-#define LOG_WARNING(e) LOG_MESSAGE(e, log::warning)
+#define LOG_WARNING(e) LOG_MESSAGE(e, logging::warning)
 
 /**
  * @brief convenience marco to log a line with log::info severity
  */
-#define LOG_INFO(e) LOG_MESSAGE(e, log::info)
+#define LOG_INFO(e) LOG_MESSAGE(e, logging::info)
 
 /**
  * @brief convenience marco to log a line with log::main severity
  */
-#define LOG_MAIN(e) LOG_MESSAGE(e, log::main)
+#define LOG_MAIN(e) LOG_MESSAGE(e, logging::main)
 
 /**
  * @brief convenience marco to log a line with log::detail severity
  */
-#define LOG_DETAIL(e) LOG_MESSAGE(e, log::detail)
+#define LOG_DETAIL(e) LOG_MESSAGE(e, logging::detail)
 
 /**
  * @brief convenience marco to log a line with log::debug severity
@@ -270,7 +274,7 @@ void remove_output(std::ostream& output);
  * If NDEBUG is set the expression e is not evaluated.
  */
 #ifndef NDEBUG
-#	define LOG_DEBUG(e) LOG_MESSAGE(e, log::debug)
+#	define LOG_DEBUG(e) LOG_MESSAGE(e, logging::debug)
 #else
 #	define LOG_DEBUG(e)
 #endif
@@ -283,9 +287,30 @@ void remove_output(std::ostream& output);
  * If NDEBUG is set the expression e is not evaluated.
  */
 #ifndef NDEBUG
-#	define LOG_ALL(e) LOG_MESSAGE(e, log::all)
+#	define LOG_ALL(e) LOG_MESSAGE(e, logging::all)
 #else
 #	define LOG_ALL(e)
 #endif
 
+namespace logging
+{
+    namespace details
+    {
+        class init_log
+        {
+        public:
+            init_log();
+            ~init_log();
+        private:
+            init_log& operator=(const init_log&);
+            init_log(const init_log&);
+        };
+    }
+}
+
+namespace {
+    logging::details::init_log init_log_library;
+}
+
 #endif // include guard
+

@@ -33,9 +33,12 @@ BUILD_TYPE     = release
 TOOL_SET       = mingw
 
 # Pfadangaben
-SOURCEPATH     = src/
-EXEPATH        = $(RITTER_ROOT)/exe/$(TOOL_SET)/$(BUILD_TYPE)/
-LIBPATH        = $(RITTER_ROOT)/lib/$(TOOL_SET)/$(BUILD_TYPE)/
+SOURCEPATH     = 
+INCLUDEPATH    = $(SIOUX_ROOT)/source
+
+EXEPATH        = $(SIOUX_OUT)/$(TOOL_SET)/$(BUILD_TYPE)/exe/
+LIBPATH        = $(SIOUX_OUT)/$(TOOL_SET)/$(BUILD_TYPE)/lib/
+OBJECTPATH	   = $(SIOUX_OUT)/$(TOOL_SET)/$(BUILD_TYPE)/obj/$(library)/
 
 BOOSTPATH      = "C:/Boost/lib/"
 BOOSTLIBS      = filesystem thread regex
@@ -45,11 +48,12 @@ empty          =
 space          = $(empty) $(empty)
 
 CLEAN		   = del /F /S /Q
+MKDIR          = mkdir -p        			
 
 # CPlusPlus
 # Gnu Compiler Collection
 ifeq ($(TOOL_SET), gcc)
-  CXXINCLUDE      = -I./ -I$(RITTER_ROOT)/source -I- \
+  CXXINCLUDE      = -I./ -I$(INCLUDEPATH) -I- \
                     -I"c:/boost/include/boost-$(BOOSTVERSION)" 
   CXXDEFAULTFLAGS = -MMD -Wall -W -Wno-unused -Wno-long-long -Wreturn-type -pipe -mthreads -mno-cygwin -frtti -fexceptions
   CXXOBJECT_SWITCH= -o$(space)
@@ -63,8 +67,8 @@ ifeq ($(TOOL_SET), gcc)
   LINKADDOUTPUT   = -o$(space)
   LINKLIBREFIX    = 
 
-  LIBRARY         = ar -rc$(space)
-  LIBRARY_EXT     = a
+  LIBRARIAN       = ar -rc$(space)
+  LIBRARY_EXT     = .a
 
   BOOST_TOOLSET   = gcc-mt
   BOOST_PREFIX    = libboost_
@@ -87,7 +91,7 @@ endif # gcc
 
 # Gnu Compiler Collection; MinGW
 ifeq ($(TOOL_SET), mingw)
-  CXXINCLUDE      = -I. -I$(RITTER_ROOT)/include -I- \
+  CXXINCLUDE      = -I. -I$(INCLUDEPATH) -I- \
                     -I"c:/boost/include/boost-$(BOOSTVERSION)" 
   CXXDEFAULTFLAGS = -MMD -Wall -W -Wno-unused -Wno-long-long -Wreturn-type -pipe -mthreads -frtti -fexceptions
   CXXOBJECT_SWITCH= -o$(space)
@@ -101,12 +105,14 @@ ifeq ($(TOOL_SET), mingw)
   LINKADDOUTPUT   = -o$(space)
   LINKLIBREFIX    = 
 
-  LIBRARY         = ar -rc$(space)
-  LIBRARY_EXT     = a
+  LIBRARIAN       = ar -rc$(space)
+  LIBRARY_EXT     = .a
 
   BOOST_TOOLSET   = gcc-mt
   BOOST_PREFIX    = boost_
 
+  MKDIR           = mkdir
+   
   ifeq ($(BUILD_TYPE), release)
   CXXFLAGS      = $(CXXDEFAULTFLAGS) -O2
   endif
@@ -123,7 +129,7 @@ endif # gcc
 
 # Microsoft Visiual C++
 ifeq ($(TOOL_SET), msvc)
-  CXXINCLUDE      = /I./ /I$(RITTER_ROOT)/include \
+  CXXINCLUDE      = /I./ /I$(INCLUDEPATH) \
                   /I"C:\Programme\Microsoft Visual Studio .NET 2003\Vc7\include" \
                   /I"C:\Programme\Microsoft Visual Studio .NET 2003\Vc7\PlatformSDK\Include" \
                   /I"C:\boost\include\boost-$(BOOSTVERSION)" 
@@ -142,8 +148,8 @@ ifeq ($(TOOL_SET), msvc)
   LINKADDOUTPUT   = /OUT:
   LINKLIBREFIX    = lib
 
-  LIBRARY         = lib
-  LIBRARY_EXT     = lib
+  LIBRARIAN       = lib
+  LIBRARY_EXT     = .lib
 
   BOOST_TOOLSET   = vc71-mt
   
@@ -176,66 +182,81 @@ endif
 
 # assemble libraries for the linker comandline
 BOOST_LIBRARY_NAMES  = $(BOOSTLIBS:%=$(LINKADDLIB)$(BOOST_PREFIX)%-$(BOOST_TOOLSET)$(BOOSTLIBSEL)-$(BOOSTVERSION))
-RITTER_LIBRARY_NAMES = $(librarys:%=$(LINKADDLIB)$(LINKLIBREFIX)%)
-LIBRARYS             = $(RITTER_LIBRARY_NAMES) $(BOOST_LIBRARY_NAMES)
+SIOUX_LIBRARY_NAMES = $(librarys:%=$(LINKADDLIB)$(LINKLIBREFIX)%)
+LIBRARYS             = $(SIOUX_LIBRARY_NAMES) $(BOOST_LIBRARY_NAMES)
+
+# Functions
+
+# $(call platt-file,file-or-path)
+platt-file = $(subst /,\\,$(1))
+
+# $(call make-dir,path)
+ifeq ($(TOOL_SET), mingw)
+	make-dir = @if not exist $(call platt-file,$(1)) $(MKDIR) $(call platt-file,$(1))
+endif
+	
 
 # Default Rules
 
+PLATT_OBJECTPATH = $(call platt-file,$(OBJECTPATH))
+
 # compile (c++) / dependence
-%.o %.d : %.cpp
-	$(CXX) $(CXXFLAGS) $(CXXINCLUDE) -c $< $(CXXOBJECT_SWITCH)$*.o
+$(PLATT_OBJECTPATH)%.o $(PLATT_OBJECTPATH)%.d : %.cpp
+	echo compile 
+	$(call make-dir,$(OBJECTPATH))
+	$(CXX) $(CXXFLAGS) $(CXXINCLUDE) -c $< $(CXXOBJECT_SWITCH)$(OBJECTPATH)$*.o
 
 # linkage
 $(EXEPATH)% : $(OBJECTPATH)%.o 
-	mkdir -p $(EXEPATH)                    ;\
+	$(call make-dir,$(EXEPATH))
 	$(LINKER) $< $(LIBRARYS) $(LINKFLAGS) $(LINKADDOUTPUT)$@ ;\
 
 $(EXEPATH)%.dll : $(OBJECTPATH)%.o
-	mkdir -p $(EXEPATH)			;\
+	$(call make-dir,$(EXEPATH))
 	$(LINKER) -shared $< $(SOURCEPATH)$(*F).def \
 	$(LIBRARYS) $(LINKFLAGS) -o $@ -Wl,--out-implib -Wl,$(LIBPATH)$(*F).dll.a ;\
 
 # library
-# A library object
-$(LIBPATH)$(library)(%.o) : %.o
-	mkdir -p $(LIBPATH)
-	$(LIBRARY)$@.$(LIBRARY_EXT) $<
 
-# a whole library
-%.$(LIBRARY_EXT) : $(lib_objects)
-	mkdir -p $(LIBPATH)
-	$(LIBRARY) /OUT:"$@" $?
+LIBRARY_NAME = 
 
-.PHONY: build
-build : build_lib build_exe
-
-.PHONY: build_lib
-ifeq ($(TOOL_SET), msvc)
-build_lib : $(subst /,\,$(LIBPATH))$(library).$(LIBRARY_EXT)
-else
-build_lib : $(lib_objects:%.o=$(LIBPATH)$(library).$(LIBRARY_EXT)(%.o))
+ifneq ($(library),)
+	LIBRARY_NAME = $(call platt-file,$(LIBPATH)$(library)$(LIBRARY_EXT))
 endif
 
-.PHONY: build_exe
-build_exe : $(objects:%=$(OBJECTPATH)%) $(executables:%=$(EXEPATH)%) 	
+PLATT_OBJECTPATH = $(call platt-file,$(OBJECTPATH))
 
-.PHONY: clean
+# A library object
+$(LIBRARY_NAME)(%.o) : $(PLATT_OBJECTPATH)%.o
+	$(call make-dir,$(LIBPATH))
+	$(LIBRARIAN)$@ $<
+
+# a whole library
+$(LIBRARY_NAME) : $(lib_objects:%=$(LIBRARY_NAME)(%))
+
+# Targets
+.PHONY: build build_lib build_exe clean text all
+
+build : build_lib build_exe
+
+build_lib : $(LIBRARY_NAME)
+
+build_exe : $(objects:%=$(OBJECTPATH)%) $(executables:%=$(EXEPATH)%) 
+
 clean : 
 	$(CLEAN) *.map *.o *.d *.log *.stackdump *.obj *.lis
 
-.PHONY: test
 test : 
 
-.PHONY: all
 all : clean build
 
 #dependencies
 ifneq ($(MAKECMDGOALS),clean)
   ifneq ($(lib_objects),)
-    include $(lib_objects:%.o=./src/%.d)
+    include $(lib_objects:%.o=$(PLATT_OBJECTPATH)%.d)
   endif
   ifneq ($(objects),)
-    include $(objects:%.o=./src/%.d)
+    include $(objects:%.o=$(PLATT_OBJECTPATH)%.d)
   endif
 endif
 

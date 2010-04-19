@@ -15,6 +15,9 @@
 <includePath path="/mingw/lib/gcc/mingw32/3.4.5/../../../../include"/>
 <includePath path="/mingw/include"/>
 <includePath path="/mingw/lib/gcc/mingw32/3.4.5/include"/>
+<includePath path="C:/cwork/sioux2/source/tools"/>
+<includePath path="C:/cwork/sioux2/source/source" removed="true"/>
+<includePath path="C:/boost/include/boost-1_33_1"/>
 <definedSymbol symbol="__cplusplus=1"/>
 <definedSymbol symbol="__STDC_HOSTED__=1"/>
 <definedSymbol symbol="__GNUC__=3"/>
@@ -104,6 +107,8 @@
 <definedSymbol symbol="__WINNT=1"/>
 <definedSymbol symbol="__WINNT__=1"/>
 <definedSymbol symbol="WINNT=1"/>
+<definedSymbol symbol="__OPTIMIZE__=1"/>
+<definedSymbol symbol="_MT=1"/>
 </collector>
 </instance>
 <instance id="cdt.managedbuild.toolchain.gnu.mingw.base.1431546110;cdt.managedbuild.toolchain.gnu.mingw.base.1431546110.1535719626;cdt.managedbuild.tool.gnu.c.compiler.mingw.base.1469842785;cdt.managedbuild.tool.gnu.c.compiler.input.777772736">
@@ -113,6 +118,9 @@
 <includePath path="/mingw/lib/gcc/mingw32/3.4.5/../../../../include"/>
 <includePath path="/mingw/include"/>
 <includePath path="/mingw/lib/gcc/mingw32/3.4.5/include"/>
+<includePath path="C:/cwork/sioux2/source/tools"/>
+<includePath path="C:/cwork/sioux2/source/source" removed="true"/>
+<includePath path="C:/boost/include/boost-1_33_1"/>
 <definedSymbol symbol="__STDC_HOSTED__=1"/>
 <definedSymbol symbol="__GNUC__=3"/>
 <definedSymbol symbol="__GNUC_MINOR__=4"/>
@@ -196,6 +204,9 @@
 <definedSymbol symbol="__WINNT=1"/>
 <definedSymbol symbol="__WINNT__=1"/>
 <definedSymbol symbol="WINNT=1"/>
+<definedSymbol symbol="__EXCEPTIONS=1"/>
+<definedSymbol symbol="__OPTIMIZE__=1"/>
+<definedSymbol symbol="_MT=1"/>
 </collector>
 </instance>
 </scannerInfo>
