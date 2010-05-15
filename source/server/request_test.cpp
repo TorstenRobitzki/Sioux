@@ -100,7 +100,7 @@ TEST(parse_broken_methods)
     const server::request_header connect = feed_to_request("CONNECTGET / HTTP/1.1\r\n\r\n");
     CHECK_EQUAL(server::request_header::syntax_error, connect.state());
 }
-
+ 
 TEST(simple_request)
 {
     server::request_header  request;

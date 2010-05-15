@@ -8,6 +8,10 @@
 #include <boost/noncopyable.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/asio/buffers_iterator.hpp>
+#include <boost/system/error_code.hpp>
+#include <boost/asio/buffers_iterator.hpp>
+#include <vector>
+#include <deque>
 
 #ifdef min
 #   undef min
@@ -51,6 +55,8 @@ public:
      * test specific. To be called in a loop until process() returns false
      */
     bool process();
+
+    std::string output() const;
 private:
     class read_handler_keeper_base
     {
@@ -90,6 +96,31 @@ private:
         ReadHandler             handler_;
     };
 
+    class store_writes_base
+    {
+    public:
+        virtual void handler() = 0;
+        virtual ~store_writes_base() {}
+    };
+
+    template <class WriteHandler>
+    class store_writes : public store_writes_base
+    {
+    public:
+        explicit store_writes(WriteHandler h, std::size_t bytes_transferred) 
+            : handler_(h)
+            , bytes_(bytes_transferred)
+        {}
+    private:
+        virtual void handler()
+        {
+            handler_(make_error_code(boost::system::errc::success), bytes_);
+        }
+
+        const WriteHandler  handler_;
+        const std::size_t   bytes_;
+    };
+
     class impl
     {
     public:
@@ -102,8 +133,16 @@ private:
 		    const MutableBufferSequence & buffers,
 		    ReadHandler handler);
 
+        template<
+            typename ConstBufferSequence,
+            typename WriteHandler>
+        void async_write_some(
+            const ConstBufferSequence & buffers,
+            WriteHandler handler);
+
         bool process();
 
+        std::string output() const;
     private:
 	    Iterator			                        current_;
 	    const Iterator		                        begin_;
@@ -113,6 +152,8 @@ private:
         unsigned                                    times_;
 
         std::vector<char>                           output_;
+        std::deque<boost::shared_ptr<store_writes_base> > writes_;
+
     };
 
     boost::shared_ptr<impl>  pimpl_;
@@ -141,9 +182,24 @@ void socket<Iterator>::async_read_some(
 }
 
 template <class Iterator>
+template<typename ConstBufferSequence, typename WriteHandler>
+void socket<Iterator>::async_write_some(
+        const ConstBufferSequence & buffers,
+        WriteHandler handler)
+{
+    pimpl_->async_write_some(buffers, handler);
+}
+
+template <class Iterator>
 bool socket<Iterator>::process()
 {
     return pimpl_->process();
+}
+
+template <class Iterator>
+std::string socket<Iterator>::output() const
+{
+    return pimpl_->output();
 }
 
 template <class Iterator>
@@ -154,6 +210,8 @@ socket<Iterator>::impl::impl(Iterator begin, Iterator end, std::size_t bite_size
  , bite_size_(bite_size)
  , handler_()
  , times_(times)
+ , output_()
+ , writes_()
 {
     assert(times);
 }
@@ -168,10 +226,29 @@ void socket<Iterator>::impl::async_read_some(
 }
 
 template <class Iterator>
+template<typename ConstBufferSequence, typename WriteHandler>
+void socket<Iterator>::impl::async_write_some(
+        const ConstBufferSequence & buffers,
+        WriteHandler handler)
+{
+    output_.insert(output_.end(), boost::asio::buffers_begin(buffers), boost::asio::buffers_end(buffers));
+    writes_.push_back(boost::shared_ptr<store_writes_base>(new store_writes<WriteHandler>(handler, boost::asio::buffer_size(buffers))));
+}
+
+
+template <class Iterator>
 bool socket<Iterator>::impl::process()
 {
     if ( handler_.get() == 0 )
-        return false;
+    {
+        if ( writes_.empty() )
+            return false;
+
+        writes_.front()->handler();
+        writes_.pop_front();
+
+        return true;
+    }
 
     if ( current_ == end_ && --times_ )
         current_ = begin_;
@@ -193,6 +270,13 @@ bool socket<Iterator>::impl::process()
 
     return true;
 }
+
+template <class Iterator>
+std::string socket<Iterator>::impl::output() const
+{
+    return std::string(output_.begin(), output_.end());
+}
+
 
 
 } // namespace test

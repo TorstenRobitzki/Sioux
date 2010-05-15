@@ -11,14 +11,14 @@ TEST(read_simple_header)
     using namespace server::test;
 
     traits<>::connection_type   socket(begin(simple_get_11), end(simple_get_11), 5);
-    traits<>                    traits;
+    traits<>                    trait;
 
-    server::create_connection(socket, traits);
+    server::create_connection(socket, trait);
 
     for (; socket.process(); )
         ;
 
-    CHECK_EQUAL(1, traits.requests().size());
+    CHECK_EQUAL(1, trait.requests().size());
 }
 
 TEST(read_multiple_header)

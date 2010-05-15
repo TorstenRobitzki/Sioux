@@ -8,6 +8,9 @@
 #include "server/response.h"
 #include "tools/substring.h"
 #include <boost/shared_ptr.hpp>
+#include <boost/enable_shared_from_this.hpp>
+#include <boost/asio/buffer.hpp>
+#include <boost/system/error_code.hpp>
 #include <string>
 
 namespace server{
@@ -16,22 +19,55 @@ namespace server{
 
 namespace test {
 
-    class response : public async_response
+
+    template <class Connection>
+    class response : public async_response, public boost::enable_shared_from_this<response<Connection> >
     {
     public:
-        response(const boost::shared_ptr<const request_header>& header, const boost::shared_ptr<response_chain_link>& next, const std::string& answer);
+        response(const boost::shared_ptr<Connection>& connection, const boost::shared_ptr<const server::request_header>& /*header*/, const std::string& answer)
+            : connection_(connection)
+            , answer_(answer)
+        {
+        }
 
-        void simulate_incomming_data();
+        void start()
+        {
+            self_ = shared_from_this();
+            connection_->response_started(self_);
+        }
+
+        void simulate_incomming_data()
+        {
+            connection_->async_write_some(
+                boost::asio::buffer(answer_), 
+                boost::bind(&response::handler, 
+                        shared_from_this(),
+                        boost::asio::placeholders::error,
+                        boost::asio::placeholders::bytes_transferred),
+                *this);
+
+            self_.reset();
+        }
+
     private:
-        virtual state start_io();
+        void handler(const boost::system::error_code& /*error*/, std::size_t /*bytes_transferred*/)
+        {
+            connection_->response_completed(*this); 
+        }
 
-        virtual state end_send_data(const boost::system::error_code& error, std::size_t bytes_transferred);
-
-        const std::vector<char>                 answer_;
-        boost::shared_ptr<response_chain_link>  this_;
+        boost::shared_ptr<async_response>   self_;
+        const boost::shared_ptr<Connection> connection_;
+        const std::string                   answer_;
     };
 
-    boost::weak_ptr<response> create_response(const boost::shared_ptr<const request_header>& header, const boost::weak_ptr<response_chain_link>& next, const std::string& answer);
+    template <class Connection>
+    boost::weak_ptr<async_response> create_response(const boost::shared_ptr<Connection>& connection, const boost::shared_ptr<const server::request_header>&  header, const std::string& answer)
+    {
+        const boost::shared_ptr<response<Connection> > respo(new response<Connection>(connection, header, answer));
+        respo->start();
+
+        return boost::weak_ptr<async_response>(respo);
+    }
 
 } // namespace test
 

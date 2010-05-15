@@ -15,7 +15,7 @@ namespace server {
 
 namespace test {
 
-template <class Connection = server::test::socket<const char*>, class Response = server::test::response>
+template <class Network = server::test::socket<const char*> >
 class traits
 {
 public:
@@ -23,15 +23,19 @@ public:
     {
     }
 
-	typedef Connection connection_type;
+	typedef Network connection_type;
 
-    boost::shared_ptr<async_response> create_response(
-        const boost::shared_ptr<const server::request_header>&  header, 
-        const boost::shared_ptr<response_chain_link>&           next)
+    template <class Connection>
+    boost::weak_ptr<async_response> create_response(
+        const boost::shared_ptr<Connection>&                    connection,
+        const boost::shared_ptr<const server::request_header>&  header)
     {
         pimpl_->add_request(header);
 
-        return boost::shared_ptr<async_response>(new Response(header, next, tools::substring()));
+        const boost::shared_ptr<response<Connection> > new_response(new response<Connection>(connection, header, "Hello"));
+        new_response->start();            
+
+        return boost::weak_ptr<async_response>(new_response);
     }
 
     std::vector<boost::shared_ptr<const server::request_header> > requests() const

@@ -162,6 +162,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\mem_tools.h"
+				>
+			</File>
+			<File
 				RelativePath=".\split.h"
 				>
 			</File>

@@ -7,44 +7,30 @@
 
 #include "server/request.h"
 #include "server/response.h"
+#include "tools/mem_tools.h"
 #include <boost/asio/error.hpp>
 #include <boost/asio/placeholders.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/bind.hpp>
 #include <cassert>
+#include <deque>
+#include <map>
+#include <algorithm>
 
 /** @namespace server */
 namespace server 
 {
-    /**
-     * @brief base class for connection, for the not template bassed parts
-     */
-    class connection_base : public response_chain_link
-    {
-    protected:
-        connection_base() {}
-    private:
-        // response_chain_link implementation
-        virtual void issue_async_write(const boost::asio::const_buffer&, const boost::shared_ptr<response_chain_link>& me)
-        {
-        }
-
-        virtual void handle_async_write(const boost::system::error_code& error, std::size_t bytes_transferred, const boost::shared_ptr<response_chain_link>& me)
-        {
-        }
-
-        boost::weak_ptr<async_response>     last_request_;
-    };
+    class async_response;
 
 	/**
 	 * @brief representation of physical connection from a client to this server
 	 *
 	 * It's the responsibility of the connection object to parse incomming requests 
-	 * and order outgoing responses.
+	 * and to coordinate outgoing responses.
 	 */
-	template <class Trait, class Connection>
-	class connection : public connection_base 
+    template <class Trait, class Connection = Trait::connection_type>
+    class connection : public boost::enable_shared_from_this<connection<Trait, Connection> >
 	{
 	public:
         /**
@@ -52,11 +38,59 @@ namespace server
          */
 		connection(const Connection& con, const Trait& trait);
 
+        ~connection();
+
         /**
          * @brief starts the first asynchron read on the connection passed to the c'tor
          */
         void start();
+
+        /**
+         * @brief interface for writing to the connection
+         *
+         * @pre a async_response implementation have to call response_started() once before calling async_write_some()
+         * @post a async_response implementation have to call response_completed() once after calling async_write_some() the last time
+         */
+        template<
+            typename ConstBufferSequence,
+            typename WriteHandler>
+        void async_write_some(
+            const ConstBufferSequence&  buffers,
+            WriteHandler                handler,
+            async_response&             sender);
+
+        /**
+         * @brief called by async_response d'tor to signal, that no more writes will be done
+         */
+        void response_completed(async_response& sender);
+
+        /**
+         * @brief to be called from a new response object, before any call to async_write_some()
+         */
+        void response_started(const boost::weak_ptr<async_response>& response);
+
 	private:
+        class blocked_write_base 
+        {
+        public:
+            virtual ~blocked_write_base() {}
+
+            virtual void operator()(Connection&) = 0;
+        };
+
+        template <class ConstBufferSequence, class WriteHandler>
+        class blocked_write : public blocked_write_base
+        {
+        public:
+            blocked_write(const ConstBufferSequence&  buffers,
+                          WriteHandler                handler);
+        private:
+            void operator()(Connection&);
+
+            const ConstBufferSequence   buffers_;
+            const WriteHandler          handler_;
+        };
+
         void issue_header_read();
 		void handle_read(const boost::system::error_code& e, std::size_t bytes_transferred);
 
@@ -66,10 +100,19 @@ namespace server
          */
 		bool handle_request_header(const boost::shared_ptr<const request_header>& new_request);
 
+        // returns true, if the given response is the one, that currently is allowed to send
+        bool is_current_response(async_response& sender) const;
+
         Connection                          connection_;
         Trait                               trait_;
 
         boost::shared_ptr<request_header>   current_request_;
+
+        typedef std::deque<boost::weak_ptr<async_response> > response_list;
+        response_list                       responses_;
+
+        typedef std::map<async_response*, std::vector<blocked_write_base*> >  blocked_write_list;
+        blocked_write_list                  blocked_writes_;
  	};
 
     /**
@@ -87,12 +130,85 @@ namespace server
     {
     }
 
+    template <class Trait, class Connection>
+	connection<Trait, Connection>::~connection()
+    {
+        assert(blocked_writes_.empty());
+    }
+
 	template <class Trait, class Connection>
     void connection<Trait, Connection>::start()
     {
         current_request_.reset(new request_header);
         issue_header_read();
     }
+
+	template <class Trait, class Connection>
+    template<typename ConstBufferSequence, typename WriteHandler>
+    void connection<Trait, Connection>::async_write_some(
+        const ConstBufferSequence&  buffers,
+        WriteHandler                handler,
+        async_response&             sender)
+    {
+        if ( is_current_response(sender) )
+        {
+            connection_.async_write_some(buffers, handler);
+        }
+        else
+        {
+            // hurry resposes that are blocking the sender
+            for ( response_list::const_iterator r = responses_.begin(); ; ++r )
+            {
+                if ( !r->expired() )
+                {
+                    boost::shared_ptr<async_response> repo(*r);
+
+                    if ( repo.get() == &sender )
+                        break;
+
+                    repo->hurry();
+                }
+            }
+
+            // store send request until the current sender is ready
+            blocked_write_list::mapped_type& writes = blocked_writes_[&sender];
+            tools::save_push_back(new blocked_write<ConstBufferSequence, WriteHandler>(buffers, handler), writes);
+        }
+    }
+
+	template <class Trait, class Connection>
+    void connection<Trait, Connection>::response_completed(async_response& sender)
+    {
+        if ( is_current_response(sender) )
+        {
+            blocked_writes_.erase(&sender);
+
+            blocked_write_list::iterator pending_writes = blocked_writes_.end();
+            for ( response_list::const_iterator i = responses_.begin(); i != responses_.end() && pending_writes == blocked_writes_.end(); ++i )
+            {
+                if ( !i->expired() )
+                {
+                    boost::shared_ptr<async_response>   resp(*i);
+                    pending_writes = blocked_writes_.find(&*resp);
+                }
+            }
+
+            if ( pending_writes != blocked_writes_.end() )
+            {
+                tools::ptr_container_guard<blocked_write_list::mapped_type> guard(pending_writes->second);
+
+                std::for_each(pending_writes->second.begin(), pending_writes->second.end(),
+                    boost::bind(&blocked_write_base::operator(), _1, boost::ref(connection_)));
+            }
+        }
+    }
+
+	template <class Trait, class Connection>
+    void connection<Trait, Connection>::response_started(const boost::weak_ptr<async_response>& response)
+    {
+        responses_.push_back(response);
+    }
+
 
 	template <class Trait, class Connection>
     void connection<Trait, Connection>::issue_header_read()
@@ -130,9 +246,55 @@ namespace server
 	template <class Trait, class Connection>
     bool connection<Trait, Connection>::handle_request_header(const boost::shared_ptr<const request_header>& new_request)
     {
-        trait_.create_response(new_request, shared_from_this());
+        trait_.create_response(shared_from_this(), new_request);
+
+        for ( response_list::iterator response = responses_.begin(); response != responses_.end(); )
+        {
+            if ( response->expired() )
+            {
+                response = responses_.erase(response);
+            }
+            else 
+            {
+                ++response;
+            }
+        }
 
         return true;
+    }
+
+	template <class Trait, class Connection>
+    bool connection<Trait, Connection>::is_current_response(async_response& sender) const
+    {
+        for ( response_list::const_iterator response = responses_.begin(); response != responses_.end(); ++response )
+        {
+            if ( !response->expired() )
+            {
+                return &sender == &*boost::shared_ptr<async_response>(*response) ;
+            }
+        }
+
+        assert(!"not such response");
+
+        return true;
+    }
+
+	template <class Trait, class Connection>
+    template <class ConstBufferSequence, class WriteHandler>
+    connection<Trait, Connection>::blocked_write<ConstBufferSequence, WriteHandler>::blocked_write(
+        const ConstBufferSequence&  buffers,
+        WriteHandler                handler)
+        : buffers_(buffers)
+        , handler_(handler)
+    {
+    }
+
+	template <class Trait, class Connection>
+    template <class ConstBufferSequence, class WriteHandler>
+    void connection<Trait, Connection>::blocked_write<ConstBufferSequence, WriteHandler>::operator()(
+        Connection& con)
+    {
+        con.async_write_some(buffers_, handler_);
     }
 
 	template <class Trait, class Connection>
