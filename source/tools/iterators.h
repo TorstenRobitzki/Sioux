@@ -9,7 +9,6 @@
 
 /// @file tools/iterators.h
 /// iterators and iterator related functions
-/// @ingroup tools
 
 /// @namespace tools
 /// tools and helpers
@@ -19,8 +18,6 @@ namespace tools {
 ///
 /// @fn T * begin(T(&t)[S]) 
 /// @brief returns a pointer to the first element of an array
-/// @ingroup tools
-
 template <class T, unsigned S>
 T* begin(T(&t)[S])
 {
@@ -69,13 +66,13 @@ namespace detail {
 template <class Iter>
 struct get_iterator_value_type
 {
-    // smart pointers
+    /// @brieff smart pointers
     template <class U>
     struct dereference {
         typedef typename U::element_type element_type;
     };
     
-    // normal pointers
+    /// @brief normal pointers
     template <class U>
     struct dereference<U*>
     {
@@ -89,7 +86,6 @@ struct get_iterator_value_type
 /////////////////////////////////////////////////
 ///
 /// @class ptr_iterator_adapter iterators.h "tools/iterators.h"
-/// @ingroup tools
 /// 
 /// @brief An adapter for interators to pointer like types
 ///

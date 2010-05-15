@@ -6,12 +6,21 @@
 #define SOURCE_SERVER_REQUEST_H
 
 #include "http/http.h"
+#include "tools/substring.h"
 #include <boost/asio/buffer.hpp>
+#include <iosfwd>
 
 namespace server
 {
+
+    struct header
+    {
+        tools::substring    name;
+        tools::substring    value;
+    };
+
     /**
-     * @brief access and parsing of request headers
+     * @brief access and parsing of http request headers
      */
 	class request_header
 	{
@@ -26,8 +35,11 @@ namespace server
          *
          * @attention after constructing a request header this way, it might be possible
          * that this header is too already complete.
+         *
+         * @param remaining returns the unparsed bytes. If not 0, parse() can be called with this
+         * information.
          */
-        request_header(const request_header& old_header, copy_trailing_buffer_t);
+        request_header(const request_header& old_header, std::size_t& remaining, copy_trailing_buffer_t);
 
         /**
          * @brief returns the write pointer and remaining buffer size 
@@ -40,26 +52,73 @@ namespace server
          * @brief consumes size byte from the read_buffer()
          *
          * The function returns true, if parsing the request header is done, ether by
-         * success, or by any error. The passes size is set to the number of still unconsumed
-         * bytes.
+         * success, or by any error.
+         *
+         * @pre state() have to return parsing
          */
-        bool parse(std::size_t& size);
+        bool parse(std::size_t size);
 
         enum error_code
         {
+            /** request is parsed and valid */
             ok,
+            /** request couldn't be parsed, because an internal buffer is full */
             buffer_full,
+            /** the request contains syntactical errors */
             syntax_error,
+            /** parsing isn't finished jet */
             parsing
         };
 
         error_code state() const;
+
+        /**
+         * @brief returns true, when there is no reason to read further requests from the connection.
+         */
+        bool continue_reading() const;
+
+        /*
+         * getters for the header informations.
+         * @pre a prior call to parse() returned true
+         * @pre state() returns ok
+         */
+        unsigned                major_version() const;
+        unsigned                minor_version() const;
+
+        http::http_method_code  method() const;
+
+        tools::substring        uri() const;
     private:
-        char            buffer_[1024];
-        std::size_t     write_ptr_;
-        std::size_t     parse_ptr_;
-        error_code      error_;
+        void crlf_found(const char* start, const char* end);
+        void request_line_found(const char* start, const char* end);
+        void header_found(const char* start, const char* end);
+
+        void end_of_request();
+
+        void parse_error();
+
+        char                    buffer_[1024];
+        std::size_t             write_ptr_;
+        std::size_t             parse_ptr_; // already consumed including trailing CRLF
+        std::size_t             read_ptr_;  // read, but no CRLF found so far
+        error_code              error_;
+
+        enum {
+            expect_request_line,
+            expect_header,
+        } parser_state_;
+
+        unsigned                major_version_;
+        unsigned                minor_version_;
+
+        http::http_method_code  method_;
+
+        tools::substring        uri_;
+
+        std::vector<header>     headers_;
 	};
+
+    std::ostream& operator<<(std::ostream& out, request_header::error_code e);
 
 } // namespace server
 

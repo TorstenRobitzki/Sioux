@@ -6,6 +6,7 @@
 #define SOURCE_SIOUX_CONNECTION_H
 
 #include "server/request.h"
+#include "server/response.h"
 #include <boost/asio/error.hpp>
 #include <boost/asio/placeholders.hpp>
 #include <boost/shared_ptr.hpp>
@@ -13,11 +14,29 @@
 #include <boost/bind.hpp>
 #include <cassert>
 
-// delete me if you see me
-#include <iostream>
-
+/** @namespace server */
 namespace server 
 {
+    /**
+     * @brief base class for connection, for the not template bassed parts
+     */
+    class connection_base : public response_chain_link
+    {
+    protected:
+        connection_base() {}
+    private:
+        // response_chain_link implementation
+        virtual void issue_async_write(const boost::asio::const_buffer&, const boost::shared_ptr<response_chain_link>& me)
+        {
+        }
+
+        virtual void handle_async_write(const boost::system::error_code& error, std::size_t bytes_transferred, const boost::shared_ptr<response_chain_link>& me)
+        {
+        }
+
+        boost::weak_ptr<async_response>     last_request_;
+    };
+
 	/**
 	 * @brief representation of physical connection from a client to this server
 	 *
@@ -25,9 +44,12 @@ namespace server
 	 * and order outgoing responses.
 	 */
 	template <class Trait, class Connection>
-	class connection : public boost::enable_shared_from_this<connection<Trait, Connection> >
+	class connection : public connection_base 
 	{
 	public:
+        /**
+         * @brief contructs a connection object by passing an IO object and trait object.
+         */
 		connection(const Connection& con, const Trait& trait);
 
         /**
@@ -38,7 +60,11 @@ namespace server
         void issue_header_read();
 		void handle_read(const boost::system::error_code& e, std::size_t bytes_transferred);
 
-		void handle_request_header(const boost::shared_ptr<const request_header>& new_request);
+        /*
+         * handles a newly read request_header and returns true, if further request_header should be 
+         * read
+         */
+		bool handle_request_header(const boost::shared_ptr<const request_header>& new_request);
 
         Connection                          connection_;
         Trait                               trait_;
@@ -76,7 +102,8 @@ namespace server
 
         connection_.async_read_some(
             boost::asio::buffer(buffer.first, buffer.second),
-            boost::bind(&connection::handle_read, shared_from_this(),
+            boost::bind(&connection::handle_read, 
+                        boost::static_pointer_cast<connection<Trait, Connection> >(shared_from_this()),
                         boost::asio::placeholders::error,
                         boost::asio::placeholders::bytes_transferred)
         );
@@ -85,22 +112,27 @@ namespace server
 	template <class Trait, class Connection>
 	void connection<Trait, Connection>::handle_read(const boost::system::error_code& error, std::size_t bytes_transferred)
     {
-        if (!error)
+        if (!error && bytes_transferred != 0)
         {
-            while ( bytes_transferred != 0 && current_request_->parse(bytes_transferred) )
+            while ( bytes_transferred != 0 
+                && current_request_->parse(bytes_transferred) 
+                && handle_request_header(current_request_)
+                && current_request_->continue_reading() )
             {
-                handle_request_header(current_request_);
-                current_request_.reset(new request_header(*current_request_, request_header::copy_trailing_buffer));
+                current_request_.reset(new request_header(*current_request_, bytes_transferred, request_header::copy_trailing_buffer));
             }
 
-            issue_header_read();
+            if ( current_request_->continue_reading() )
+                issue_header_read();
         }
     }
 
 	template <class Trait, class Connection>
-    void connection<Trait, Connection>::handle_request_header(const boost::shared_ptr<const request_header>& new_request)
+    bool connection<Trait, Connection>::handle_request_header(const boost::shared_ptr<const request_header>& new_request)
     {
-        trait_.create_response(new_request);
+        trait_.create_response(new_request, shared_from_this());
+
+        return true;
     }
 
 	template <class Trait, class Connection>

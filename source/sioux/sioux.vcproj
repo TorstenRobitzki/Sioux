@@ -45,7 +45,6 @@
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
-				UsePrecompiledHeader="2"
 				WarningLevel="3"
 				DebugInformationFormat="4"
 			/>
@@ -171,6 +170,18 @@
 			Filter="cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx"
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
+			<File
+				RelativePath="..\http\http.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\http\parser.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\http\request.cpp"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"

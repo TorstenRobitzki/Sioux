@@ -4,34 +4,78 @@
 #include "unittest++/unittest++.h"
 #include "server/connection.h"
 #include "server/test_traits.h"
-#include "tools/iterators.h"
-
-// delete me if you see me
-#include <iostream>
-
-namespace
-{
-	const char request_text[] = 
-		"GET / HTTP/1.1\r\n"
-		"Host: google.de\r\n"
-		"Connection: close\r\n"
-		"User-Agent: Web-sniffer/1.0.31 (+http://web-sniffer.net/)\r\n"
-		"Accept-Encoding: gzip\r\n"
-		"Accept-Charset: ISO-8859-1,UTF-8;q=0.7,*;q=0.7\r\n"
-		"Cache-Control: no\r\n"
-		"Accept-Language: de,en;q=0.7,en-us;q=0.3\r\n"
-		"Referer: http://web-sniffer.net/\r\n"
-		"\r\n";
-
-}
+#include "server/test_request_texts.h"
 
 TEST(read_simple_header)
 {
-    server::test::traits<>::connection_type	socket(tools::begin(request_text), tools::end(request_text), 5);
+    using namespace server::test;
 
-    server::create_connection(socket, server::test::traits<>());
+    traits<>::connection_type   socket(begin(simple_get_11), end(simple_get_11), 5);
+    traits<>                    traits;
+
+    server::create_connection(socket, traits);
 
     for (; socket.process(); )
         ;
 
+    CHECK_EQUAL(1, traits.requests().size());
 }
+
+TEST(read_multiple_header)
+{
+    using namespace server::test;
+
+    traits<>::connection_type   socket(begin(simple_get_11), end(simple_get_11), 400, 2000);
+    traits<>                    traits;
+
+    server::create_connection(socket, traits);
+
+    for (; socket.process(); )
+        ;
+
+    CHECK_EQUAL(2000, traits.requests().size());
+}
+
+TEST(read_big_buffer)
+{
+    using namespace server::test;
+
+    std::vector<char>   input;
+    for ( unsigned i = 0; i != 1000; ++i )
+        input.insert(input.end(), begin(simple_get_11), end(simple_get_11));
+
+    typedef traits<server::test::socket<std::vector<char>::const_iterator> > socket_t;
+    socket_t::connection_type   socket(input.begin(), input.end());
+    traits<>                    traits;
+
+    server::create_connection(socket, traits);
+
+    for (; socket.process(); )
+        ;
+
+    CHECK_EQUAL(1000, traits.requests().size());
+}
+
+TEST(read_buffer_overflow)
+{
+    using namespace server::test;
+
+    const char header[] = "Accept-Encoding: gzip\r\n";
+
+    std::vector<char>   input(begin(request_without_end_line), end(request_without_end_line));
+    for ( unsigned i = 0; i != 10000; ++i )
+        input.insert(input.end(), begin(header), end(header));
+
+    typedef traits<server::test::socket<std::vector<char>::const_iterator> > socket_t;
+    socket_t::connection_type   socket(input.begin(), input.end());
+    traits<>                    traits;
+
+    server::create_connection(socket, traits);
+
+    for (; socket.process(); )
+        ;
+
+    CHECK_EQUAL(1, traits.requests().size());
+    CHECK_EQUAL(server::request_header::buffer_full, traits.requests().front()->state());
+}
+

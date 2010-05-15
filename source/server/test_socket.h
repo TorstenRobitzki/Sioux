@@ -23,7 +23,12 @@ template <class Iterator>
 class socket
 {
 public:
-    socket(Iterator begin, Iterator end, std::size_t bite_size);
+    /**
+     * @param bite_size the size of the simulated network reads. 0 == maximum 
+     */
+    socket(Iterator begin, Iterator end, std::size_t bite_size, unsigned times = 1);
+
+    socket(Iterator begin, Iterator end);
 
     /**
      * socket interface 
@@ -35,12 +40,19 @@ public:
 		const MutableBufferSequence & buffers,
 		ReadHandler handler);
 
+    template<
+        typename ConstBufferSequence,
+        typename WriteHandler>
+    void async_write_some(
+        const ConstBufferSequence & buffers,
+        WriteHandler handler);
+
     /**
      * test specific. To be called in a loop until process() returns false
      */
     bool process();
 private:
-    class handler_keeper_base
+    class read_handler_keeper_base
     {
     public:
         /*
@@ -48,11 +60,11 @@ private:
          */
         virtual std::size_t handle(const boost::system::error_code& error, Iterator begin, Iterator end) = 0;
 
-        virtual ~handler_keeper_base() {}
+        virtual ~read_handler_keeper_base() {}
     };
 
     template <class MutableBufferSequence, class ReadHandler>
-    class handler_keeper : public handler_keeper_base
+    class handler_keeper : public read_handler_keeper_base
     {
     public:
         handler_keeper(const MutableBufferSequence& buffer, ReadHandler handler)
@@ -64,7 +76,7 @@ private:
     private:
         virtual std::size_t handle(const boost::system::error_code& error, Iterator begin, Iterator end )
         {
-            std::size_t size = std::min<std::size_t>(std::distance(begin, end), buffer_size(buffer_));
+            const std::size_t size = std::min<std::size_t>(std::distance(begin, end), buffer_size(buffer_));
             Iterator e = begin;
             std::advance(e, size);
             std::copy(begin, e, boost::asio::buffers_begin(buffer_));
@@ -81,7 +93,7 @@ private:
     class impl
     {
     public:
-        impl(Iterator begin, Iterator end, std::size_t bite_size);
+        impl(Iterator begin, Iterator end, std::size_t bite_size, unsigned times);
 
 	    template<
 		    typename MutableBufferSequence,
@@ -91,11 +103,16 @@ private:
 		    ReadHandler handler);
 
         bool process();
+
     private:
-	    Iterator			                    current_;
-	    const Iterator		                    end_;
-        const std::size_t                       bite_size_;
-        boost::shared_ptr<handler_keeper_base>  handler_;
+	    Iterator			                        current_;
+	    const Iterator		                        begin_;
+	    const Iterator		                        end_;
+        const std::size_t                           bite_size_;
+        boost::shared_ptr<read_handler_keeper_base> handler_;
+        unsigned                                    times_;
+
+        std::vector<char>                           output_;
     };
 
     boost::shared_ptr<impl>  pimpl_;
@@ -103,8 +120,14 @@ private:
 
 // implementation
 template <class Iterator>
-socket<Iterator>::socket(Iterator begin, Iterator end, std::size_t bite_size)
- : pimpl_(new impl(begin, end, bite_size))
+socket<Iterator>::socket(Iterator begin, Iterator end, std::size_t bite_size, unsigned times)
+ : pimpl_(new impl(begin, end, bite_size, times))
+{
+}
+
+template <class Iterator>
+socket<Iterator>::socket(Iterator begin, Iterator end)
+ : pimpl_(new impl(begin, end, 0, 1))
 {
 }
 
@@ -124,12 +147,15 @@ bool socket<Iterator>::process()
 }
 
 template <class Iterator>
-socket<Iterator>::impl::impl(Iterator begin, Iterator end, std::size_t bite_size)
+socket<Iterator>::impl::impl(Iterator begin, Iterator end, std::size_t bite_size, unsigned times)
  : current_(begin)
+ , begin_(begin)
  , end_(end)
  , bite_size_(bite_size)
  , handler_()
+ , times_(times)
 {
+    assert(times);
 }
 
 template <class Iterator>
@@ -147,12 +173,22 @@ bool socket<Iterator>::impl::process()
     if ( handler_.get() == 0 )
         return false;
 
+    if ( current_ == end_ && --times_ )
+        current_ = begin_;
+
     typedef std::iterator_traits<Iterator>::difference_type size_t;
-    size_t size = std::min(static_cast<size_t>(bite_size_), std::distance(current_, end_));
+
+    size_t size = bite_size_ != 0
+        ? std::min(static_cast<size_t>(bite_size_), std::distance(current_, end_))
+        : std::distance(current_, end_);
+
     Iterator end = current_;
     std::advance(end, size);
 
-    size = handler_->handle(make_error_code(boost::system::errc::success), current_, end);
+    boost::shared_ptr<read_handler_keeper_base>  old_handler;
+    old_handler.swap(handler_);
+
+    size = old_handler->handle(make_error_code(boost::system::errc::success), current_, end);
     std::advance(current_, size);
 
     return true;

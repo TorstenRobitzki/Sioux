@@ -123,7 +123,30 @@ void split_url(const std::string& url, std::string& scheme, std::string& authori
 // decodes all encoded characters
 std::string url_decode(const std::string&);
 
-} // namespace parser
+template <class Iter>
+bool parse_version_number(Iter begin, Iter end, unsigned& r)
+{
+    if ( begin == end ) 
+        return false;
+
+    unsigned result = 0;
+
+    for ( ; begin != end; ++begin )
+    {
+        if ( *begin < '0' || *begin > '9' )
+            return false;
+
+        if ( result > std::numeric_limits<unsigned>::max() / 10 )
+            return false;
+
+        result = 10 * result + *begin - '0';
+    }
+
+    r = result;
+    return true;
+}
+
+} // namespace http
 
 #endif // include guard
 

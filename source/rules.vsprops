@@ -8,7 +8,7 @@
 	<Tool
 		Name="VCCLCompilerTool"
 		AdditionalIncludeDirectories="D:\Work\other_libs\boost\boost_1_37_0;&quot;$(ProjectDir)&quot;;&quot;$(ProjectDir)..\&quot;"
-		PreprocessorDefinitions="_CRT_SECURE_NO_WARNINGS;BOOST_ASIO_ENABLE_CANCELIO"
+		PreprocessorDefinitions="_SCL_SECURE_NO_WARNINGS;_CRT_SECURE_NO_WARNINGS;BOOST_ASIO_ENABLE_CANCELIO"
 		DisableLanguageExtensions="false"
 		WarningLevel="3"
 	/>

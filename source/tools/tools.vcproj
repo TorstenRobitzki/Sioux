@@ -161,6 +161,14 @@
 				RelativePath=".\log.h"
 				>
 			</File>
+			<File
+				RelativePath=".\split.h"
+				>
+			</File>
+			<File
+				RelativePath=".\substring.h"
+				>
+			</File>
 		</Filter>
 	</Files>
 	<Globals>

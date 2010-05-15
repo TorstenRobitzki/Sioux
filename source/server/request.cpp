@@ -3,8 +3,13 @@
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 #include "server/request.h"
+#include "http/http.h"
+#include "tools/iterators.h"
+#include "tools/split.h"
+#include "http/parser.h"
 #include <algorithm>
 #include <cassert>
+#include <cstring>
 
 namespace server {
 
@@ -13,52 +18,232 @@ namespace server {
     request_header::request_header()
         : write_ptr_(0)
         , parse_ptr_(0)
+        , read_ptr_(0)
         , error_(parsing)
+        , parser_state_(expect_request_line)
     {
     }
 
-    request_header::request_header(const request_header& old_header, copy_trailing_buffer_t)
-        : write_ptr_(old_header.write_ptr_ - old_header.parse_ptr_)
+    request_header::request_header(const request_header& old_header, std::size_t& remaining, copy_trailing_buffer_t)
+        : write_ptr_(0)
         , parse_ptr_(0)
+        , read_ptr_(0)
         , error_(parsing)
+        , parser_state_(expect_request_line)
     {
         std::copy(&old_header.buffer_[old_header.parse_ptr_], &old_header.buffer_[old_header.write_ptr_], &buffer_[0]);
+        remaining = old_header.write_ptr_ - old_header.parse_ptr_;
+
+        // the last request_header must have signaled a buffer-full error
+        assert(remaining != sizeof buffer_);
     }
     
     std::pair<char*, std::size_t> request_header::read_buffer()
     {
-        assert(write_ptr_ < sizeof buffer_);
+        assert(write_ptr_ <= sizeof buffer_);
         return std::make_pair(&buffer_[write_ptr_], sizeof buffer_ - write_ptr_);
     }
     
-    bool request_header::parse(std::size_t& size)
+    bool request_header::parse(std::size_t size)
     {
+        assert(size);
+        assert(error_ == parsing);
         write_ptr_ += size;
-        size        = 0;
 
-        assert(write_ptr_ < sizeof buffer_);
+        assert(write_ptr_ <= sizeof buffer_);
 
-        if ( write_ptr_ == sizeof buffer_ )
+        for ( std::size_t i = read_ptr_; error_ == parsing && read_ptr_ != write_ptr_; )
         {
+            assert(read_ptr_ < write_ptr_);
+            assert(parse_ptr_ < write_ptr_);
+            assert(parse_ptr_ <= read_ptr_);
+
+            // seek for CR         
+            for ( ; i != write_ptr_-1 && buffer_[i] != '\r'; ++i )
+                ;
+
+            // no \r found, restart seeking at the currently last buffer position
+            if ( i == write_ptr_-1 )
+            {
+                read_ptr_  = i;
+
+                if ( write_ptr_ == sizeof buffer_ )
+                    error_ = buffer_full;
+
+                return error_ != parsing;
+            }
+
+            assert(i < write_ptr_-1);
+
+            if ( buffer_[i+1] == '\n' )
+            {
+                crlf_found(&buffer_[parse_ptr_], &buffer_[i]);
+
+                i += 2;
+                parse_ptr_ = read_ptr_ = i;
+            } else
+            {
+                i += 2;
+                read_ptr_ = i;
+            }
+        }
+
+        if ( write_ptr_ == sizeof buffer_ && error_ == parsing )
             error_ = buffer_full;
-            return true;
-        }
 
-        // TODO
-        if ( std::string(&buffer_[0], &buffer_[write_ptr_]).find("\r\n\r\n") != std::string::npos )
-        {
-            error_ = ok;
-            return true;
-        }
-
-        return false;
+        return error_ != parsing;
     }
     
+    void request_header::crlf_found(const char* start, const char* end)
+    {
+        if ( parser_state_ == expect_request_line )
+        {
+            // ignore empty lines at the start 
+            if ( start == end )
+                return;
+
+            request_line_found(start, end);
+        }
+        if ( parser_state_ == expect_header )
+        {
+            if ( start == end )
+            {
+               end_of_request();
+            }
+            else
+            {
+                header_found(start, end);
+            }
+        }
+    }
+
+    namespace {
+        struct header_desc
+        {
+            const http::http_method_code    code;
+            const char*                     name;
+        };
+
+        const header_desc valid_headers[] = 
+        {
+            { http::http_options, "OPTIONS" },
+            { http::http_get, "GET" },
+            { http::http_head, "HEAD" },
+            { http::http_post, "POST" },
+            { http::http_put, "PUT" }, 
+            { http::http_delete, "DELETE" },
+            { http::http_trace, "TRACE" },
+            { http::http_connect, "CONNECT" }
+        };
+    }
+
+    void request_header::request_line_found(const char* start, const char* end)
+    {
+        assert(start != end);
+
+        tools::substring    method_text;
+        tools::substring    rest;
+
+        if ( !tools::split(start, end, ' ', method_text, rest) )
+            return parse_error(); 
+
+        // simple, linear search
+        const header_desc* header_entry = tools::begin(valid_headers);
+        for ( ; header_entry != tools::end(valid_headers) && method_text != header_entry->name; ++header_entry )
+            ;
+
+        if ( header_entry == tools::end(valid_headers) )
+            return parse_error(); 
+
+        method_ = header_entry->code;
+
+        tools::substring    version;
+        tools::substring    http;
+        tools::substring    minor, major;
+        if ( !tools::split(rest, ' ', uri_, version) 
+          || !tools::split(version, '/', http, version) 
+          || !tools::split(version, '.', major, minor) )
+        {
+            return parse_error();
+        }
+
+        if ( !http::parse_version_number(major.begin(), major.end(), major_version_) 
+          || !http::parse_version_number(minor.begin(), minor.end(), minor_version_) )
+        {
+            return parse_error();
+        }
+
+        parser_state_ = expect_header;
+    }
+
+    void request_header::header_found(const char* start, const char* end)
+    {
+        assert(start != end);
+    }
+
+    void request_header::end_of_request() 
+    {
+        assert(parser_state_ == expect_header);
+
+        // TODO Check, that all required headers are present
+        error_ = ok;
+    }
+
+    void request_header::parse_error()
+    {
+        error_ = syntax_error;
+    }
+
     request_header::error_code request_header::state() const
     {
         return error_;
     }
     
+    bool request_header::continue_reading() const
+    {
+        return error_ != buffer_full;
+    }
+
+    unsigned request_header::major_version() const
+    {
+        assert(error_ == ok);
+        return major_version_;
+    }
+
+    unsigned request_header::minor_version() const
+    {
+        assert(error_ == ok);
+        return minor_version_;
+    }
+
+    http::http_method_code request_header::method() const
+    {
+        assert(error_ == ok);
+        return method_;
+    }
+
+    tools::substring request_header::uri() const
+    {
+        return uri_;
+    }
+
+    std::ostream& operator<<(std::ostream& out, request_header::error_code e)
+    {
+        switch (e)
+        {
+        case request_header::ok:
+            return out << "ok";
+        case request_header::buffer_full:
+            return out << "buffer_full";
+        case request_header::syntax_error:
+            return out << "syntax_error";
+        case request_header::parsing:
+            return out << "parsing";
+        default:
+            return out << "unknown request_header::error_code: " << static_cast<int>(e);
+        }
+    }
+
 
 } // namespace server
 

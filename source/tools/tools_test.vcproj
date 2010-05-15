@@ -158,6 +158,14 @@
 				RelativePath=".\log_test.cpp"
 				>
 			</File>
+			<File
+				RelativePath=".\split_test.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\substring_test.cpp"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
