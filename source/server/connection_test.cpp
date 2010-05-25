@@ -18,7 +18,7 @@ TEST(read_simple_header)
     for (; socket.process(); )
         ;
 
-    CHECK_EQUAL(1, trait.requests().size());
+    CHECK_EQUAL(1u, trait.requests().size());
 }
 
 TEST(read_multiple_header)
@@ -33,7 +33,7 @@ TEST(read_multiple_header)
     for (; socket.process(); )
         ;
 
-    CHECK_EQUAL(2000, traits.requests().size());
+    CHECK_EQUAL(2000u, traits.requests().size());
 }
 
 TEST(read_big_buffer)
@@ -53,7 +53,7 @@ TEST(read_big_buffer)
     for (; socket.process(); )
         ;
 
-    CHECK_EQUAL(1000, traits.requests().size());
+    CHECK_EQUAL(1000u, traits.requests().size());
 }
 
 TEST(read_buffer_overflow)
@@ -75,7 +75,47 @@ TEST(read_buffer_overflow)
     for (; socket.process(); )
         ;
 
-    CHECK_EQUAL(1, traits.requests().size());
+    CHECK_EQUAL(1u, traits.requests().size());
     CHECK_EQUAL(server::request_header::buffer_full, traits.requests().front()->state());
 }
 
+/**
+ * @brief sender closed connection, if request was ok, a response should have been send
+ */
+TEST(close_after_sender_closed)
+{
+    using namespace server::test;
+
+    traits<>::connection_type   socket(begin(simple_get_11), end(simple_get_11), 0);
+    traits<>                    trait;
+
+    boost::weak_ptr<server::connection<traits<>, traits<>::connection_type> > connection(server::create_connection(socket, trait));
+    CHECK(!connection.expired());
+
+    while ( socket.process() ) 
+        socket.process();
+
+    CHECK_EQUAL("Hello", socket.output());
+    CHECK(connection.expired());
+}
+
+/**
+ * @test client requests a close via connection header
+ */
+TEST(closed_by_connection_header)
+{
+    using namespace server::test;
+
+    traits<>::connection_type   socket(begin(simple_get_11_with_close_header), end(simple_get_11_with_close_header), 0);
+    traits<>                    trait;
+
+    boost::weak_ptr<server::connection<traits<>, traits<>::connection_type> > connection(server::create_connection(socket, trait));
+    CHECK(!connection.expired());
+
+    // two calls to process to receive one he
+    CHECK(socket.process());
+    CHECK(socket.process());
+
+    CHECK_EQUAL("Hello", socket.output());
+    CHECK(connection.expired());
+}

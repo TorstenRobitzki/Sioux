@@ -10,6 +10,7 @@
 #include <boost/asio/buffers_iterator.hpp>
 #include <boost/system/error_code.hpp>
 #include <boost/asio/buffers_iterator.hpp>
+#include <boost/asio/ip/tcp.hpp>
 #include <vector>
 #include <deque>
 
@@ -51,12 +52,19 @@ public:
         const ConstBufferSequence & buffers,
         WriteHandler handler);
 
+    void close();
+
+    void shutdown(boost::asio::ip::tcp::socket::shutdown_type what);
+
     /**
-     * test specific. To be called in a loop until process() returns false
+     * @brief test specific. To be called in a loop until process() returns false
      */
     bool process();
 
-    std::string output() const;
+    /**
+     * @brief the sampled output
+     */
+    std::string output();
 private:
     class read_handler_keeper_base
     {
@@ -140,9 +148,13 @@ private:
             const ConstBufferSequence & buffers,
             WriteHandler handler);
 
+        void close();
+
+        void shutdown(boost::asio::ip::tcp::socket::shutdown_type what);
+
         bool process();
 
-        std::string output() const;
+        std::string output();
     private:
 	    Iterator			                        current_;
 	    const Iterator		                        begin_;
@@ -191,13 +203,25 @@ void socket<Iterator>::async_write_some(
 }
 
 template <class Iterator>
+void socket<Iterator>::close()
+{
+    pimpl_->close();
+}
+
+template <class Iterator>
+void socket<Iterator>::shutdown(boost::asio::ip::tcp::socket::shutdown_type what)
+{
+    pimpl_->shutdown(what);
+}
+
+template <class Iterator>
 bool socket<Iterator>::process()
 {
     return pimpl_->process();
 }
 
 template <class Iterator>
-std::string socket<Iterator>::output() const
+std::string socket<Iterator>::output() 
 {
     return pimpl_->output();
 }
@@ -235,46 +259,58 @@ void socket<Iterator>::impl::async_write_some(
     writes_.push_back(boost::shared_ptr<store_writes_base>(new store_writes<WriteHandler>(handler, boost::asio::buffer_size(buffers))));
 }
 
+template <class Iterator>
+void socket<Iterator>::impl::close()
+{
+}
+
+template <class Iterator>
+void socket<Iterator>::impl::shutdown(boost::asio::ip::tcp::socket::shutdown_type /*what*/)
+{
+}
 
 template <class Iterator>
 bool socket<Iterator>::impl::process()
 {
-    if ( handler_.get() == 0 )
-    {
-        if ( writes_.empty() )
-            return false;
+    if ( handler_.get() == 0 && writes_.empty() )
+        return false;
 
+    if ( !writes_.empty() )
+    {
         writes_.front()->handler();
         writes_.pop_front();
-
-        return true;
     }
+    else
+    {
+        if ( current_ == end_ && --times_ )
+            current_ = begin_;
 
-    if ( current_ == end_ && --times_ )
-        current_ = begin_;
+        typedef std::iterator_traits<Iterator>::difference_type size_t;
 
-    typedef std::iterator_traits<Iterator>::difference_type size_t;
+        size_t size = bite_size_ != 0
+            ? std::min(static_cast<size_t>(bite_size_), std::distance(current_, end_))
+            : std::distance(current_, end_);
 
-    size_t size = bite_size_ != 0
-        ? std::min(static_cast<size_t>(bite_size_), std::distance(current_, end_))
-        : std::distance(current_, end_);
+        Iterator end = current_;
+        std::advance(end, size);
 
-    Iterator end = current_;
-    std::advance(end, size);
+        boost::shared_ptr<read_handler_keeper_base>  old_handler;
+        old_handler.swap(handler_);
 
-    boost::shared_ptr<read_handler_keeper_base>  old_handler;
-    old_handler.swap(handler_);
-
-    size = old_handler->handle(make_error_code(boost::system::errc::success), current_, end);
-    std::advance(current_, size);
+        size = old_handler->handle(make_error_code(boost::system::errc::success), current_, end);
+        std::advance(current_, size);
+    }
 
     return true;
 }
 
 template <class Iterator>
-std::string socket<Iterator>::impl::output() const
+std::string socket<Iterator>::impl::output() 
 {
-    return std::string(output_.begin(), output_.end());
+    const std::string result(output_.begin(), output_.end());
+    output_.clear();
+
+    return result;
 }
 
 

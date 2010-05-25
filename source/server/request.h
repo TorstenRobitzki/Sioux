@@ -13,18 +13,24 @@
 namespace server
 {
 
-    struct header
-    {
-        tools::substring    name;
-        tools::substring    value;
-    };
-
     /**
      * @brief access and parsing of http request headers
      */
 	class request_header
 	{
     public:
+        struct header
+        {
+            header(const tools::substring& name, const tools::substring& value);
+            header();
+
+            tools::substring    name_;
+            tools::substring    value_;
+
+            tools::substring    name() const;
+            tools::substring    value() const;
+        };
+
         request_header();
 
         enum copy_trailing_buffer_t {copy_trailing_buffer};
@@ -72,11 +78,6 @@ namespace server
 
         error_code state() const;
 
-        /**
-         * @brief returns true, when there is no reason to read further requests from the connection.
-         */
-        bool continue_reading() const;
-
         /*
          * getters for the header informations.
          * @pre a prior call to parse() returned true
@@ -85,9 +86,24 @@ namespace server
         unsigned                major_version() const;
         unsigned                minor_version() const;
 
+        /**
+         * @brief returns 1000* major_version() + minor_version()
+         */
+        unsigned                milli_version() const;
+
         http::http_method_code  method() const;
 
         tools::substring        uri() const;
+
+        bool option_available(const char* header_name, const char* option) const;
+
+        const header* find_header(const char* header_name) const;
+
+        /**
+         * @brief returns true, if this is a 1.0 header, or in case of an 1.1 (or later) 
+         * header, the "Connection : close" header was found
+         */
+        bool close_after_response() const;
     private:
         void crlf_found(const char* start, const char* end);
         void request_line_found(const char* start, const char* end);
@@ -97,25 +113,25 @@ namespace server
 
         void parse_error();
 
-        char                    buffer_[1024];
-        std::size_t             write_ptr_;
-        std::size_t             parse_ptr_; // already consumed including trailing CRLF
-        std::size_t             read_ptr_;  // read, but no CRLF found so far
-        error_code              error_;
+        char                        buffer_[1024];
+        std::size_t                 write_ptr_;
+        std::size_t                 parse_ptr_; // already consumed including trailing CRLF
+        std::size_t                 read_ptr_;  // read, but no CRLF found so far
+        error_code                  error_;
 
         enum {
             expect_request_line,
             expect_header,
         } parser_state_;
 
-        unsigned                major_version_;
-        unsigned                minor_version_;
+        unsigned                    major_version_;
+        unsigned                    minor_version_;
 
-        http::http_method_code  method_;
+        http::http_method_code      method_;
 
-        tools::substring        uri_;
+        tools::substring            uri_;
 
-        std::vector<header>     headers_;
+        std::vector<header>         headers_;
 	};
 
     std::ostream& operator<<(std::ostream& out, request_header::error_code e);

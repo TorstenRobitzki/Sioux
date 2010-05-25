@@ -35,3 +35,36 @@ TEST(substring_char_pointer_test)
     CHECK_EQUAL(0, tools::substring().size());
     CHECK_EQUAL(sizeof buffer1 -1, s1.size());
 }
+
+TEST(trim_test)
+{
+    const char text1[] = " ababa   ";
+    const char text2[] = "--ab -+- aba++";
+    const char text3[] = "aaaaaaaaa";
+    const char text4[] = "";
+    const char text5[] = "ababa";
+
+    tools::substring    s1(tools::begin(text1), tools::end(text1)-1);
+    tools::substring    s2(tools::begin(text2), tools::end(text2)-1);
+    tools::substring    s3(tools::begin(text3), tools::end(text3)-1);
+    tools::substring    s4(tools::begin(text4), tools::end(text4)-1);
+    tools::substring    s5(tools::begin(text5), tools::end(text5)-1);
+
+    CHECK_EQUAL(" ababa", s1.trim_right(' '));
+    CHECK_EQUAL(" ababa", s1.trim_right(' '));
+    CHECK_EQUAL(" ababa", s1.trim_left('a'));
+    CHECK_EQUAL("ababa", s1.trim_left(' '));
+
+    CHECK_EQUAL("--ab -+- aba++", s2.trim_right('-').trim_left('+'));
+    CHECK_EQUAL("ab -+- aba", s2.trim_left('-').trim_right('+'));
+    CHECK_EQUAL("b -+- ab", s2.trim('a'));
+
+    CHECK_EQUAL(s3, s3.trim(' '));
+    CHECK_EQUAL(s3, "aaaaaaaaa");
+    CHECK_EQUAL("", s3.trim('a'));
+
+    CHECK_EQUAL("", s4.trim('a'));
+
+    CHECK_EQUAL("ababa", s5.trim('b'));
+    CHECK_EQUAL("bab", s5.trim('a'));
+}

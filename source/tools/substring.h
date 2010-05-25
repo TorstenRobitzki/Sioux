@@ -54,6 +54,22 @@ namespace tools
         const_iterator end() const { return end_; }
 
         std::size_t size() const;
+
+        /**
+         * @brief removes all characters a the beginning of the string, that are equal to the given one
+         */
+        basic_substring& trim_left(value_type to_be_removed);
+
+        /**
+         * @brief removes all characters a the end of the string, that are equal to the given one
+         */
+        basic_substring& trim_right(value_type to_be_removed);
+
+        /**
+         * @brief removes all characters a the end and at the begin of the string, that are equal to the given one
+         */
+        basic_substring& trim(value_type to_be_removed);
+
     private:
         const_iterator  begin_;
         const_iterator  end_;
@@ -125,6 +141,30 @@ namespace tools
     }
 
     template <class Iterator>
+    basic_substring<Iterator>& basic_substring<Iterator>::trim_left(value_type to_be_removed)
+    {
+        for (; begin_ != end_ && *begin_ == to_be_removed; ++begin_)
+            ;
+
+        return *this;
+    }
+
+    template <class Iterator>
+    basic_substring<Iterator>& basic_substring<Iterator>::trim_right(value_type to_be_removed)
+    {
+        for (; begin_ != end_ && *(end_-1) == to_be_removed; --end_)
+            ;
+
+        return *this;
+    }
+
+    template <class Iterator>
+    basic_substring<Iterator>& basic_substring<Iterator>::trim(value_type to_be_removed)
+    {
+        return trim_left(to_be_removed).trim_right(to_be_removed);
+    }
+
+    template <class Iterator>
     std::ostream& operator<<(std::ostream& out, const basic_substring<Iterator>& text)
     {
         for ( basic_substring<Iterator>::const_iterator i = text.begin(), end = text.end(); i != end; ++i )
@@ -132,6 +172,19 @@ namespace tools
 
         return out;
     }
+
+    template <class Iterator>
+    bool operator==(const typename basic_substring<Iterator>::value_type* lhs, const basic_substring<Iterator>& rhs)
+    {
+        return rhs == lhs;
+    }
+
+    template <class Iterator>
+    bool operator!=(const typename basic_substring<Iterator>::value_type* lhs, const basic_substring<Iterator>& rhs)
+    {
+        return rhs != lhs;
+    }
+
 } // namespace tools 
 
 

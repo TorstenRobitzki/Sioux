@@ -15,6 +15,11 @@ namespace server {
 
 namespace test {
 
+/**
+ * @brief traits class for testing.
+ *
+ * The default behaviour of an incomming request is to answer with a simple "Hello" string
+ */
 template <class Network = server::test::socket<const char*> >
 class traits
 {

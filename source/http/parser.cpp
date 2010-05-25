@@ -82,6 +82,27 @@ std::string url_decode(const std::string& s)
 	return result;
 }
 
+int strcasecmp(const char* begin1, const char* end1, const char* null_terminated_str)
+{
+    for ( ; begin1 != end1 && *null_terminated_str; ++begin1, ++null_terminated_str)
+    {
+        const char cl = static_cast<char>(std::tolower(*begin1));
+        const char cr = static_cast<char>(std::tolower(*null_terminated_str));
+
+        if ( cl < cr )
+            return -1;
+        if ( cr < cl )
+            return 1;
+    }
+
+    if ( *null_terminated_str )
+        return -1;
+
+    if ( begin1 != end1 )
+        return 1;
+
+    return 0;
+}
 
 ////////////////////////////////////////////////
 // class bad_url

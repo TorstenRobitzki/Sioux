@@ -8,10 +8,13 @@
 #include "server/test_response.h"
 #include "server/test_request_texts.h"
 #include "server/request.h"
+#include "tools/iterators.h"
 #include <boost/asio/buffer.hpp>
 
 /** 
- * @test test that the 
+ * @test test that responses go in the right order onto the wire.
+ *
+ * For a number or responses there is simulated, that they start to send there data in different order
  */ 
 TEST(simply_receiving_a_hello)
 {
@@ -27,23 +30,46 @@ TEST(simply_receiving_a_hello)
     // a simulated response to an empty header
     boost::shared_ptr<server::request_header>       empty_header(new server::request_header);
 
-    boost::weak_ptr<server::async_response> response1 = create_response(connection, empty_header, "hello");
-    boost::weak_ptr<server::async_response> response2 = create_response(connection, empty_header, " wie");
-    boost::weak_ptr<server::async_response> response3 = create_response(connection, empty_header, " gehts?");
+    const char* texts[] = {"Hallo,", " wie ", "gehts?"};
+    int         index[] = {0, 1, 2};
 
-    // then we simulate that the IO is fullfied
-    boost::static_pointer_cast<response>(boost::shared_ptr<server::async_response>(response1))->simulate_incomming_data();
-    boost::static_pointer_cast<response>(boost::shared_ptr<server::async_response>(response2))->simulate_incomming_data();
-    boost::static_pointer_cast<response>(boost::shared_ptr<server::async_response>(response3))->simulate_incomming_data();
+    do
+    {
+        typedef std::vector<boost::weak_ptr<server::async_response> > response_list_t;
+        response_list_t responses;
 
-    while ( socket.process() )
-        ;
+        for ( const char* const* t = tools::begin(texts); t != tools::end(texts); ++t )
+            responses.push_back(create_response(connection, empty_header, *t, manuel_response));
 
-    CHECK_EQUAL(0, response1.use_count());
-    CHECK_EQUAL(0, response2.use_count());
-    CHECK_EQUAL(0, response3.use_count());
+        // then we simulate that the IO is fullfied
+        for ( int* sim = tools::begin(index); sim != tools::end(index); ++sim )
+        {
+            boost::static_pointer_cast<response>(boost::shared_ptr<server::async_response>(responses[*sim]))->simulate_incomming_data();
 
-    CHECK_EQUAL("hello wie gehts?", socket.output());
+            // now every response that was created before, must have been asked to hurry
+            for ( int r = *sim; r >0; --r )
+            {
+                const boost::weak_ptr<server::async_response> resp = responses[r-1];
+
+                if ( !resp.expired() )
+                {
+                    CHECK(boost::shared_ptr<server::async_response>(resp)->asked_to_hurry());
+                }
+            }
+        }
+
+        while ( socket.process() )
+            ;
+
+        // all responses must have been destroyed
+        for ( response_list_t::const_iterator resp = responses.begin(), end = responses.end(); resp != end; ++resp )
+        {
+            CHECK_EQUAL(0, resp->use_count());
+        }
+
+        // and finaly, the ouput must be same for every order of response
+        CHECK_EQUAL("Hallo, wie gehts?", socket.output());
+    } while ( std::next_permutation(tools::begin(index), tools::end(index)) );
 
 }
 

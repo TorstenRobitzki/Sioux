@@ -109,8 +109,8 @@ TEST(simple_request)
     CHECK(feed_to_request(simple_get_11, request));
 
     CHECK_EQUAL(server::request_header::ok, request.state());
-    CHECK_EQUAL(1, request.major_version());
-    CHECK_EQUAL(1, request.minor_version());
+    CHECK_EQUAL(1u, request.major_version());
+    CHECK_EQUAL(1u, request.minor_version());
     CHECK(request.uri() == "/");
     CHECK_EQUAL(http::http_get, request.method());
 }
@@ -119,13 +119,30 @@ TEST(parse_versions)
 {
     const server::request_header v12_21 = feed_to_request("OPTIONS / http/12.21\r\n\r\n");
     CHECK_EQUAL(server::request_header::ok, v12_21.state());
-    CHECK_EQUAL(12, v12_21.major_version());
-    CHECK_EQUAL(21, v12_21.minor_version());
+    CHECK_EQUAL(12u, v12_21.major_version());
+    CHECK_EQUAL(21u, v12_21.minor_version());
 
     const server::request_header v01_01 = feed_to_request("OPTIONS / Http/01.01\r\n\r\n");
     CHECK_EQUAL(server::request_header::ok, v01_01.state());
-    CHECK_EQUAL(1, v01_01.major_version());
-    CHECK_EQUAL(1, v01_01.minor_version());
+    CHECK_EQUAL(1u, v01_01.major_version());
+    CHECK_EQUAL(1u, v01_01.minor_version());
 }
 
+TEST(check_options_available)
+{
+    const server::request_header header = feed_to_request(
+        "OPTIONS / http/12.21\r\n"
+        "Connection : close  \r\n"
+        "accept:text/plain,text/html\r\n"
+        "Accept-Encoding : compress, gzip\r\n"
+        "\r\n\r\n");
 
+    CHECK_EQUAL(server::request_header::ok, header.state());
+    CHECK(header.option_available("connection", "close"));
+    CHECK(header.option_available("accept", "text/plain"));
+    CHECK(header.option_available("accept", "text/html"));
+    CHECK(header.option_available("accept-encoding", "compress"));
+    CHECK(header.option_available("accept-encoding", "gzip"));
+
+
+}

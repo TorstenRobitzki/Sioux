@@ -19,7 +19,17 @@ namespace server{
 
 namespace test {
 
+    enum response_type {
+        /// reponse is automaticaly added
+        auto_response,
+        /// incomming data, that is needed to response must be simulated by calling simulate_incomming_data()
+        manuel_response 
+    };
 
+
+    /**
+     * @brief a async_reponse implementation, that that responses with a given text
+     */
     template <class Connection>
     class response : public async_response, public boost::enable_shared_from_this<response<Connection> >
     {
@@ -27,6 +37,14 @@ namespace test {
         response(const boost::shared_ptr<Connection>& connection, const boost::shared_ptr<const server::request_header>& /*header*/, const std::string& answer)
             : connection_(connection)
             , answer_(answer)
+            , response_type_(auto_response)
+        {
+        }
+
+        response(const boost::shared_ptr<Connection>& connection, const boost::shared_ptr<const server::request_header>& /*header*/, const std::string& answer, response_type rt)
+            : connection_(connection)
+            , answer_(answer)
+            , response_type_(rt)
         {
         }
 
@@ -34,6 +52,9 @@ namespace test {
         {
             self_ = shared_from_this();
             connection_->response_started(self_);
+
+            if ( response_type_ == auto_response )
+                simulate_incomming_data();
         }
 
         void simulate_incomming_data()
@@ -58,12 +79,17 @@ namespace test {
         boost::shared_ptr<async_response>   self_;
         const boost::shared_ptr<Connection> connection_;
         const std::string                   answer_;
+        response_type                       response_type_;
     };
 
     template <class Connection>
-    boost::weak_ptr<async_response> create_response(const boost::shared_ptr<Connection>& connection, const boost::shared_ptr<const server::request_header>&  header, const std::string& answer)
+    boost::weak_ptr<async_response> create_response(
+        const boost::shared_ptr<Connection>&                    connection, 
+        const boost::shared_ptr<const server::request_header>&  header, 
+        const std::string&                                      answer,
+        response_type                                           response_procedure)
     {
-        const boost::shared_ptr<response<Connection> > respo(new response<Connection>(connection, header, answer));
+        const boost::shared_ptr<response<Connection> > respo(new response<Connection>(connection, header, answer, response_procedure));
         respo->start();
 
         return boost::weak_ptr<async_response>(respo);

@@ -28,6 +28,9 @@ namespace server
 	 *
 	 * It's the responsibility of the connection object to parse incomming requests 
 	 * and to coordinate outgoing responses.
+     *
+     * The connection class is not responsible for http persisent connection support,
+     * this have to be implemented within the responses.
 	 */
     template <class Trait, class Connection = Trait::connection_type>
     class connection : public boost::enable_shared_from_this<connection<Trait, Connection> >
@@ -68,6 +71,16 @@ namespace server
          * @brief to be called from a new response object, before any call to async_write_some()
          */
         void response_started(const boost::weak_ptr<async_response>& response);
+
+        /**
+         * @brief closes the reading part of the used connection
+         */
+        void shutdown_read();
+
+        /**
+         * @brief closes the writing part of the connection and if not already done, the reading part too.
+         */
+        void shutdown_close();
 
 	private:
         class blocked_write_base 
@@ -113,6 +126,8 @@ namespace server
 
         typedef std::map<async_response*, std::vector<blocked_write_base*> >  blocked_write_list;
         blocked_write_list                  blocked_writes_;
+
+        bool                                shutdown_read_;
  	};
 
     /**
@@ -122,11 +137,15 @@ namespace server
 	template <class Trait, class Connection>
     boost::shared_ptr<connection<Trait, Connection> > create_connection(const Connection& con, const Trait& trait);
 
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////
+    // implementation
 	template <class Trait, class Connection>
 	connection<Trait, Connection>::connection(const Connection& con, const Trait& trait)
         : connection_(con)
         , trait_(trait)
         , current_request_()
+        , shutdown_read_(false)
     {
     }
 
@@ -134,6 +153,8 @@ namespace server
 	connection<Trait, Connection>::~connection()
     {
         assert(blocked_writes_.empty());
+    
+        connection_.close();
     }
 
 	template <class Trait, class Connection>
@@ -209,6 +230,23 @@ namespace server
         responses_.push_back(response);
     }
 
+    template <class Trait, class Connection>
+    void connection<Trait, Connection>::shutdown_read()
+    {
+        if ( !shutdown_read_ )
+        {
+            shutdown_read_ = true;
+            connection_.shutdown(boost::asio::ip::tcp::socket::shutdown_receive);
+        }
+    }
+
+    template <class Trait, class Connection>
+    void connection<Trait, Connection>::shutdown_close()
+    {
+        shutdown_read();
+        connection_.shutdown(boost::asio::ip::tcp::socket::shutdown_send);
+        connection_.close();
+    }
 
 	template <class Trait, class Connection>
     void connection<Trait, Connection>::issue_header_read()
@@ -230,16 +268,15 @@ namespace server
     {
         if (!error && bytes_transferred != 0)
         {
-            while ( bytes_transferred != 0 
-                && current_request_->parse(bytes_transferred) 
-                && handle_request_header(current_request_)
-                && current_request_->continue_reading() )
+            while ( bytes_transferred != 0 && current_request_->parse(bytes_transferred) )
             {
+                if ( !handle_request_header(current_request_) || current_request_->state() == request_header::buffer_full )
+                    return;
+
                 current_request_.reset(new request_header(*current_request_, bytes_transferred, request_header::copy_trailing_buffer));
             }
 
-            if ( current_request_->continue_reading() )
-                issue_header_read();
+            issue_header_read();
         }
     }
 
@@ -258,6 +295,12 @@ namespace server
             {
                 ++response;
             }
+        }
+
+        if ( new_request->close_after_response() ) 
+        {
+            shutdown_read();
+            return false;
         }
 
         return true;

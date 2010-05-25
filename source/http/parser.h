@@ -112,7 +112,7 @@ std::string stripe(Iter1 begin, Iter2 end)
 std::string to_lower(const std::string&);
 void        to_lower(std::string&);
 
-class bad_url : std::runtime_error {
+class bad_url : public std::runtime_error {
 public:
 	explicit bad_url(const std::string&);
 };
@@ -145,6 +145,15 @@ bool parse_version_number(Iter begin, Iter end, unsigned& r)
     r = result;
     return true;
 }
+
+/**
+ * @brief compares a string given by (begin1, end1] with the null terminated string null_terminated_str
+ *        case insensitiv. 
+ * 
+ * If the first string is less than the second, the function returns -1 if both are equal, the function returns
+ * 0 and if the second string ist greater, the function returns 1.
+ */
+int strcasecmp(const char* begin1, const char* end1, const char* null_terminated_str);
 
 } // namespace http
 

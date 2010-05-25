@@ -13,6 +13,30 @@
 
 namespace server {
 
+    //////////////////
+    // struct header
+    request_header::header::header(const tools::substring& name, const tools::substring& value)
+        : name_(name)
+        , value_(value)
+    {
+    }
+    
+    request_header::header::header()
+        : name_()
+        , value_()
+    {
+    }
+
+    tools::substring request_header::header::name() const
+    {
+        return name_;
+    }
+
+    tools::substring request_header::header::value() const
+    {
+        return value_;
+    }
+
     //////////////////////////
     // class request_header
     request_header::request_header()
@@ -104,7 +128,7 @@ namespace server {
 
             request_line_found(start, end);
         }
-        if ( parser_state_ == expect_header )
+        else if ( parser_state_ == expect_header )
         {
             if ( start == end )
             {
@@ -179,6 +203,19 @@ namespace server {
     void request_header::header_found(const char* start, const char* end)
     {
         assert(start != end);
+
+        header h;
+        if ( tools::split(start, end, ':', h.name_, h.value_) )
+        {
+            h.name_.trim(' ').trim('\t');
+            h.value_.trim(' ').trim('\t');
+
+            headers_.push_back(h);
+        }
+        else
+        {
+            error_ = syntax_error;
+        }
     }
 
     void request_header::end_of_request() 
@@ -199,11 +236,6 @@ namespace server {
         return error_;
     }
     
-    bool request_header::continue_reading() const
-    {
-        return error_ != buffer_full;
-    }
-
     unsigned request_header::major_version() const
     {
         assert(error_ == ok);
@@ -216,6 +248,12 @@ namespace server {
         return minor_version_;
     }
 
+    unsigned request_header::milli_version() const
+    {
+        assert(error_ == ok);
+        return 1000 * major_version_ + minor_version_;
+    }
+
     http::http_method_code request_header::method() const
     {
         assert(error_ == ok);
@@ -224,7 +262,44 @@ namespace server {
 
     tools::substring request_header::uri() const
     {
+        assert(error_ == ok);
         return uri_;
+    }
+
+    bool request_header::option_available(const char* header_name, const char* option) const
+    {
+        assert(error_ == ok);
+        const header * const h = find_header(header_name);
+
+        if ( h == 0 )
+            return false;
+
+        tools::substring    field, rest(h->value());
+
+        while ( tools::split(rest, ',', field, rest) )
+        {
+            field.trim(' ').trim('\t');
+            if ( http::strcasecmp(field.begin(), field.end(), option) == 0 )
+                return true;
+        }
+
+        rest.trim(' ').trim('\t');
+        return http::strcasecmp(rest.begin(), rest.end(), option) == 0;
+    }
+
+    const request_header::header* request_header::find_header(const char* header_name) const
+    {
+        assert(error_ == ok);
+        std::vector<header>::const_iterator h = headers_.begin();
+        for ( ; h != headers_.end() && http::strcasecmp(h->name_.begin(), h->name_.end(), header_name) != 0; ++h )
+            ;
+
+        return h != headers_.end() ? &*h : 0;
+    }
+
+    bool request_header::close_after_response() const
+    {
+        return error_ != ok || milli_version() < 1001 || option_available("connection", "close");
     }
 
     std::ostream& operator<<(std::ostream& out, request_header::error_code e)
