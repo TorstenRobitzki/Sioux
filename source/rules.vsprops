@@ -11,7 +11,7 @@
 		PreprocessorDefinitions="_SCL_SECURE_NO_WARNINGS;_CRT_SECURE_NO_WARNINGS;BOOST_ASIO_ENABLE_CANCELIO"
 		DisableLanguageExtensions="false"
 		WarningLevel="4"
-		DisableSpecificWarnings="4512;4519;4510;4610"
+		DisableSpecificWarnings="4512;4519;4510;4610;4355"
 	/>
 	<Tool
 		Name="VCLinkerTool"

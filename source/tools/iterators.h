@@ -66,7 +66,7 @@ namespace detail {
 template <class Iter>
 struct get_iterator_value_type
 {
-    /// @brieff smart pointers
+    /// @brief smart pointers
     template <class U>
     struct dereference {
         typedef typename U::element_type element_type;

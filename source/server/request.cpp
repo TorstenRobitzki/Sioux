@@ -13,29 +13,6 @@
 
 namespace server {
 
-    //////////////////
-    // struct header
-    request_header::header::header(const tools::substring& name, const tools::substring& value)
-        : name_(name)
-        , value_(value)
-    {
-    }
-    
-    request_header::header::header()
-        : name_()
-        , value_()
-    {
-    }
-
-    tools::substring request_header::header::name() const
-    {
-        return name_;
-    }
-
-    tools::substring request_header::header::value() const
-    {
-        return value_;
-    }
 
     //////////////////////////
     // class request_header
@@ -62,6 +39,19 @@ namespace server {
         assert(remaining != sizeof buffer_);
     }
     
+    request_header::request_header(const char* source)
+        : write_ptr_(0)
+        , parse_ptr_(0)
+        , read_ptr_(0)
+        , error_(parsing)
+        , parser_state_(expect_request_line)
+    {
+        const std::size_t max = std::min(sizeof buffer_, std::strlen(source));
+        std::strncpy(buffer_, source, max);
+
+        parse(max);
+    }
+
     std::pair<char*, std::size_t> request_header::read_buffer()
     {
         assert(write_ptr_ <= sizeof buffer_);
@@ -264,6 +254,11 @@ namespace server {
     {
         assert(error_ == ok);
         return uri_;
+    }
+
+    tools::substring request_header::text() const
+    {
+        return tools::substring(&buffer_[0], &buffer_[parse_ptr_]);
     }
 
     bool request_header::option_available(const char* header_name, const char* option) const

@@ -61,7 +61,6 @@
 				Name="VCLinkerTool"
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
-				SubSystem="2"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -171,15 +170,7 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath="..\http\http.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\http\parser.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\http\request.cpp"
+				RelativePath=".\sioux.cpp"
 				>
 			</File>
 		</Filter>

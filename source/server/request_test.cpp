@@ -143,6 +143,27 @@ TEST(check_options_available)
     CHECK(header.option_available("accept", "text/html"));
     CHECK(header.option_available("accept-encoding", "compress"));
     CHECK(header.option_available("accept-encoding", "gzip"));
+}
 
+TEST(single_arguement_ctor)
+{
+    const server::request_header header(
+        "OPTIONS / http/12.21\r\n"
+        "Connection : close  \r\n"
+        "accept:text/plain,text/html\r\n"
+        "Accept-Encoding : compress, gzip\r\n"
+        "\r\n\r\n");
 
+    CHECK_EQUAL(server::request_header::ok, header.state());
+    CHECK(header.option_available("connection", "close"));
+    CHECK(header.option_available("accept", "text/plain"));
+    CHECK(header.option_available("accept", "text/html"));
+    CHECK(header.option_available("accept-encoding", "compress"));
+    CHECK(header.option_available("accept-encoding", "gzip"));
+}
+
+TEST(test_text)
+{
+    const server::request_header header(simple_get_11);
+    CHECK_EQUAL(simple_get_11, header.text());
 }

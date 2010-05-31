@@ -36,10 +36,13 @@ namespace server
     class connection : public boost::enable_shared_from_this<connection<Trait, Connection> >
 	{
 	public:
+        typedef Connection  socket_t;
+
         /**
          * @brief contructs a connection object by passing an IO object and trait object.
          */
-		connection(const Connection& con, const Trait& trait);
+        template <class ConArg>
+		connection(ConArg Arg, const Trait& trait);
 
         ~connection();
 
@@ -82,6 +85,10 @@ namespace server
          */
         void shutdown_close();
 
+        /**
+         * @brief returns a reference to the underlying connection. Used for the construction phase only.
+         */
+        socket_t& socket();
 	private:
         class blocked_write_base 
         {
@@ -134,15 +141,16 @@ namespace server
      * @brief creates a new connection object and calls start() on it.
      * @relates connection
      */
-	template <class Trait, class Connection>
+	template <class Connection, class Trait>
     boost::shared_ptr<connection<Trait, Connection> > create_connection(const Connection& con, const Trait& trait);
 
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////
     // implementation
 	template <class Trait, class Connection>
-	connection<Trait, Connection>::connection(const Connection& con, const Trait& trait)
-        : connection_(con)
+    template <class ConArg>
+	connection<Trait, Connection>::connection(ConArg arg, const Trait& trait)
+        : connection_(arg)
         , trait_(trait)
         , current_request_()
         , shutdown_read_(false)
@@ -248,6 +256,12 @@ namespace server
         connection_.close();
     }
 
+    template <class Trait, class Connection>
+    Connection& connection<Trait, Connection>::socket()
+    {
+        return connection_;
+    }
+
 	template <class Trait, class Connection>
     void connection<Trait, Connection>::issue_header_read()
     {
@@ -340,7 +354,7 @@ namespace server
         con.async_write_some(buffers_, handler_);
     }
 
-	template <class Trait, class Connection>
+	template <class Connection, class Trait>
     boost::shared_ptr<connection<Trait, Connection> > create_connection(const Connection& con, const Trait& trait)
     {
         const boost::shared_ptr<connection<Trait, Connection> > result(new connection<Trait, Connection>(con, trait));

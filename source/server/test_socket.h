@@ -19,6 +19,11 @@
 #endif
 
 namespace server {
+
+/** 
+ * @namespace server::test 
+ * namespace for test equipment 
+ */
 namespace test {
 
 /**
@@ -29,11 +34,34 @@ class socket
 {
 public:
     /**
+     * @param begin begin of the simulated input
+     * @param end end of the simulated input
      * @param bite_size the size of the simulated network reads. 0 == maximum 
+     * @param times number of times, the string (begin, end]
      */
     socket(Iterator begin, Iterator end, std::size_t bite_size, unsigned times = 1);
 
+    /**
+     * @param begin begin of the simulated input
+     * @param end end of the simulated input
+     * @param read_error the error to deliever, after read_error_occurens bytes where read
+     * @param read_error_occurens the number of bytes to be read, before a read error will be simulated
+     * @param write_error the error to deliever, after write_error_occurens bytes where written
+     * @param write_error_occurens the number of bytes to be written, before a write error will be simulated
+     */
+    socket(Iterator                         begin, 
+           Iterator                         end, 
+           const boost::system::error_code& read_error, 
+           std::size_t                      read_error_occurens,
+           const boost::system::error_code& write_error, 
+           std::size_t                      write_error_occurens);
+
     socket(Iterator begin, Iterator end);
+
+    /**
+     * @brief empty implementation
+     */
+    socket();
 
     /**
      * socket interface 
@@ -64,7 +92,7 @@ public:
     /**
      * @brief the sampled output
      */
-    std::string output();
+    std::string output() const;
 private:
     class read_handler_keeper_base
     {
@@ -132,7 +160,16 @@ private:
     class impl
     {
     public:
+        impl();
+
         impl(Iterator begin, Iterator end, std::size_t bite_size, unsigned times);
+    
+        impl(Iterator                         begin, 
+             Iterator                         end, 
+             const boost::system::error_code& read_error, 
+             std::size_t                      read_error_occurens,
+             const boost::system::error_code& write_error, 
+             std::size_t                      write_error_occurens);
 
 	    template<
 		    typename MutableBufferSequence,
@@ -156,6 +193,9 @@ private:
 
         std::string output();
     private:
+        bool process_output();
+        bool process_input();
+
 	    Iterator			                        current_;
 	    const Iterator		                        begin_;
 	    const Iterator		                        end_;
@@ -166,6 +206,13 @@ private:
         std::vector<char>                           output_;
         std::deque<boost::shared_ptr<store_writes_base> > writes_;
 
+        const bool                                  read_error_enabled_;
+        const boost::system::error_code             read_error_;
+        const std::size_t                           read_error_occurens_;
+
+        const bool                                  write_error_enabled_;
+        const boost::system::error_code             write_error_;
+        const std::size_t                           write_error_occurens_;
     };
 
     boost::shared_ptr<impl>  pimpl_;
@@ -181,6 +228,23 @@ socket<Iterator>::socket(Iterator begin, Iterator end, std::size_t bite_size, un
 template <class Iterator>
 socket<Iterator>::socket(Iterator begin, Iterator end)
  : pimpl_(new impl(begin, end, 0, 1))
+{
+}
+
+template <class Iterator>
+socket<Iterator>::socket(Iterator                         begin, 
+                         Iterator                         end, 
+                         const boost::system::error_code& read_error, 
+                         std::size_t                      read_error_occurens,
+                         const boost::system::error_code& write_error, 
+                         std::size_t                      write_error_occurens)
+ : pimpl_(new impl(begin, end, read_error, read_error_occurens, write_error, write_error_occurens))
+{
+}
+
+template <class Iterator>
+socket<Iterator>::socket()
+ : pimpl_(new impl())
 {
 }
 
@@ -221,9 +285,28 @@ bool socket<Iterator>::process()
 }
 
 template <class Iterator>
-std::string socket<Iterator>::output() 
+std::string socket<Iterator>::output() const
 {
     return pimpl_->output();
+}
+
+template <class Iterator>
+socket<Iterator>::impl::impl()
+ : current_(Iterator())
+ , begin_(Iterator())
+ , end_(Iterator())
+ , bite_size_(0)
+ , handler_()
+ , times_(0)
+ , output_()
+ , writes_()
+ , read_error_enabled_(false)
+ , read_error_()
+ , read_error_occurens_()
+ , write_error_enabled_(false)
+ , write_error_()
+ , write_error_occurens_()
+{
 }
 
 template <class Iterator>
@@ -236,8 +319,38 @@ socket<Iterator>::impl::impl(Iterator begin, Iterator end, std::size_t bite_size
  , times_(times)
  , output_()
  , writes_()
+ , read_error_enabled_(false)
+ , read_error_()
+ , read_error_occurens_()
+ , write_error_enabled_(false)
+ , write_error_()
+ , write_error_occurens_()
 {
     assert(times);
+}
+
+template <class Iterator>
+socket<Iterator>::impl::impl(Iterator                         begin, 
+                             Iterator                         end, 
+                             const boost::system::error_code& read_error, 
+                             std::size_t                      read_error_occurens,
+                             const boost::system::error_code& write_error, 
+                             std::size_t                      write_error_occurens)
+ : current_(begin)
+ , begin_(begin)
+ , end_(end)
+ , bite_size_(0)
+ , handler_()
+ , times_(1)
+ , output_()
+ , writes_()
+ , read_error_enabled_(true)
+ , read_error_()
+ , read_error_occurens_()
+ , write_error_enabled_(true)
+ , write_error_()
+ , write_error_occurens_()
+{
 }
 
 template <class Iterator>
@@ -270,38 +383,45 @@ void socket<Iterator>::impl::shutdown(boost::asio::ip::tcp::socket::shutdown_typ
 }
 
 template <class Iterator>
+bool socket<Iterator>::impl::process_output()
+{
+    writes_.front()->handler();
+    writes_.pop_front();
+
+    return true;
+}
+
+template <class Iterator>
+bool socket<Iterator>::impl::process_input()
+{
+    if ( current_ == end_ && --times_ )
+        current_ = begin_;
+
+    typedef std::iterator_traits<Iterator>::difference_type size_t;
+
+    size_t size = bite_size_ != 0
+        ? std::min(static_cast<size_t>(bite_size_), std::distance(current_, end_))
+        : std::distance(current_, end_);
+
+    Iterator end = current_;
+    std::advance(end, size);
+
+    boost::shared_ptr<read_handler_keeper_base>  old_handler;
+    old_handler.swap(handler_);
+
+    size = old_handler->handle(make_error_code(boost::system::errc::success), current_, end);
+    std::advance(current_, size);
+
+    return true;
+}
+
+template <class Iterator>
 bool socket<Iterator>::impl::process()
 {
     if ( handler_.get() == 0 && writes_.empty() )
         return false;
 
-    if ( !writes_.empty() )
-    {
-        writes_.front()->handler();
-        writes_.pop_front();
-    }
-    else
-    {
-        if ( current_ == end_ && --times_ )
-            current_ = begin_;
-
-        typedef std::iterator_traits<Iterator>::difference_type size_t;
-
-        size_t size = bite_size_ != 0
-            ? std::min(static_cast<size_t>(bite_size_), std::distance(current_, end_))
-            : std::distance(current_, end_);
-
-        Iterator end = current_;
-        std::advance(end, size);
-
-        boost::shared_ptr<read_handler_keeper_base>  old_handler;
-        old_handler.swap(handler_);
-
-        size = old_handler->handle(make_error_code(boost::system::errc::success), current_, end);
-        std::advance(current_, size);
-    }
-
-    return true;
+    return !writes_.empty() ? process_output() : process_input();
 }
 
 template <class Iterator>

@@ -2,6 +2,9 @@
 Microsoft Visual Studio Solution File, Format Version 10.00
 # Visual C++ Express 2008
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sioux", "sioux\sioux.vcproj", "{D405E7EA-C650-46B9-924C-745E756B4AED}"
+	ProjectSection(ProjectDependencies) = postProject
+		{8DADFF69-4582-4928-8351-6EE069EEDB01} = {8DADFF69-4582-4928-8351-6EE069EEDB01}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "tools", "tools\tools.vcproj", "{AD6A7E44-BE76-437B-8C1C-3977A0C181A2}"
 EndProject
@@ -19,6 +22,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test_client", "test_client\
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "server", "server\server.vcproj", "{8DADFF69-4582-4928-8351-6EE069EEDB01}"
 	ProjectSection(ProjectDependencies) = postProject
+		{AD6A7E44-BE76-437B-8C1C-3977A0C181A2} = {AD6A7E44-BE76-437B-8C1C-3977A0C181A2}
 		{8F834854-8287-498B-939C-B66BB10EBE33} = {8F834854-8287-498B-939C-B66BB10EBE33}
 	EndProjectSection
 EndProject

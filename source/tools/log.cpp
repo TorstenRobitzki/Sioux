@@ -43,7 +43,7 @@ std::istream& operator>>(std::istream& input, log_level& level)
     std::string text;
     input >> text;
 
-    log_level   result;
+    log_level   result = log_level();
     bool        found = false;
     bool        error = false;
 

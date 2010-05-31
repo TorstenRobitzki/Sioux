@@ -41,7 +41,8 @@ public:
     
     bool operator < (const dynamic_type& rhs) const
     {
-        return ti_->before(*rhs.ti_);
+        // the cast is a workaround to supress warnings, because the mircosoft version of before() returns an int
+        return ti_->before(*rhs.ti_) ? true : false;
     }
 
     const std::type_info& type() const {return *ti_;}

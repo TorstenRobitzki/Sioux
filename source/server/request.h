@@ -5,8 +5,8 @@
 #ifndef SOURCE_SERVER_REQUEST_H
 #define SOURCE_SERVER_REQUEST_H
 
+#include "server/header.h"
 #include "http/http.h"
-#include "tools/substring.h"
 #include <boost/asio/buffer.hpp>
 #include <iosfwd>
 
@@ -19,17 +19,7 @@ namespace server
 	class request_header
 	{
     public:
-        struct header
-        {
-            header(const tools::substring& name, const tools::substring& value);
-            header();
-
-            tools::substring    name_;
-            tools::substring    value_;
-
-            tools::substring    name() const;
-            tools::substring    value() const;
-        };
+        typedef header header;
 
         request_header();
 
@@ -42,10 +32,16 @@ namespace server
          * @attention after constructing a request header this way, it might be possible
          * that this header is too already complete.
          *
+         * @param old_header the header that contains data, that doesn't belongs to the previous htt-header
          * @param remaining returns the unparsed bytes. If not 0, parse() can be called with this
          * information.
          */
         request_header(const request_header& old_header, std::size_t& remaining, copy_trailing_buffer_t);
+
+        /**
+         * @brief constructs a new request_header from a text literal. This can be quit handy, for testing.
+         */
+        explicit request_header(const char*);
 
         /**
          * @brief returns the write pointer and remaining buffer size 
@@ -95,6 +91,11 @@ namespace server
 
         tools::substring        uri() const;
 
+        /**
+         * @brief the whole request text including the final empty line with trailing \r\n
+         */
+        tools::substring        text() const;
+
         bool option_available(const char* header_name, const char* option) const;
 
         const header* find_header(const char* header_name) const;
@@ -104,6 +105,7 @@ namespace server
          * header, the "Connection : close" header was found
          */
         bool close_after_response() const;
+
     private:
         void crlf_found(const char* start, const char* end);
         void request_line_found(const char* start, const char* end);
