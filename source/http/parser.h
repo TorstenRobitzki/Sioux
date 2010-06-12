@@ -12,10 +12,10 @@
 
 namespace http {
 
-const char CR = 13;
-const char LS = 10;
-const char SP = 32;
-const char HT = 34;
+const char CR = '\r';
+const char LS = '\n';
+const char SP = ' ';
+const char HT = '\t';
 
 // finds a CRLS and returns an Iterator pointing to the CRLS
 template <class Iter>
@@ -59,20 +59,36 @@ inline bool is_CTL(char c) {
 	return c == 127 || c >= 0 && c <= 31;
 }
 
-template <class Iter1, class Iter2>
-Iter1 eat_spaces(Iter1 begin, Iter2 end) {
+template <class Iter>
+Iter eat_spaces(Iter begin, Iter end) {
 	for (; begin != end && is_space(*begin); ++begin )
 	;
 	
 	return begin;
 }
 
-template <class Iter1, class Iter2>
-Iter1 eat_spaces_and_CRLS(Iter1 begin, Iter2 end) {
+template <class Iter>
+Iter reverse_eat_spaces(Iter begin, Iter end) {
+	for (; end != begin && is_space(*(end-1)); --end )
+	;
+	
+	return end;
+}
+
+template <class Iter>
+Iter eat_spaces_and_CRLS(Iter begin, Iter end) {
 	for (; begin != end && is_space_or_CRLS(*begin) ; ++begin )
 	;
 	
 	return begin;
+}
+
+template <class Iter>
+Iter reverse_eat_spaces_and_CRLS(Iter begin, Iter end) {
+	for (; end != begin && is_space_or_CRLS(*(end-1)) ; --end)
+	;
+	
+	return end;
 }
 
 template <class Iter>
@@ -124,7 +140,7 @@ void split_url(const std::string& url, std::string& scheme, std::string& authori
 std::string url_decode(const std::string&);
 
 template <class Iter>
-bool parse_version_number(Iter begin, Iter end, unsigned& r)
+bool parse_number(Iter begin, Iter end, unsigned& r)
 {
     if ( begin == end ) 
         return false;
@@ -154,6 +170,8 @@ bool parse_version_number(Iter begin, Iter end, unsigned& r)
  * 0 and if the second string ist greater, the function returns 1.
  */
 int strcasecmp(const char* begin1, const char* end1, const char* null_terminated_str);
+
+int strcasecmp(const char* begin1, const char* end1, const char* begin2, const char* end2);
 
 } // namespace http
 

@@ -8,6 +8,7 @@
 #include <string>
 #include <iosfwd>
 
+/** @namespace http */
 namespace http {
 
 /**

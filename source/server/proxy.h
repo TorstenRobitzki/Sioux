@@ -6,10 +6,12 @@
 #define SIOUX_SOURCE_SERVER_PROXY_H
 
 #include "server/response.h"
-#include "server/request.h"
+#include "http/request.h"
 #include "tools/dynamic_type.h"
+#include "http/filter.h"
 #include <boost/shared_ptr.hpp>
 #include <boost/asio/error.hpp>
+#include <boost/asio/buffer.hpp>
 #include <boost/utility.hpp>
 #include <string>
 #include <memory>
@@ -136,10 +138,12 @@ namespace server
                            private boost::noncopyable
     {
     public:
-        proxy_response(const boost::shared_ptr<Connection>& connection, const boost::shared_ptr<const server::request_header>& header, proxy_config_base& config)
+        proxy_response(const boost::shared_ptr<Connection>& connection, const boost::shared_ptr<const http::request_header>& header, proxy_config_base& config)
             : connection_(connection)
             , request_(header)
             , config_(config)
+            , error_close_(false)
+            , proxy_socket_(0)
         {
         }
 
@@ -147,49 +151,160 @@ namespace server
 
         void start();
     private:
+        typedef report_error_guard<Connection>  error_guard;
+
+        void done();
+
         void handle_orgin_connect(
-            typename Connection::socket_t*  orgin_socket,
-            boost::system::error_code&      error);
+            typename Connection::socket_t*      orgin_socket,
+            const boost::system::error_code&    error);
+    
+        void request_written(
+            const boost::system::error_code&    error,
+            std::size_t                         bytes_transferred); 
+
+        // checks the request_header for errors that will prevent further processing
+        // returns true, if there is no reason to furth process the request.
+        // If the function returns false, 
+        // @todo what happens to a body, if any, appended to the header
+        bool check_header();
+
+        void error_written(
+            const boost::system::error_code&    error,
+            std::size_t                         bytes_transferred); 
+
+        void bad_gateway();
 
         boost::shared_ptr<Connection>                   connection_;
-        boost::shared_ptr<const server::request_header> request_;
+        boost::shared_ptr<const http::request_header>   request_;
         proxy_config_base&                              config_;
 
-        char                                            buffer_[1024];
-        std::string                                     host_line_;
+        std::vector<tools::substring>                   outbuffers_;;
 
-        typename Connection::socket_t*                  socket_;
+        std::string                                     error_response_;
+        // indicates, that connection should be closed
+        bool                                            error_close_;
+
+        typename Connection::socket_t*                  proxy_socket_;
     };
 
     ////////////////////////////////////////
-    // implemenation
+    // proxy_config_base implementation
+    template <class Connection, class ConnectHandler>
+    void proxy_config_base::async_get_proxy_connection(
+        const std::string&  orgin,
+        ConnectHandler      handler)
+    {
+        std::auto_ptr<connect_callback> cb(new callback<ConnectHandler, Connection>(handler));
+        async_get_proxy_connection(typeid(Connection), orgin, cb);
+    }
+
+    template <class Connection>
+    void proxy_config_base::release_connection(Connection* c)
+    {
+        release_connection(typeid(Connection), c);
+    }
+
+
+    ////////////////////////////////////////
+    // proxy_response implementation
     template <class Connection>
     proxy_response<Connection>::~proxy_response()
     {
-        if ( socket_ )
-            config_.release_connection(socket_);
+        if ( proxy_socket_ )
+            config_.release_connection(proxy_socket_);
     }
 
     template <class Connection>
     void proxy_response<Connection>::start()
     {
+        connection_->response_started(shared_from_this());
+
+        if ( !check_header() )
+        {
+            connection_->async_write_some(
+                outbuffers_,
+                boost::bind(&proxy_response::error_written, shared_from_this(), 
+                boost::asio::placeholders::error,
+                boost::asio::placeholders::bytes_transferred),
+                *this);
+
+            return;
+        }
+
         /// @todo use correct host, handle missing host or invalid host
-        config_.async_get_proxy_connection<Connection>(
+        config_.async_get_proxy_connection<Connection::socket_t>(
             config_.modified_host("foobar"), 
             boost::bind(&proxy_response::handle_orgin_connect, shared_from_this(), _1, _2));
 
+        // while waiting for the response, the request to the orgin server can be assembled
+        static const http::filter general_unused_headers("connection, keep-alive");
+        http::filter    unused_headers(general_unused_headers);
+
+        const http::header* const connection_header = request_->find_header("connection");
         
+        if ( connection_header != 0 )
+        {
+            unused_headers += http::filter(connection_header->value());
+        }
+
+        outbuffers_ = request_->filtered_request_text(unused_headers);
+    }
+
+    template <class Connection>
+    void proxy_response<Connection>::done()
+    {
+        if ( error_close_ )
+            connection_->shutdown_close();
+
+        connection_->response_completed(*this);
     }
 
     template <class Connection>
     void proxy_response<Connection>::handle_orgin_connect(
-        typename Connection::socket_t*  orgin_socket,
-        boost::system::error_code&      error)
+        typename Connection::socket_t*      orgin_socket,
+        const boost::system::error_code&    error)
     {
+        error_guard fail(*connection_, *this, http::http_bad_gateway);
+
         if ( !error && orgin_socket )
         {   
-            socket_ = orgin_socket;
-        }
+            proxy_socket_ = orgin_socket;
+
+            /// @todo add timeout
+            proxy_socket_->async_write_some(
+                outbuffers_, 
+                boost::bind(
+                    &proxy_response::request_written, 
+                    shared_from_this(),
+                    boost::asio::placeholders::error,
+                    boost::asio::placeholders::bytes_transferred));
+
+            fail.dismiss();
+        } 
+    }
+        
+    template <class Connection>
+    void proxy_response<Connection>::request_written(
+        const boost::system::error_code&    /*error*/,
+        std::size_t                         /*bytes_transferred*/)
+    {
+        /** @todo */
+        done();
+    }
+
+    template <class Connection>
+    bool proxy_response<Connection>::check_header()
+    {
+        return true;
+    }
+
+    template <class Connection>
+    void proxy_response<Connection>::error_written(
+        const boost::system::error_code&    /* error */,
+        std::size_t                         /* bytes_transferred */)
+    {
+        done();
     }
 
 } // namespace server 

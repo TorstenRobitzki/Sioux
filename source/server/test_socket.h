@@ -193,8 +193,8 @@ private:
 
         std::string output();
     private:
-        bool process_output();
-        bool process_input();
+        void process_output();
+        void process_input();
 
 	    Iterator			                        current_;
 	    const Iterator		                        begin_;
@@ -369,7 +369,10 @@ void socket<Iterator>::impl::async_write_some(
         WriteHandler handler)
 {
     output_.insert(output_.end(), boost::asio::buffers_begin(buffers), boost::asio::buffers_end(buffers));
-    writes_.push_back(boost::shared_ptr<store_writes_base>(new store_writes<WriteHandler>(handler, boost::asio::buffer_size(buffers))));
+
+    const std::size_t size = std::distance(boost::asio::buffers_begin(buffers), boost::asio::buffers_end(buffers));
+
+    writes_.push_back(boost::shared_ptr<store_writes_base>(new store_writes<WriteHandler>(handler, size)));
 }
 
 template <class Iterator>
@@ -383,16 +386,14 @@ void socket<Iterator>::impl::shutdown(boost::asio::ip::tcp::socket::shutdown_typ
 }
 
 template <class Iterator>
-bool socket<Iterator>::impl::process_output()
+void socket<Iterator>::impl::process_output()
 {
     writes_.front()->handler();
     writes_.pop_front();
-
-    return true;
 }
 
 template <class Iterator>
-bool socket<Iterator>::impl::process_input()
+void socket<Iterator>::impl::process_input()
 {
     if ( current_ == end_ && --times_ )
         current_ = begin_;
@@ -411,8 +412,6 @@ bool socket<Iterator>::impl::process_input()
 
     size = old_handler->handle(make_error_code(boost::system::errc::success), current_, end);
     std::advance(current_, size);
-
-    return true;
 }
 
 template <class Iterator>
@@ -421,7 +420,9 @@ bool socket<Iterator>::impl::process()
     if ( handler_.get() == 0 && writes_.empty() )
         return false;
 
-    return !writes_.empty() ? process_output() : process_input();
+    writes_.empty() ? process_input() : process_output();
+
+    return true;
 }
 
 template <class Iterator>

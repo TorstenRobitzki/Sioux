@@ -9,6 +9,7 @@
 #include <cassert>
 #include <algorithm>
 #include <ostream>
+#include <boost/asio/buffer.hpp>
 
 namespace tools 
 {
@@ -70,10 +71,20 @@ namespace tools
          */
         basic_substring& trim(value_type to_be_removed);
 
+        /**
+         * @brief implicit conversion to boost::asio::const_buffer possible
+         */
+        operator boost::asio::const_buffer() const;
     private:
         const_iterator  begin_;
         const_iterator  end_;
     };
+
+    template <class Iterator>
+    inline std::size_t buffer_size(const basic_substring<Iterator>& b)
+    {
+        return b.size();
+    }
 
     typedef basic_substring<const char*> substring;
 
@@ -162,6 +173,12 @@ namespace tools
     basic_substring<Iterator>& basic_substring<Iterator>::trim(value_type to_be_removed)
     {
         return trim_left(to_be_removed).trim_right(to_be_removed);
+    }
+
+    template <class Iterator>
+    basic_substring<Iterator>::operator boost::asio::const_buffer() const
+    {
+        return boost::asio::const_buffer(begin_, size() * sizeof std::iterator_traits<Iterator>::value_type);
     }
 
     template <class Iterator>

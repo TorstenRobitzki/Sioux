@@ -5,7 +5,8 @@
 #ifndef SOURCE_SIOUX_CONNECTION_H
 #define SOURCE_SIOUX_CONNECTION_H
 
-#include "server/request.h"
+#include "http/request.h"
+#include "http/http.h"
 #include "server/response.h"
 #include "tools/mem_tools.h"
 #include <boost/asio/error.hpp>
@@ -66,9 +67,23 @@ namespace server
             async_response&             sender);
 
         /**
-         * @brief called by async_response d'tor to signal, that no more writes will be done
+         * @brief to be called by an async_response to signal, that no more writes will be done
+         *
+         * Usualy this function will be called by a async_response implementations d'tor. This
+         * have to be called exactly once by async_response that called response_started() before.
          */
         void response_completed(async_response& sender);
+
+        /**
+         * @brief end of response with error
+         *
+         * Same as response_completed(), but with an error code. The connection will do the nessary 
+         * response to the client (if possible).
+         *
+         * In case of an http_internal_server_error error code, all running requests are canceled and the underlying 
+         * connection will be closed.
+         */
+        void response_not_possible(async_response& sender, http::http_error_code = http::http_internal_server_error);
 
         /**
          * @brief to be called from a new response object, before any call to async_write_some()
@@ -118,23 +133,23 @@ namespace server
          * handles a newly read request_header and returns true, if further request_header should be 
          * read
          */
-		bool handle_request_header(const boost::shared_ptr<const request_header>& new_request);
+        bool handle_request_header(const boost::shared_ptr<const http::request_header>& new_request);
 
         // returns true, if the given response is the one, that currently is allowed to send
         bool is_current_response(async_response& sender) const;
 
-        Connection                          connection_;
-        Trait                               trait_;
+        Connection                              connection_;
+        Trait                                   trait_;
 
-        boost::shared_ptr<request_header>   current_request_;
+        boost::shared_ptr<http::request_header> current_request_;
 
         typedef std::deque<boost::weak_ptr<async_response> > response_list;
-        response_list                       responses_;
+        response_list                           responses_;
 
         typedef std::map<async_response*, std::vector<blocked_write_base*> >  blocked_write_list;
-        blocked_write_list                  blocked_writes_;
+        blocked_write_list                      blocked_writes_;
 
-        bool                                shutdown_read_;
+        bool                                    shutdown_read_;
  	};
 
     /**
@@ -168,7 +183,7 @@ namespace server
 	template <class Trait, class Connection>
     void connection<Trait, Connection>::start()
     {
-        current_request_.reset(new request_header);
+        current_request_.reset(new http::request_header);
         issue_header_read();
     }
 
@@ -233,6 +248,11 @@ namespace server
     }
 
 	template <class Trait, class Connection>
+    void connection<Trait, Connection>::response_not_possible(async_response& /* sender */ , http::http_error_code)
+    {
+    }
+
+	template <class Trait, class Connection>
     void connection<Trait, Connection>::response_started(const boost::weak_ptr<async_response>& response)
     {
         responses_.push_back(response);
@@ -284,10 +304,10 @@ namespace server
         {
             while ( bytes_transferred != 0 && current_request_->parse(bytes_transferred) )
             {
-                if ( !handle_request_header(current_request_) || current_request_->state() == request_header::buffer_full )
+                if ( !handle_request_header(current_request_) || current_request_->state() == http::request_header::buffer_full )
                     return;
 
-                current_request_.reset(new request_header(*current_request_, bytes_transferred, request_header::copy_trailing_buffer));
+                current_request_.reset(new http::request_header(*current_request_, bytes_transferred, http::request_header::copy_trailing_buffer));
             }
 
             issue_header_read();
@@ -295,7 +315,7 @@ namespace server
     }
 
 	template <class Trait, class Connection>
-    bool connection<Trait, Connection>::handle_request_header(const boost::shared_ptr<const request_header>& new_request)
+    bool connection<Trait, Connection>::handle_request_header(const boost::shared_ptr<const http::request_header>& new_request)
     {
         trait_.create_response(shared_from_this(), new_request);
 

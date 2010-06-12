@@ -33,7 +33,7 @@ public:
     template <class Connection>
     boost::weak_ptr<async_response> create_response(
         const boost::shared_ptr<Connection>&                    connection,
-        const boost::shared_ptr<const server::request_header>&  header)
+        const boost::shared_ptr<const http::request_header>&    header)
     {
         pimpl_->add_request(header);
 
@@ -43,7 +43,7 @@ public:
         return boost::weak_ptr<async_response>(new_response);
     }
 
-    std::vector<boost::shared_ptr<const server::request_header> > requests() const
+    std::vector<boost::shared_ptr<const http::request_header> > requests() const
     {
         return pimpl_->requests();
     }
@@ -51,17 +51,17 @@ private:
     class impl
     {
     public:
-        void add_request(const boost::shared_ptr<const server::request_header>& r)
+        void add_request(const boost::shared_ptr<const http::request_header>& r)
         {
             requests_.push_back(r);
         }
 
-        std::vector<boost::shared_ptr<const server::request_header> > requests() const
+        std::vector<boost::shared_ptr<const http::request_header> > requests() const
         {
             return requests_;
         }
     private:
-        std::vector<boost::shared_ptr<const server::request_header> >   requests_;
+        std::vector<boost::shared_ptr<const http::request_header> >   requests_;
     };
 
     boost::shared_ptr<impl> pimpl_;

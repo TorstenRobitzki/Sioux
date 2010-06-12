@@ -6,10 +6,13 @@
 #include "server/connection.h"
 #include "server/test_traits.h"
 #include "server/test_response.h"
-#include "server/test_request_texts.h"
-#include "server/request.h"
+#include "http/test_request_texts.h"
+#include "http/request.h"
 #include "tools/iterators.h"
 #include <boost/asio/buffer.hpp>
+
+using namespace server::test;
+using namespace http::test;
 
 /** 
  * @test test that responses go in the right order onto the wire.
@@ -18,7 +21,6 @@
  */ 
 TEST(simply_receiving_a_hello)
 {
-    using namespace server::test;
 
     traits<>::connection_type   socket(begin(simple_get_11), begin(simple_get_11), 5);
     traits<>                    trait;
@@ -28,7 +30,7 @@ TEST(simply_receiving_a_hello)
     typedef server::test::response<server::connection<traits<> > > response;
 
     // a simulated response to an empty header
-    boost::shared_ptr<server::request_header>       empty_header(new server::request_header);
+    boost::shared_ptr<http::request_header> empty_header(new http::request_header);
 
     const char* texts[] = {"Hallo,", " wie ", "gehts?"};
     int         index[] = {0, 1, 2};
@@ -73,3 +75,25 @@ TEST(simply_receiving_a_hello)
 
 }
 
+/** 
+ * @test this test should ensure, that when a request in the middle of the pipeline reports an error 
+ *       other reponses will fulfill.
+ */
+TEST(non_fatal_error_while_responding)
+{
+    traits<>::connection_type   socket(begin(simple_get_11), begin(simple_get_11));
+    traits<>                    trait;
+
+    boost::shared_ptr<server::connection<traits<> > > connection = server::create_connection(socket, trait);
+
+
+}
+
+/** 
+ * @test this test should ensure, that when a request in the middle of the pipeline reports a fatail error 
+ *       other reponses will be canceled.
+ */
+TEST(fatal_error_while_responding)
+{
+
+}

@@ -136,11 +136,31 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
+				RelativePath=".\filter.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\header.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\http.cpp"
 				>
 			</File>
 			<File
+				RelativePath=".\message.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\parser.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\request.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\response.cpp"
 				>
 			</File>
 		</Filter>
@@ -150,11 +170,31 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
+				RelativePath=".\filter.h"
+				>
+			</File>
+			<File
+				RelativePath=".\header.h"
+				>
+			</File>
+			<File
 				RelativePath=".\http.h"
 				>
 			</File>
 			<File
+				RelativePath=".\message.h"
+				>
+			</File>
+			<File
 				RelativePath=".\parser.h"
+				>
+			</File>
+			<File
+				RelativePath=".\request.h"
+				>
+			</File>
+			<File
+				RelativePath=".\response.h"
 				>
 			</File>
 		</Filter>

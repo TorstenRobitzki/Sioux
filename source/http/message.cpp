@@ -2,21 +2,23 @@
 // Please note that the content of this file is confidential or protected by law.
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
-#include "server/request.h"
-#include "http/http.h"
-#include "tools/iterators.h"
-#include "tools/split.h"
+#include "http/message.h"
+#include "http/request.h"
+#include "http/response.h"
+#include "http/filter.h"
 #include "http/parser.h"
+#include "tools/split.h"
 #include <algorithm>
 #include <cassert>
 #include <cstring>
 
-namespace server {
 
+namespace http {
 
     //////////////////////////
     // class request_header
-    request_header::request_header()
+    template <class Type>
+    message_base<Type>::message_base()
         : write_ptr_(0)
         , parse_ptr_(0)
         , read_ptr_(0)
@@ -24,8 +26,9 @@ namespace server {
         , parser_state_(expect_request_line)
     {
     }
-
-    request_header::request_header(const request_header& old_header, std::size_t& remaining, copy_trailing_buffer_t)
+    
+    template <class Type>
+    message_base<Type>::message_base(const Type& old_header, std::size_t& remaining, copy_trailing_buffer_t)
         : write_ptr_(0)
         , parse_ptr_(0)
         , read_ptr_(0)
@@ -39,7 +42,8 @@ namespace server {
         assert(remaining != sizeof buffer_);
     }
     
-    request_header::request_header(const char* source)
+    template <class Type>
+    message_base<Type>::message_base(const char* source)
         : write_ptr_(0)
         , parse_ptr_(0)
         , read_ptr_(0)
@@ -52,13 +56,15 @@ namespace server {
         parse(max);
     }
 
-    std::pair<char*, std::size_t> request_header::read_buffer()
+    template <class Type>
+    std::pair<char*, std::size_t> message_base<Type>::read_buffer()
     {
         assert(write_ptr_ <= sizeof buffer_);
         return std::make_pair(&buffer_[write_ptr_], sizeof buffer_ - write_ptr_);
     }
     
-    bool request_header::parse(std::size_t size)
+    template <class Type>
+    bool message_base<Type>::parse(std::size_t size)
     {
         assert(size);
         assert(error_ == parsing);
@@ -108,7 +114,21 @@ namespace server {
         return error_ != parsing;
     }
     
-    void request_header::crlf_found(const char* start, const char* end)
+    template <class Type>
+    bool message_base<Type>::parse_version(const tools::substring& version_text)
+    {
+        tools::substring    http;
+        tools::substring    minor, major, version;
+
+        if ( !tools::split(version_text, '/', http, version) || !tools::split(version, '.', major, minor) )
+            return false;
+
+        return  http::parse_number(major.begin(), major.end(), major_version_) 
+             && http::parse_number(minor.begin(), minor.end(), minor_version_);
+    }
+
+    template <class Type>
+    void message_base<Type>::crlf_found(const char* start, const char* end)
     {
         if ( parser_state_ == expect_request_line )
         {
@@ -116,7 +136,12 @@ namespace server {
             if ( start == end )
                 return;
 
-            request_line_found(start, end);
+            start_line_ = tools::substring(start, end);
+            
+            if ( !static_cast<Type*>(this)->start_line_found(start, end) )
+                return parse_error();
+
+            parser_state_ = expect_header;
         }
         else if ( parser_state_ == expect_header )
         {
@@ -131,84 +156,29 @@ namespace server {
         }
     }
 
-    namespace {
-        struct header_desc
-        {
-            const http::http_method_code    code;
-            const char*                     name;
-        };
-
-        const header_desc valid_headers[] = 
-        {
-            { http::http_options, "OPTIONS" },
-            { http::http_get, "GET" },
-            { http::http_head, "HEAD" },
-            { http::http_post, "POST" },
-            { http::http_put, "PUT" }, 
-            { http::http_delete, "DELETE" },
-            { http::http_trace, "TRACE" },
-            { http::http_connect, "CONNECT" }
-        };
-    }
-
-    void request_header::request_line_found(const char* start, const char* end)
+    template <class Type>
+    void message_base<Type>::header_found(const char* start, const char* end)
     {
         assert(start != end);
-
-        tools::substring    method_text;
-        tools::substring    rest;
-
-        if ( !tools::split(start, end, ' ', method_text, rest) )
-            return parse_error(); 
-
-        // simple, linear search
-        const header_desc* header_entry = tools::begin(valid_headers);
-        for ( ; header_entry != tools::end(valid_headers) && method_text != header_entry->name; ++header_entry )
-            ;
-
-        if ( header_entry == tools::end(valid_headers) )
-            return parse_error(); 
-
-        method_ = header_entry->code;
-
-        tools::substring    version;
-        tools::substring    http;
-        tools::substring    minor, major;
-        if ( !tools::split(rest, ' ', uri_, version) 
-          || !tools::split(version, '/', http, version) 
-          || !tools::split(version, '.', major, minor) )
-        {
-            return parse_error();
-        }
-
-        if ( !http::parse_version_number(major.begin(), major.end(), major_version_) 
-          || !http::parse_version_number(minor.begin(), minor.end(), minor_version_) )
-        {
-            return parse_error();
-        }
-
-        parser_state_ = expect_header;
-    }
-
-    void request_header::header_found(const char* start, const char* end)
-    {
-        assert(start != end);
-
         header h;
-        if ( tools::split(start, end, ':', h.name_, h.value_) )
-        {
-            h.name_.trim(' ').trim('\t');
-            h.value_.trim(' ').trim('\t');
 
+        // continuation?
+        if ( (*start == ' ' || *start == '\t') && !headers_.empty() )
+        {
+            headers_.back().add_value_line(end);
+        }
+        else if ( h.parse(start, end) )
+        {
             headers_.push_back(h);
         }
         else
         {
-            error_ = syntax_error;
+            parse_error();
         }
     }
 
-    void request_header::end_of_request() 
+    template <class Type>
+    void message_base<Type>::end_of_request() 
     {
         assert(parser_state_ == expect_header);
 
@@ -216,52 +186,47 @@ namespace server {
         error_ = ok;
     }
 
-    void request_header::parse_error()
+    template <class Type>
+    void message_base<Type>::parse_error()
     {
         error_ = syntax_error;
     }
 
-    request_header::error_code request_header::state() const
+    template <class Type>
+    typename message_base<Type>::error_code message_base<Type>::state() const
     {
         return error_;
     }
     
-    unsigned request_header::major_version() const
+    template <class Type>
+    unsigned message_base<Type>::major_version() const
     {
         assert(error_ == ok);
         return major_version_;
     }
 
-    unsigned request_header::minor_version() const
+    template <class Type>
+    unsigned message_base<Type>::minor_version() const
     {
         assert(error_ == ok);
         return minor_version_;
     }
 
-    unsigned request_header::milli_version() const
+    template <class Type>
+    unsigned message_base<Type>::milli_version() const
     {
         assert(error_ == ok);
         return 1000 * major_version_ + minor_version_;
     }
 
-    http::http_method_code request_header::method() const
-    {
-        assert(error_ == ok);
-        return method_;
-    }
-
-    tools::substring request_header::uri() const
-    {
-        assert(error_ == ok);
-        return uri_;
-    }
-
-    tools::substring request_header::text() const
+    template <class Type>
+    tools::substring message_base<Type>::text() const
     {
         return tools::substring(&buffer_[0], &buffer_[parse_ptr_]);
     }
 
-    bool request_header::option_available(const char* header_name, const char* option) const
+    template <class Type>
+    bool message_base<Type>::option_available(const char* header_name, const char* option) const
     {
         assert(error_ == ok);
         const header * const h = find_header(header_name);
@@ -273,16 +238,23 @@ namespace server {
 
         while ( tools::split(rest, ',', field, rest) )
         {
-            field.trim(' ').trim('\t');
-            if ( http::strcasecmp(field.begin(), field.end(), option) == 0 )
+            if ( http::strcasecmp(
+                    http::eat_spaces_and_CRLS(field.begin(), field.end()), 
+                    http::reverse_eat_spaces_and_CRLS(field.begin(), field.end()),
+                    option) == 0 )
+            {
                 return true;
+            }
         }
 
         rest.trim(' ').trim('\t');
-        return http::strcasecmp(rest.begin(), rest.end(), option) == 0;
+        return http::strcasecmp(
+            http::eat_spaces_and_CRLS(rest.begin(), rest.end()),
+            http::reverse_eat_spaces_and_CRLS(rest.begin(), rest.end()), option) == 0;
     }
 
-    const request_header::header* request_header::find_header(const char* header_name) const
+    template <class Type>
+    const typename message_base<Type>::header* message_base<Type>::find_header(const char* header_name) const
     {
         assert(error_ == ok);
         std::vector<header>::const_iterator h = headers_.begin();
@@ -292,10 +264,46 @@ namespace server {
         return h != headers_.end() ? &*h : 0;
     }
 
-    bool request_header::close_after_response() const
+    template <class Type>
+    bool message_base<Type>::close_after_response() const
     {
         return error_ != ok || milli_version() < 1001 || option_available("connection", "close");
     }
+
+    template <class Type>
+    std::vector<tools::substring> message_base<Type>::filtered_request_text(const http::filter& not_wanted_header) const
+    {
+        assert(error_ == ok);
+        std::vector<tools::substring>   result;
+
+        tools::substring::iterator current_start = start_line_.begin();
+        tools::substring::iterator current_end   = start_line_.end();
+
+        // add headers
+        for ( header_list_t::const_iterator h = headers_.begin(); h != headers_.end(); ++h )
+        {
+            if ( not_wanted_header(h->name()) )
+            {
+                if ( current_start != current_end )
+                    result.push_back( tools::substring(current_start, current_end) );
+
+                current_start = h->end();
+            }
+
+            current_end = h->end();
+        }
+
+        // current_start now points to the end of the last header, if that was filtered out or
+        // to the start of that part of the header that has to be included.
+        result.push_back(tools::substring(current_start, &buffer_[parse_ptr_]));
+
+        return result;
+    }
+
+    // explizit instanziating
+    template class message_base<request_header>;
+    template class message_base<response_header>;
+
 
     std::ostream& operator<<(std::ostream& out, request_header::error_code e)
     {
@@ -314,6 +322,5 @@ namespace server {
         }
     }
 
-
-} // namespace server
+} // namespace http
 

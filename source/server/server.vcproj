@@ -136,15 +136,7 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath=".\header.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\proxy.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\request.cpp"
 				>
 			</File>
 			<File
@@ -162,11 +154,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\proxy.h"
+				RelativePath=".\error.h"
 				>
 			</File>
 			<File
-				RelativePath=".\request.h"
+				RelativePath=".\proxy.h"
 				>
 			</File>
 			<File

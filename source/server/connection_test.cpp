@@ -4,12 +4,13 @@
 #include "unittest++/unittest++.h"
 #include "server/connection.h"
 #include "server/test_traits.h"
-#include "server/test_request_texts.h"
+#include "http/test_request_texts.h"
+
+using namespace server::test;
+using namespace http::test;
 
 TEST(read_simple_header)
 {
-    using namespace server::test;
-
     traits<>::connection_type   socket(begin(simple_get_11), end(simple_get_11), 5);
     traits<>                    trait;
 
@@ -23,8 +24,6 @@ TEST(read_simple_header)
 
 TEST(read_multiple_header)
 {
-    using namespace server::test;
-
     traits<>::connection_type   socket(begin(simple_get_11), end(simple_get_11), 400, 2000);
     traits<>                    traits;
 
@@ -38,8 +37,6 @@ TEST(read_multiple_header)
 
 TEST(read_big_buffer)
 {
-    using namespace server::test;
-
     std::vector<char>   input;
     for ( unsigned i = 0; i != 1000; ++i )
         input.insert(input.end(), begin(simple_get_11), end(simple_get_11));
@@ -58,8 +55,6 @@ TEST(read_big_buffer)
 
 TEST(read_buffer_overflow)
 {
-    using namespace server::test;
-
     const char header[] = "Accept-Encoding: gzip\r\n";
 
     std::vector<char>   input(begin(request_without_end_line), end(request_without_end_line));
@@ -76,7 +71,7 @@ TEST(read_buffer_overflow)
         ;
 
     CHECK_EQUAL(1u, traits.requests().size());
-    CHECK_EQUAL(server::request_header::buffer_full, traits.requests().front()->state());
+    CHECK_EQUAL(http::request_header::buffer_full, traits.requests().front()->state());
 }
 
 /**
@@ -84,8 +79,6 @@ TEST(read_buffer_overflow)
  */
 TEST(close_after_sender_closed)
 {
-    using namespace server::test;
-
     traits<>::connection_type   socket(begin(simple_get_11), end(simple_get_11), 0);
     traits<>                    trait;
 
@@ -104,8 +97,6 @@ TEST(close_after_sender_closed)
  */
 TEST(closed_by_connection_header)
 {
-    using namespace server::test;
-
     traits<>::connection_type   socket(begin(simple_get_11_with_close_header), end(simple_get_11_with_close_header), 0);
     traits<>                    trait;
 

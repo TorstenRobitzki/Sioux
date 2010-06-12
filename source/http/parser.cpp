@@ -104,6 +104,28 @@ int strcasecmp(const char* begin1, const char* end1, const char* null_terminated
     return 0;
 }
 
+int strcasecmp(const char* begin1, const char* end1, const char* begin2, const char* end2)
+{
+    for ( ; begin1 != end1 && begin2 != end2; ++begin1, ++begin2)
+    {
+        const char cl = static_cast<char>(std::tolower(*begin1));
+        const char cr = static_cast<char>(std::tolower(*begin2));
+
+        if ( cl < cr )
+            return -1;
+        if ( cr < cl )
+            return 1;
+    }
+
+    if ( begin2 != end2 )
+        return -1;
+
+    if ( begin1 != end1 )
+        return 1;
+
+    return 0;
+}
+
 ////////////////////////////////////////////////
 // class bad_url
 bad_url::bad_url(const std::string& s)

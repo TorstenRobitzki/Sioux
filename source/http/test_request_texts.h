@@ -1,10 +1,10 @@
 // Please note that the content of this file is confidential or protected by law.
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
-#ifndef SIOUX_SERVER_TEST_REQUEST_TEXTS_H
-#define SIOUX_SERVER_TEST_REQUEST_TEXTS_H
+#ifndef SIOUX_HTTP_TEST_REQUEST_TEXTS_H
+#define SIOUX_HTTP_TEST_REQUEST_TEXTS_H
 
-namespace server {
+namespace http {
 namespace test {
 	const char simple_get_11[] = 
 		"GET / HTTP/1.1\r\n"
@@ -94,7 +94,7 @@ namespace test {
     }
 
 } // namespace test
-} // namespace server 
+} // namespace http 
 
 #endif
 

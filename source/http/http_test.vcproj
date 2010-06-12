@@ -2,8 +2,8 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9,00"
-	Name="server_test"
-	ProjectGUID="{298E4FA8-262D-461F-AC2A-05FDCE2D6BC0}"
+	Name="http_test"
+	ProjectGUID="{17ACEA3A-7EA3-42E6-922D-8CCC3E8C9E75}"
 	RootNamespace="sioux"
 	Keyword="Win32Proj"
 	TargetFrameworkVersion="196613"
@@ -151,19 +151,19 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath=".\connection_test.cpp"
+				RelativePath=".\filter_test.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\proxy_test.cpp"
+				RelativePath=".\header_test.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\request_test.cpp"
 				>
 			</File>
 			<File
 				RelativePath=".\response_test.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\test_proxy.cpp"
 				>
 			</File>
 		</Filter>
@@ -173,23 +173,7 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
-				RelativePath=".\test_proxy.h"
-				>
-			</File>
-			<File
-				RelativePath=".\test_response.h"
-				>
-			</File>
-			<File
-				RelativePath=".\test_socket.h"
-				>
-			</File>
-			<File
-				RelativePath=".\test_timer.h"
-				>
-			</File>
-			<File
-				RelativePath=".\test_traits.h"
+				RelativePath=".\test_request_texts.h"
 				>
 			</File>
 		</Filter>

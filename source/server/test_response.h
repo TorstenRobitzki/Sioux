@@ -13,10 +13,13 @@
 #include <boost/system/error_code.hpp>
 #include <string>
 
+namespace http {
+    class request_header;
+}
+
 namespace server{
 
-    class request_header;
-
+    
 namespace test {
 
     enum response_type {
@@ -34,14 +37,14 @@ namespace test {
     class response : public async_response, public boost::enable_shared_from_this<response<Connection> >
     {
     public:
-        response(const boost::shared_ptr<Connection>& connection, const boost::shared_ptr<const server::request_header>& /*header*/, const std::string& answer)
+        response(const boost::shared_ptr<Connection>& connection, const boost::shared_ptr<const http::request_header>& /*header*/, const std::string& answer)
             : connection_(connection)
             , answer_(answer)
             , response_type_(auto_response)
         {
         }
 
-        response(const boost::shared_ptr<Connection>& connection, const boost::shared_ptr<const server::request_header>& /*header*/, const std::string& answer, response_type rt)
+        response(const boost::shared_ptr<Connection>& connection, const boost::shared_ptr<const http::request_header>& /*header*/, const std::string& answer, response_type rt)
             : connection_(connection)
             , answer_(answer)
             , response_type_(rt)
@@ -85,7 +88,7 @@ namespace test {
     template <class Connection>
     boost::weak_ptr<async_response> create_response(
         const boost::shared_ptr<Connection>&                    connection, 
-        const boost::shared_ptr<const server::request_header>&  header, 
+        const boost::shared_ptr<const http::request_header>&    header, 
         const std::string&                                      answer,
         response_type                                           response_procedure)
     {

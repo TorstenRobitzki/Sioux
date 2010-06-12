@@ -41,12 +41,12 @@ bool proxy_config::process()
     if ( call_back_.get() )
     {
         call_back_->connection_received(&socket_, make_error_code(boost::system::errc::success));
-        call_back_.release();
+        call_back_.reset();
 
         return true;
     }
 
-    return false;
+    return socket_.process();
 }
 
 void proxy_config::async_get_proxy_connection(
@@ -54,6 +54,7 @@ void proxy_config::async_get_proxy_connection(
     const std::string&                  /* orgin */,
     std::auto_ptr<connect_callback>&    call_back)
 {
+    assert(!call_back_.get() && "two requests not supported!");
     if ( connection_type != typeid (server::test::socket<const char*>) )
         throw std::runtime_error("test::proxy_config::async_get_proxy_connection: invalid type"); 
 

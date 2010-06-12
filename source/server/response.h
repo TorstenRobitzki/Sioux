@@ -5,8 +5,57 @@
 #ifndef SIOUX_SOURCE_SERVER_RESPONSE_H
 #define SIOUX_SOURCE_SERVER_RESPONSE_H
 
+#include "http/http.h"
+#include <cassert>
+
 namespace server
 {
+    class async_response;
+
+    /**
+     * @brief small helper to report an error to the connection as last resort
+     *
+     * This scope guard takes a reference to 
+     */
+    template <class Connection>
+    class report_error_guard
+    {
+    public:
+        report_error_guard(Connection& con, async_response& resp) 
+            : con_(&con)
+            , response_(&resp) 
+            , error_code_(http::http_internal_server_error)
+        {}
+
+        report_error_guard(Connection& con, async_response& resp, http::http_error_code ec)
+            : con_(&con)
+            , response_(&resp) 
+            , error_code_(ec)
+        {}
+
+        ~report_error_guard()
+        {
+            if ( con_ )
+            {
+                assert(response_);
+                con_->response_not_possible(*response_, error_code_);
+            }
+        }
+
+        void dismiss()
+        {
+            con_ = 0;
+        }
+
+    private:
+        report_error_guard(const report_error_guard&);
+        report_error_guard& operator=(const report_error_guard&);
+
+        Connection*             con_;
+        async_response*         response_;
+        http::http_error_code   error_code_;
+    };
+
     /**
      * @brief base class for asynchronous responses to an http request
      */
