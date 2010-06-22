@@ -7,6 +7,7 @@
 
 #include "server/test_socket.h"
 #include "server/test_response.h"
+#include "server/error.h"
 #include <vector>
 
 namespace server {
@@ -47,6 +48,20 @@ public:
     {
         return pimpl_->requests();
     }
+
+    template <class Connection>
+    boost::shared_ptr<async_response> error_response(const boost::shared_ptr<Connection>& con, http::http_error_code ec) const
+    {
+        boost::shared_ptr<async_response> result;
+
+        if ( ec != http::http_internal_server_error )
+        {
+            result.reset(new server::error_response<Connection>(con, ec));
+        }
+
+        return result;
+    }
+
 private:
     class impl
     {

@@ -29,7 +29,6 @@ namespace test {
         manuel_response 
     };
 
-
     /**
      * @brief a async_reponse implementation, that that responses with a given text
      */
@@ -41,6 +40,8 @@ namespace test {
             : connection_(connection)
             , answer_(answer)
             , response_type_(auto_response)
+            , error_code_()
+            , error_(false)
         {
         }
 
@@ -48,6 +49,17 @@ namespace test {
             : connection_(connection)
             , answer_(answer)
             , response_type_(rt)
+            , error_code_()
+            , error_(false)
+        {
+        }
+
+        response(const boost::shared_ptr<Connection>& connection, const boost::shared_ptr<const http::request_header>& /*header*/, http::http_error_code answer, response_type rt)
+            : connection_(connection)
+            , answer_()
+            , response_type_(rt)
+            , error_code_(answer)
+            , error_(true)
         {
         }
 
@@ -62,15 +74,22 @@ namespace test {
 
         void simulate_incomming_data()
         {
-            connection_->async_write_some(
-                boost::asio::buffer(answer_), 
-                boost::bind(&response::handler, 
-                        shared_from_this(),
-                        boost::asio::placeholders::error,
-                        boost::asio::placeholders::bytes_transferred),
-                *this);
+            if ( error_ )
+            {
+                connection_->response_not_possible(*this, error_code_);
+            }
+            else
+            {
+                connection_->async_write_some(
+                    boost::asio::buffer(answer_), 
+                    boost::bind(&response::handler, 
+                            shared_from_this(),
+                            boost::asio::placeholders::error,
+                            boost::asio::placeholders::bytes_transferred),
+                    *this);
 
-            self_.reset();
+                self_.reset();
+            }
         }
 
     private:
@@ -83,6 +102,8 @@ namespace test {
         const boost::shared_ptr<Connection> connection_;
         const std::string                   answer_;
         response_type                       response_type_;
+        http::http_error_code               error_code_;
+        bool                                error_;
     };
 
     template <class Connection>
@@ -97,6 +118,20 @@ namespace test {
 
         return boost::weak_ptr<async_response>(respo);
     }
+
+    template <class Connection>
+    boost::weak_ptr<async_response> create_response(
+        const boost::shared_ptr<Connection>&                    connection, 
+        const boost::shared_ptr<const http::request_header>&    header, 
+        http::http_error_code                                   answer,
+        response_type                                           response_procedure)
+    {
+        const boost::shared_ptr<response<Connection> > respo(new response<Connection>(connection, header, answer, response_procedure));
+        respo->start();
+
+        return boost::weak_ptr<async_response>(respo);
+    }
+
 
 } // namespace test
 

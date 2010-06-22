@@ -7,6 +7,7 @@
 
 #include "http/http.h"
 #include "server/response.h"
+#include "tools/asstring.h"
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/utility.hpp>
 
@@ -14,12 +15,50 @@ namespace server {
 
     template <class Connection>
     class error_response : public async_response, 
-                           public boost::enable_shared_from_this<proxy_response<Connection> >, 
+                           public boost::enable_shared_from_this<error_response<Connection> >, 
                            private boost::noncopyable
     {
     public:
-        explicit error_response(http::http_error_code ec);
+        explicit error_response(const boost::shared_ptr<Connection>& con, http::http_error_code ec);
+
+        void start();
+    private:
+        void handle_written(
+            const boost::system::error_code&    error,
+            std::size_t                         bytes_transferred);
+
+        std::string                     buffer_;
+        boost::shared_ptr<Connection>   connection_;
     };
+
+
+    template <class Connection>
+    error_response<Connection>::error_response(const boost::shared_ptr<Connection>& con, http::http_error_code ec)
+     : buffer_("HTTP/1.1 " + tools::as_string(static_cast<int>(ec)) + " " + http::reason_phrase(ec) + "\r\n\r\n")
+     , connection_(con)
+    {
+    }
+
+    template <class Connection>
+    void error_response<Connection>::start()
+    {
+        response_started(shared_from_this());
+
+        connection_->async_write_some(
+                boost::buffer(buffer_),
+                boost::bind(
+                    &error_response::handle_written, 
+                    shared_from_this(),
+                    boost::asio::placeholders::error,
+                    boost::asio::placeholders::bytes_transferred));
+    }
+
+    template <class Connection>
+    void error_response<Connection>::handle_written(const boost::system::error_code&, std::size_t)
+    {
+        connection_->response_completed(*this);
+    }
+
 } // namespace server
 
-
+#endif // include guard

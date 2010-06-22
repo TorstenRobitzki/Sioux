@@ -24,6 +24,19 @@ namespace server
 {
     class async_response;
 
+    enum error_codes 
+    {
+        canceled_by_error
+    };
+
+    class connection_error_category : public boost::system::error_category 
+    {
+        virtual const char *     name() const;
+        virtual std::string      message( int ev ) const;
+    };
+
+    boost::system::error_code make_error_code(error_codes e);
+
 	/**
 	 * @brief representation of physical connection from a client to this server
 	 *
@@ -111,6 +124,8 @@ namespace server
             virtual ~blocked_write_base() {}
 
             virtual void operator()(Connection&) = 0;
+
+            virtual void cancel() = 0;
         };
 
         template <class ConstBufferSequence, class WriteHandler>
@@ -121,6 +136,7 @@ namespace server
                           WriteHandler                handler);
         private:
             void operator()(Connection&);
+            void cancel();
 
             const ConstBufferSequence   buffers_;
             const WriteHandler          handler_;
@@ -138,17 +154,37 @@ namespace server
         // returns true, if the given response is the one, that currently is allowed to send
         bool is_current_response(async_response& sender) const;
 
+        template <class Handler>
+        void unblock_pending_writes(async_response& sender, const Handler&);
+
+        // cancels all pending writes and reads, closes the connection
+        void cancel_all();
+
         Connection                              connection_;
         Trait                                   trait_;
 
         boost::shared_ptr<http::request_header> current_request_;
 
+        // as removing the responses is strictly required, the use of weak_ptr is not nessary,
+        // but might be helpfull for debuging 
         typedef std::deque<boost::weak_ptr<async_response> > response_list;
         response_list                           responses_;
+
+        static async_response& response_from_list(response_list::iterator i)
+        {
+            return *boost::shared_ptr<async_response>(*i);
+        }
+
+        static const async_response& response_from_list(response_list::const_iterator i)
+        {
+            return *boost::shared_ptr<const async_response>(*i);
+        }
+
 
         typedef std::map<async_response*, std::vector<blocked_write_base*> >  blocked_write_list;
         blocked_write_list                      blocked_writes_;
 
+        bool                                    current_response_is_sending_;
         bool                                    shutdown_read_;
  	};
 
@@ -168,6 +204,7 @@ namespace server
         : connection_(arg)
         , trait_(trait)
         , current_request_()
+        , current_response_is_sending_(false)
         , shutdown_read_(false)
     {
     }
@@ -194,9 +231,10 @@ namespace server
         WriteHandler                handler,
         async_response&             sender)
     {
-        if ( is_current_response(sender) )
+        if ( &response_from_list(responses_.begin()) == &sender )
         {
             connection_.async_write_some(buffers, handler);
+            current_response_is_sending_ = true;
         }
         else
         {
@@ -220,36 +258,64 @@ namespace server
         }
     }
 
-	template <class Trait, class Connection>
+    template <class Trait, class Connection>
     void connection<Trait, Connection>::response_completed(async_response& sender)
     {
-        if ( is_current_response(sender) )
-        {
-            blocked_writes_.erase(&sender);
+        // there is no reason, why there should be outstanding, blocked writes from the current sender
+        assert(blocked_writes_.erase(&sender) == 0);
 
-            blocked_write_list::iterator pending_writes = blocked_writes_.end();
-            for ( response_list::const_iterator i = responses_.begin(); i != responses_.end() && pending_writes == blocked_writes_.end(); ++i )
-            {
-                if ( !i->expired() )
-                {
-                    boost::shared_ptr<async_response>   resp(*i);
-                    pending_writes = blocked_writes_.find(&*resp);
-                }
-            }
+        if ( &response_from_list(responses_.begin()) == &sender )
+        {
+            current_response_is_sending_ = false;
+            responses_.pop_front();
+
+            if ( responses_.empty() )
+                return;
+
+            const blocked_write_list::iterator pending_writes = blocked_writes_.find(&response_from_list(responses_.begin()));
 
             if ( pending_writes != blocked_writes_.end() )
             {
-                tools::ptr_container_guard<blocked_write_list::mapped_type> guard(pending_writes->second);
+                // first remove all pending writes from the list
+                blocked_write_list::mapped_type                             list;
+                tools::ptr_container_guard<blocked_write_list::mapped_type> delete_blocked_writes(list);
 
-                std::for_each(pending_writes->second.begin(), pending_writes->second.end(),
+                list.swap(pending_writes->second);
+                blocked_writes_.erase(pending_writes);
+
+                std::for_each(list.begin(), list.end(), 
                     boost::bind(&blocked_write_base::operator(), _1, boost::ref(connection_)));
             }
         }
     }
 
 	template <class Trait, class Connection>
-    void connection<Trait, Connection>::response_not_possible(async_response& /* sender */ , http::http_error_code)
+    void connection<Trait, Connection>::cancel_all()
     {
+
+    }
+
+	template <class Trait, class Connection>
+    void connection<Trait, Connection>::response_not_possible(async_response& /*sender*/, http::http_error_code /*ec*/)
+    {
+#if 0
+        const bool current_reponse = is_current_response(sender);
+        boost::shared_ptr<async_response> error_response;
+
+        // if no data was send from this response, consult the error-trait to get an error response
+        if ( !current_reponse || !current_response_is_sending_ )
+        {
+            error_response = trait_.error_response(shared_from_this(), ec);
+        }
+
+        if ( error_response.get() )
+        {
+        }
+        else
+        {
+            cancel_all();
+        }
+#endif 
     }
 
 	template <class Trait, class Connection>
@@ -341,22 +407,6 @@ namespace server
     }
 
 	template <class Trait, class Connection>
-    bool connection<Trait, Connection>::is_current_response(async_response& sender) const
-    {
-        for ( response_list::const_iterator response = responses_.begin(); response != responses_.end(); ++response )
-        {
-            if ( !response->expired() )
-            {
-                return &sender == &*boost::shared_ptr<async_response>(*response) ;
-            }
-        }
-
-        assert(!"not such response");
-
-        return true;
-    }
-
-	template <class Trait, class Connection>
     template <class ConstBufferSequence, class WriteHandler>
     connection<Trait, Connection>::blocked_write<ConstBufferSequence, WriteHandler>::blocked_write(
         const ConstBufferSequence&  buffers,
@@ -368,13 +418,19 @@ namespace server
 
 	template <class Trait, class Connection>
     template <class ConstBufferSequence, class WriteHandler>
-    void connection<Trait, Connection>::blocked_write<ConstBufferSequence, WriteHandler>::operator()(
-        Connection& con)
+    void connection<Trait, Connection>::blocked_write<ConstBufferSequence, WriteHandler>::operator()(Connection& con)
     {
         con.async_write_some(buffers_, handler_);
     }
 
-	template <class Connection, class Trait>
+	template <class Trait, class Connection>
+    template <class ConstBufferSequence, class WriteHandler>
+    void connection<Trait, Connection>::blocked_write<ConstBufferSequence, WriteHandler>::cancel()
+    {
+        handler_(make_error_code(canceled_by_error), 0);
+    }
+
+    template <class Connection, class Trait>
     boost::shared_ptr<connection<Trait, Connection> > create_connection(const Connection& con, const Trait& trait)
     {
         const boost::shared_ptr<connection<Trait, Connection> > result(new connection<Trait, Connection>(con, trait));
@@ -386,6 +442,17 @@ namespace server
 
 
 } // namespace server
+
+namespace boost {
+namespace system {
+
+template<> struct is_error_code_enum<server::error_codes>
+{
+    static const bool value = true;
+};
+
+}
+}
 
 #endif
 

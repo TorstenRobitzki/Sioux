@@ -121,7 +121,7 @@ namespace {
         {
             {
                 boost::mutex::scoped_lock lock(mutex_);
-                buffer_.push_back(c);
+                buffer_.push_back(std::char_traits<char>::to_char_type(c));
             }
 
             if ( c == '\n' )
