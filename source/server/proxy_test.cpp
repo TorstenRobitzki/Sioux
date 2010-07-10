@@ -3,56 +3,72 @@
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 #include "unittest++/unittest++.h"
-#include "server/proxy.h"
+#include "server/proxy_response.h"
 #include "server/connection.h"
 #include "http/request.h"
+#include "http/response.h"
 
 #include "http/test_request_texts.h"
 #include "server/test_socket.h"
 #include "server/test_traits.h"
 #include "server/test_proxy.h"
+#include "server/test_tools.h"
 
 using namespace server::test;
 using namespace http::test;
 
-// returns the request send to the orgin server and the response send over the client connection
-static std::pair<std::string, std::string> simulate_proxy(
-    const boost::shared_ptr<const http::request_header>&    request, 
-    const std::string&                                      orgin_response)
+namespace {
+    template <class Connection>
+    struct proxy_response_factory
+    {
+        template <class Trait>
+        static boost::shared_ptr<server::async_response> create_response(
+            const boost::shared_ptr<Connection>&                    connection,
+            const boost::shared_ptr<const http::request_header>&    header,
+                  Trait&                                            trait)
+        {
+            return boost::shared_ptr<server::async_response>(
+                new server::proxy_response<Connection>(connection, header, trait.proxy()));
+        }
+    };
+}
+
+// response send over the client connection
+static std::string simulate_proxy(
+    const boost::shared_ptr<proxy_config>&                  proxy,
+    const tools::substring&                                 request)
 {
-    typedef server::test::socket<const char*>       socket_t;
-    typedef server::connection<traits<>, socket_t>  connection_t;
-    typedef server::proxy_response<connection_t>    response_t;
+    typedef server::test::socket<const char*>           socket_t;
+    typedef traits<socket_t, proxy_response_factory>    trait_t;
+    typedef server::connection<trait_t, socket_t>       connection_t;
 
-    socket_t                                                output;
-    proxy_config                                            config(orgin_response);
+    boost::asio::io_service&                            queue = proxy->get_io_service();
+    socket_t                                            output(queue, request.begin(), request.end());
+    trait_t                                             trait(*proxy);
 
-    boost::shared_ptr<connection_t>                         connection(new connection_t(output, traits<>()));
+    boost::shared_ptr<connection_t>                     connection(new connection_t(output, trait));
     connection->start();
 
-    boost::shared_ptr<response_t>                           response( new response_t(connection, request, config));
-    response->start();
-
-    boost::weak_ptr<connection_t>                           con_ref(connection);
-    boost::weak_ptr<response_t>                             resp_ref(response);
+    boost::weak_ptr<connection_t>                       con_ref(connection);
     connection.reset();
-    response.reset();
 
-    for ( ; config.process() || output.process(); )
-        ;
+    run(queue); 
 
+    trait.reset_responses();
+    run(queue); 
     if ( !con_ref.expired() )
         throw std::runtime_error("expected connection to be expired.");
 
-    if ( !resp_ref.expired() )
-        throw std::runtime_error("expected response to be expired.");
-
-    return std::make_pair(config.received(), output.output());
+    return output.output();
 }
 
 static std::string through_proxy(const boost::shared_ptr<const http::request_header>& r, const std::string& orgin_response)
 {
-    return simulate_proxy(r, orgin_response).first;
+    boost::asio::io_service queue;
+    boost::shared_ptr<proxy_config> proxy(new proxy_config(queue, orgin_response));
+    simulate_proxy(proxy, r->text());
+
+    return proxy->received();
 }
 
 /**
@@ -136,15 +152,97 @@ TEST(check_removed_headers)
 
 }
 
-TEST(unsupported_http_version)
+/**
+ * @test correct host and port are connected
+ */
+TEST(correct_host_and_port_connected)
 {
-    const boost::shared_ptr<const http::request_header> http_10_request(new http::request_header(
-        "GET / HTTP/1.0\r\n"
-        "host:127.0.0.1\r\n"
-        "\r\n"));
+    http::request_header request(
+        "GET / HTTP/1.1\r\n"
+        "host: 127.0.0.1:8080\r\n\r\n");
 
-    CHECK_EQUAL(http::request_header::ok, http_10_request->state());
+    boost::asio::io_service queue;
+    boost::shared_ptr<proxy_config> proxy(new proxy_config(queue, cached_response_apache));
+    simulate_proxy(proxy, request.text());
+    
+    CHECK_EQUAL("127.0.0.1", proxy->connected_orgin_server().first);
+    CHECK_EQUAL(8080u, proxy->connected_orgin_server().second);
+}
 
-//    const std::string response = simulate_proxy(http_10_request, "").second;
+/**
+ * @test that a valid error response will be generated, when connecting the orgin is not possible
+ */
+TEST(responde_when_no_connection_to_orgin_possible)
+{
+    http::request_header request(
+        "GET / HTTP/1.1\r\n"
+        "host: 127.0.0.1:8080\r\n\r\n");
+
+    boost::asio::io_service queue;
+    boost::shared_ptr<proxy_config> proxy(new proxy_config(queue, proxy_config::connection_not_possible));
+    const std::string response_text = simulate_proxy(proxy, request.text());
+    http::response_header response(response_text.c_str());
+    
+    CHECK_EQUAL(http::message::ok, response.state());
+    CHECK_EQUAL(http::http_internal_server_error, response.code());
+
+}
+
+/**
+ * @test the proxy config asynchronously responses with an error
+ */
+TEST(error_while_connecting_the_orgin_server)
+{
+    http::request_header request(
+        "GET / HTTP/1.1\r\n"
+        "host: 127.0.0.1:8080\r\n\r\n");
+
+    boost::asio::io_service queue;
+    boost::shared_ptr<proxy_config> proxy(new proxy_config(queue, proxy_config::error_while_connecting));
+    const std::string response_text = simulate_proxy(proxy, request.text());
+    http::response_header response(response_text.c_str());
+    
+    CHECK_EQUAL(http::message::ok, response.state());
+    CHECK_EQUAL(http::http_bad_gateway, response.code());
+}
+
+/**
+ * @test while reading from the proxy, an error occures
+ */
+TEST(error_while_communicating_with_the_orgin_server)
+{
+    /// @todo implement
+    /*
+    http::request_header request(
+        "GET / HTTP/1.1\r\n"
+        "host: 127.0.0.1:8080\r\n\r\n");
+
+    socket<const char*> orgin_connection();
+    boost::shared_ptr<proxy_config> proxy(new proxy_config(proxy_config::error_while_connecting));
+    const std::string response_text = simulate_proxy(proxy, request.text());
+    http::response_header response(response_text.c_str());
+    
+    CHECK_EQUAL(http::message::ok, response.state());
+    CHECK_EQUAL(http::http_bad_gateway, response.code());
+    */
+}
+
+/**
+ * @test connection headers must not be forwarded, but must be replaced with our own
+ */
+TEST(remove_connection_headers_from_orgin_response)
+{
+    http::request_header request(
+        "GET / HTTP/1.1\r\n"
+        "host: 127.0.0.1:8080\r\n\r\n");
+
+    boost::asio::io_service queue;
+    boost::shared_ptr<proxy_config> proxy(new proxy_config(queue, proxy_config::error_while_connecting));
+    
+    const std::string response_text = simulate_proxy(proxy, request.text());
+    http::response_header response(response_text.c_str());
+    
+    CHECK_EQUAL(http::message::ok, response.state());
+    CHECK_EQUAL(http::http_bad_gateway, response.code());
 
 }

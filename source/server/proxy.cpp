@@ -7,18 +7,9 @@
 
 namespace server 
 {
-
-
-std::string proxy_config_base::modified_host(const std::string& original_host)
-{
-    return  original_host;
-}
-
-std::string proxy_config_base::modified_url(const std::string& original_url)
-{
-    return original_url;
-}
-
+    proxy_error::proxy_error(const std::string& e) :  std::runtime_error(e)
+    {
+    }
 } // namespace server 
 
 

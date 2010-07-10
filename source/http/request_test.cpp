@@ -43,63 +43,63 @@ namespace {
 
 TEST(parse_methods)
 {
-    const http::request_header options("OPTIONS / HTTP/1.1\r\n\r\n");
+    const http::request_header options("OPTIONS / HTTP/1.1\r\nhost:\r\n\r\n");
     CHECK_EQUAL(http::request_header::ok, options.state());
     CHECK_EQUAL(http::http_options, options.method());
 
-    const http::request_header get("GET / HTTP/1.1\r\n\r\n");
+    const http::request_header get("GET / HTTP/1.1\r\nhost:\r\n\r\n");
     CHECK_EQUAL(http::request_header::ok, get.state());
     CHECK_EQUAL(http::http_get, get.method());
 
-    const http::request_header head("HEAD / HTTP/1.1\r\n\r\n");
+    const http::request_header head("HEAD / HTTP/1.1\r\nhost:\r\n\r\n");
     CHECK_EQUAL(http::request_header::ok, head.state());
     CHECK_EQUAL(http::http_head, head.method());
 
-    const http::request_header post("POST / HTTP/1.1\r\n\r\n");
+    const http::request_header post("POST / HTTP/1.1\r\nhost:\r\n\r\n");
     CHECK_EQUAL(http::request_header::ok, post.state());
     CHECK_EQUAL(http::http_post, post.method());
 
-    const http::request_header put("PUT / HTTP/1.1\r\n\r\n");
+    const http::request_header put("PUT / HTTP/1.1\r\nhost:\r\n\r\n");
     CHECK_EQUAL(http::request_header::ok, put.state());
     CHECK_EQUAL(http::http_put, put.method());
 
-    const http::request_header delete_("DELETE / HTTP/1.1\r\n\r\n");
+    const http::request_header delete_("DELETE / HTTP/1.1\r\nhost:\r\n\r\n");
     CHECK_EQUAL(http::request_header::ok, delete_.state());
     CHECK_EQUAL(http::http_delete, delete_.method());
 
-    const http::request_header trace("TRACE / HTTP/1.1\r\n\r\n");
+    const http::request_header trace("TRACE / HTTP/1.1\r\nhost:\r\n\r\n");
     CHECK_EQUAL(http::request_header::ok, trace.state());
     CHECK_EQUAL(http::http_trace, trace.method());
 
-    const http::request_header connect("CONNECT / HTTP/1.1\r\n\r\n");
+    const http::request_header connect("CONNECT / HTTP/1.1\r\nhost:\r\n\r\n");
     CHECK_EQUAL(http::request_header::ok, connect.state());
     CHECK_EQUAL(http::http_connect, connect.method());
 }
 
 TEST(parse_broken_methods)
 {
-    const http::request_header options("OPTIONs / HTTP/1.1\r\n\r\n");
+    const http::request_header options("OPTIONs / HTTP/1.1\r\nhost:\r\n\r\n");
     CHECK_EQUAL(http::request_header::syntax_error, options.state());
 
-    const http::request_header get(" GET / HTTP/1.1\r\n\r\n");
+    const http::request_header get(" GET / HTTP/1.1\r\nhost:\r\n\r\n");
     CHECK_EQUAL(http::request_header::syntax_error, get.state());
 
-    const http::request_header head("H_EAD / HTTP/1.1\r\n\r\n");
+    const http::request_header head("H_EAD / HTTP/1.1\r\nhost:\r\n\r\n");
     CHECK_EQUAL(http::request_header::syntax_error, head.state());
 
-    const http::request_header post("P OST / HTTP/1.1\r\n\r\n");
+    const http::request_header post("P OST / HTTP/1.1\r\nhost:\r\n\r\n");
     CHECK_EQUAL(http::request_header::syntax_error, post.state());
 
-    const http::request_header put("pUT / HTTP/1.1\r\n\r\n");
+    const http::request_header put("pUT / HTTP/1.1\r\nhost:\r\n\r\n");
     CHECK_EQUAL(http::request_header::syntax_error, put.state());
 
-    const http::request_header delete_("DELET / HTTP/1.1\r\n\r\n");
+    const http::request_header delete_("DELET / HTTP/1.1\r\nhost:\r\n\r\n");
     CHECK_EQUAL(http::request_header::syntax_error, delete_.state());
 
-    const http::request_header trace("RACE / HTTP/1.1\r\n\r\n");
+    const http::request_header trace("RACE / HTTP/1.1\r\nhost:\r\n\r\n");
     CHECK_EQUAL(http::request_header::syntax_error, trace.state());
 
-    const http::request_header connect("CONNECTGET / HTTP/1.1\r\n\r\n");
+    const http::request_header connect("CONNECTGET / HTTP/1.1\r\nhost:\r\n\r\n");
     CHECK_EQUAL(http::request_header::syntax_error, connect.state());
 }
  
@@ -119,12 +119,12 @@ TEST(simple_request)
 
 TEST(parse_versions)
 {
-    const http::request_header v12_21("OPTIONS / http/12.21\r\n\r\n");
+    const http::request_header v12_21("OPTIONS / http/12.21\r\nhost:\r\n\r\n");
     CHECK_EQUAL(http::request_header::ok, v12_21.state());
     CHECK_EQUAL(12u, v12_21.major_version());
     CHECK_EQUAL(21u, v12_21.minor_version());
 
-    const http::request_header v01_01("OPTIONS / Http/01.01\r\n\r\n");
+    const http::request_header v01_01("OPTIONS / Http/01.01\r\nhost:\r\n\r\n");
     CHECK_EQUAL(http::request_header::ok, v01_01.state());
     CHECK_EQUAL(1u, v01_01.major_version());
     CHECK_EQUAL(1u, v01_01.minor_version());
@@ -134,6 +134,7 @@ TEST(check_options_available)
 {
     const http::request_header header(
         "OPTIONS / http/12.21\r\n"
+        "host:\r\n"
         "Connection : close  \r\n"
         "accept:text/plain,\t\r\n"
         " text/html\r\n"
@@ -152,6 +153,7 @@ TEST(single_arguement_ctor)
 {
     const http::request_header header(
         "OPTIONS / http/12.21\r\n"
+        "host:\r\n"
         "Connection : close  \r\n"
         "accept:text/plain,text/html\r\n"
         "Accept-Encoding : compress, gzip\r\n"
@@ -213,12 +215,12 @@ TEST(filter_header_test)
     CHECK_EQUAL(1u, header.filtered_request_text(http::filter()).size());
     CHECK_EQUAL(header.text(), same.text());
 
-    const http::request_header other(to_header(filtered.filtered_request_text(http::filter("bla, host"))).c_str());
+    const http::request_header other(to_header(filtered.filtered_request_text(http::filter("bla, cache-control"))).c_str());
     CHECK_EQUAL(http::request_header::ok, other.state());
-    CHECK(!other.find_header("Host"));
+    CHECK(other.find_header("Host"));
     CHECK(other.find_header("User-Agent"));
     CHECK(other.find_header("Accept-Encoding"));
-    CHECK(other.find_header("Cache-Control"));
+    CHECK(!other.find_header("Cache-Control"));
     CHECK(other.find_header("Accept-Language"));
 }
 
@@ -238,5 +240,69 @@ TEST(check_header_value_test)
 
     CHECK(header != 0);
     CHECK(header != 0 && header->value() == "rababer\r\n\tboobar\r\n foo");
-
 }
+
+TEST(check_host_and_port)
+{
+    { // no port given, default is 80        
+        const http::request_header request(
+            "GET / HTTP/1.1\r\n"
+            "host :foobar\r\n"
+            "\r\n");
+
+        CHECK_EQUAL(http::message::ok, request.state());
+        CHECK_EQUAL("foobar", request.host());
+        CHECK_EQUAL(80u, request.port());
+    }
+
+    { // 3.2.2 http URL " If the port is _empty_ or not given, port 80 is assumed. 
+        const http::request_header request(
+            "GET / HTTP/1.1\r\n"
+            "host :foobar.com:\r\n"
+            "\r\n");
+
+        CHECK_EQUAL(http::message::ok, request.state());
+        CHECK_EQUAL("foobar.com", request.host());
+        CHECK_EQUAL(80u, request.port());
+    }
+
+    { // port given
+        const http::request_header request(
+            "GET / HTTP/1.1\r\n"
+            "host :foobar.com:90\r\n"
+            "\r\n");
+
+        CHECK_EQUAL(http::message::ok, request.state());
+        CHECK_EQUAL("foobar.com", request.host());
+        CHECK_EQUAL(90u, request.port());
+    }
+
+    { // empty host and empty port
+        const http::request_header request(
+            "GET / HTTP/1.1\r\n"
+            "host ::\r\n"
+            "\r\n");
+
+        CHECK_EQUAL(http::message::ok, request.state());
+        CHECK_EQUAL("", request.host());
+        CHECK_EQUAL(80u, request.port());
+    }
+}
+
+/**
+ * @test checks, that the function unparsed_buffer() returns the correct values
+ */
+TEST(check_unparsed_buffer)
+{
+    http::request_header request(
+        "GET / HTTP/1.1\r\n"
+        "host:\r\n"
+        "\r\n"
+        "abs");
+
+    CHECK_EQUAL(http::message::ok, request.state());
+    CHECK_EQUAL('a', *request.unparsed_buffer().first);
+    CHECK_EQUAL(3u, request.unparsed_buffer().second);
+}
+
+

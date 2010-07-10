@@ -166,6 +166,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\proxy_response.h"
+				>
+			</File>
+			<File
 				RelativePath=".\response.h"
 				>
 			</File>

@@ -5,6 +5,7 @@
 #include "http/filter.h"
 #include "http/parser.h"
 #include "tools/split.h"
+#include <functional>
 
 namespace http {
     namespace {

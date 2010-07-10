@@ -8,6 +8,10 @@
 
 namespace http {
 
+    response_header::response_header()
+    {
+    }
+
     response_header::response_header(const response_header& old_header, std::size_t& remaining, copy_trailing_buffer_t)
         : message_base<response_header>(old_header, remaining, copy_trailing_buffer)
     {
@@ -57,6 +61,11 @@ namespace http {
         code_ = static_cast<http_error_code>(code);
 
         return code_ >= 100 && code_ < 600;
+    }
+
+    message::error_code response_header::end_of_request()
+    {
+        return ok;
     }
 
 } // namespace http

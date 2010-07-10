@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <locale>
 #include <stdexcept>
+#include <limits>
+#include <cctype>
 
 namespace http {
 
@@ -149,7 +151,7 @@ bool parse_number(Iter begin, Iter end, unsigned& r)
 
     for ( ; begin != end; ++begin )
     {
-        if ( *begin < '0' || *begin > '9' )
+        if ( !std::isdigit(*begin) )
             return false;
 
         if ( result > std::numeric_limits<unsigned>::max() / 10 )

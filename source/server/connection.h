@@ -84,6 +84,9 @@ namespace server
          *
          * Usualy this function will be called by a async_response implementations d'tor. This
          * have to be called exactly once by async_response that called response_started() before.
+         *
+         * It must be harmless to call this function, even when response_not_possible() was called before,
+         * or otherwise the async_response implementations have to keep track if an error occured.
          */
         void response_completed(async_response& sender);
 
@@ -97,11 +100,6 @@ namespace server
          * connection will be closed.
          */
         void response_not_possible(async_response& sender, http::http_error_code = http::http_internal_server_error);
-
-        /**
-         * @brief to be called from a new response object, before any call to async_write_some()
-         */
-        void response_started(const boost::weak_ptr<async_response>& response);
 
         /**
          * @brief closes the reading part of the used connection
@@ -150,9 +148,6 @@ namespace server
          * read
          */
         bool handle_request_header(const boost::shared_ptr<const http::request_header>& new_request);
-
-        // returns true, if the given response is the one, that currently is allowed to send
-        bool is_current_response(async_response& sender) const;
 
         template <class Handler>
         void unblock_pending_writes(async_response& sender, const Handler&);
@@ -213,6 +208,7 @@ namespace server
 	connection<Trait, Connection>::~connection()
     {
         assert(blocked_writes_.empty());
+        assert(responses_.empty());
     
         connection_.close();
     }
@@ -263,7 +259,7 @@ namespace server
     {
         // there is no reason, why there should be outstanding, blocked writes from the current sender
         assert(blocked_writes_.erase(&sender) == 0);
-
+        
         if ( &response_from_list(responses_.begin()) == &sender )
         {
             current_response_is_sending_ = false;
@@ -296,32 +292,38 @@ namespace server
     }
 
 	template <class Trait, class Connection>
-    void connection<Trait, Connection>::response_not_possible(async_response& /*sender*/, http::http_error_code /*ec*/)
+    void connection<Trait, Connection>::response_not_possible(async_response& sender, http::http_error_code ec)
     {
-#if 0
-        const bool current_reponse = is_current_response(sender);
+        response_list::iterator senders_pos = responses_.begin();
+        for ( ; &response_from_list(senders_pos) != &sender; ++senders_pos )
+            ;
+        assert(senders_pos != responses_.end());
+        const bool current_reponse = senders_pos == responses_.begin();
+
+        const blocked_write_list::const_iterator writes = blocked_writes_.find(&sender);
+
+        if ( writes != blocked_writes_.end() )
+        {
+            tools::ptr_container_guard<blocked_write_list::mapped_type> guard(writes->second);
+            std::for_each(writes->second.begin(), writes->second.end(), 
+                boost::bind(&blocked_write_base::cancel, _1));
+        }
+ 
         boost::shared_ptr<async_response> error_response;
 
         // if no data was send from this response, consult the error-trait to get an error response
         if ( !current_reponse || !current_response_is_sending_ )
-        {
             error_response = trait_.error_response(shared_from_this(), ec);
-        }
 
         if ( error_response.get() )
         {
+            *senders_pos = error_response;
+            error_response->start();
         }
         else
         {
             cancel_all();
         }
-#endif 
-    }
-
-	template <class Trait, class Connection>
-    void connection<Trait, Connection>::response_started(const boost::weak_ptr<async_response>& response)
-    {
-        responses_.push_back(response);
     }
 
     template <class Trait, class Connection>
@@ -383,18 +385,29 @@ namespace server
 	template <class Trait, class Connection>
     bool connection<Trait, Connection>::handle_request_header(const boost::shared_ptr<const http::request_header>& new_request)
     {
-        trait_.create_response(shared_from_this(), new_request);
+        boost::shared_ptr<async_response> response = trait_.create_response(shared_from_this(), new_request);
+        responses_.push_back(response);
 
-        for ( response_list::iterator response = responses_.begin(); response != responses_.end(); )
+        try
         {
-            if ( response->expired() )
+            response->start();
+        }
+        catch (...)
+        {
+            responses_.pop_back();
+
+            /// @todo add logging
+            boost::shared_ptr<async_response> error_response(
+                trait_.error_response(shared_from_this(), http::http_internal_server_error));
+
+            if ( error_response.get() )
             {
-                response = responses_.erase(response);
+                responses_.push_back(error_response);
+                error_response->start();
             }
-            else 
-            {
-                ++response;
-            }
+
+            shutdown_read();
+            return false;
         }
 
         if ( new_request->close_after_response() ) 

@@ -66,7 +66,6 @@ namespace test {
         void start()
         {
             self_ = shared_from_this();
-            connection_->response_started(self_);
 
             if ( response_type_ == auto_response )
                 simulate_incomming_data();
@@ -74,6 +73,8 @@ namespace test {
 
         void simulate_incomming_data()
         {
+            self_.reset();
+
             if ( error_ )
             {
                 connection_->response_not_possible(*this, error_code_);
@@ -87,8 +88,6 @@ namespace test {
                             boost::asio::placeholders::error,
                             boost::asio::placeholders::bytes_transferred),
                     *this);
-
-                self_.reset();
             }
         }
 
@@ -98,39 +97,13 @@ namespace test {
             connection_->response_completed(*this); 
         }
 
-        boost::shared_ptr<async_response>   self_;
         const boost::shared_ptr<Connection> connection_;
         const std::string                   answer_;
+        boost::shared_ptr<response>         self_;
         response_type                       response_type_;
         http::http_error_code               error_code_;
         bool                                error_;
     };
-
-    template <class Connection>
-    boost::weak_ptr<async_response> create_response(
-        const boost::shared_ptr<Connection>&                    connection, 
-        const boost::shared_ptr<const http::request_header>&    header, 
-        const std::string&                                      answer,
-        response_type                                           response_procedure)
-    {
-        const boost::shared_ptr<response<Connection> > respo(new response<Connection>(connection, header, answer, response_procedure));
-        respo->start();
-
-        return boost::weak_ptr<async_response>(respo);
-    }
-
-    template <class Connection>
-    boost::weak_ptr<async_response> create_response(
-        const boost::shared_ptr<Connection>&                    connection, 
-        const boost::shared_ptr<const http::request_header>&    header, 
-        http::http_error_code                                   answer,
-        response_type                                           response_procedure)
-    {
-        const boost::shared_ptr<response<Connection> > respo(new response<Connection>(connection, header, answer, response_procedure));
-        respo->start();
-
-        return boost::weak_ptr<async_response>(respo);
-    }
 
 
 } // namespace test

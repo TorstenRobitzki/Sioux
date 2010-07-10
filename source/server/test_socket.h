@@ -39,7 +39,7 @@ public:
      * @param bite_size the size of the simulated network reads. 0 == maximum 
      * @param times number of times, the string (begin, end]
      */
-    socket(Iterator begin, Iterator end, std::size_t bite_size, unsigned times = 1);
+    socket(boost::asio::io_service& io_service, Iterator begin, Iterator end, std::size_t bite_size, unsigned times = 1);
 
     /**
      * @param begin begin of the simulated input
@@ -49,19 +49,20 @@ public:
      * @param write_error the error to deliever, after write_error_occurens bytes where written
      * @param write_error_occurens the number of bytes to be written, before a write error will be simulated
      */
-    socket(Iterator                         begin, 
+    socket(boost::asio::io_service&         io_service, 
+           Iterator                         begin, 
            Iterator                         end, 
            const boost::system::error_code& read_error, 
            std::size_t                      read_error_occurens,
            const boost::system::error_code& write_error, 
            std::size_t                      write_error_occurens);
 
-    socket(Iterator begin, Iterator end);
+    socket(boost::asio::io_service& io_service, Iterator begin, Iterator end);
 
     /**
      * @brief empty implementation
      */
-    socket();
+    socket(boost::asio::io_service& io_service);
 
     /**
      * socket interface 
@@ -85,86 +86,22 @@ public:
     void shutdown(boost::asio::ip::tcp::socket::shutdown_type what);
 
     /**
-     * @brief test specific. To be called in a loop until process() returns false
-     */
-    bool process();
-
-    /**
      * @brief the sampled output
      */
     std::string output() const;
+
+    boost::asio::io_service& get_io_service();
 private:
-    class read_handler_keeper_base
-    {
-    public:
-        /*
-         * Returns the number of consumed bytes from the range (begin, end]
-         */
-        virtual std::size_t handle(const boost::system::error_code& error, Iterator begin, Iterator end) = 0;
-
-        virtual ~read_handler_keeper_base() {}
-    };
-
-    template <class MutableBufferSequence, class ReadHandler>
-    class handler_keeper : public read_handler_keeper_base
-    {
-    public:
-        handler_keeper(const MutableBufferSequence& buffer, ReadHandler handler)
-            : buffer_(buffer)
-            , handler_(handler)
-        {
-        }
-
-    private:
-        virtual std::size_t handle(const boost::system::error_code& error, Iterator begin, Iterator end )
-        {
-            const std::size_t size = std::min<std::size_t>(std::distance(begin, end), buffer_size(buffer_));
-            Iterator e = begin;
-            std::advance(e, size);
-            std::copy(begin, e, boost::asio::buffers_begin(buffer_));
-
-            handler_(error, size);
-
-            return size;
-        }
-
-        MutableBufferSequence   buffer_;
-        ReadHandler             handler_;
-    };
-
-    class store_writes_base
-    {
-    public:
-        virtual void handler() = 0;
-        virtual ~store_writes_base() {}
-    };
-
-    template <class WriteHandler>
-    class store_writes : public store_writes_base
-    {
-    public:
-        explicit store_writes(WriteHandler h, std::size_t bytes_transferred) 
-            : handler_(h)
-            , bytes_(bytes_transferred)
-        {}
-    private:
-        virtual void handler()
-        {
-            handler_(make_error_code(boost::system::errc::success), bytes_);
-        }
-
-        const WriteHandler  handler_;
-        const std::size_t   bytes_;
-    };
 
     class impl
     {
     public:
-        impl();
+        impl(boost::asio::io_service& io_service);
 
-        impl(Iterator begin, Iterator end, std::size_t bite_size, unsigned times);
+        impl(boost::asio::io_service& io_service, Iterator begin, Iterator end, std::size_t bite_size, unsigned times);
     
-        impl(Iterator                         begin, 
+        impl(boost::asio::io_service&         io_service,
+             Iterator                         begin, 
              Iterator                         end, 
              const boost::system::error_code& read_error, 
              std::size_t                      read_error_occurens,
@@ -192,6 +129,8 @@ private:
         bool process();
 
         std::string output();
+
+        boost::asio::io_service& get_io_service();
     private:
         void process_output();
         void process_input();
@@ -199,20 +138,21 @@ private:
 	    Iterator			                        current_;
 	    const Iterator		                        begin_;
 	    const Iterator		                        end_;
+
         const std::size_t                           bite_size_;
-        boost::shared_ptr<read_handler_keeper_base> handler_;
         unsigned                                    times_;
 
         std::vector<char>                           output_;
-        std::deque<boost::shared_ptr<store_writes_base> > writes_;
 
         const bool                                  read_error_enabled_;
         const boost::system::error_code             read_error_;
-        const std::size_t                           read_error_occurens_;
+              std::size_t                           read_error_occurens_;
 
         const bool                                  write_error_enabled_;
         const boost::system::error_code             write_error_;
-        const std::size_t                           write_error_occurens_;
+              std::size_t                           write_error_occurens_;
+
+        boost::asio::io_service&                    io_service_;
     };
 
     boost::shared_ptr<impl>  pimpl_;
@@ -220,31 +160,32 @@ private:
 
 // implementation
 template <class Iterator>
-socket<Iterator>::socket(Iterator begin, Iterator end, std::size_t bite_size, unsigned times)
- : pimpl_(new impl(begin, end, bite_size, times))
+socket<Iterator>::socket(boost::asio::io_service& io_service, Iterator begin, Iterator end, std::size_t bite_size, unsigned times)
+ : pimpl_(new impl(io_service, begin, end, bite_size, times))
 {
 }
 
 template <class Iterator>
-socket<Iterator>::socket(Iterator begin, Iterator end)
- : pimpl_(new impl(begin, end, 0, 1))
+socket<Iterator>::socket(boost::asio::io_service& io_service, Iterator begin, Iterator end)
+ : pimpl_(new impl(io_service, begin, end, 0, 1))
 {
 }
 
 template <class Iterator>
-socket<Iterator>::socket(Iterator                         begin, 
+socket<Iterator>::socket(boost::asio::io_service&         io_service,
+                         Iterator                         begin, 
                          Iterator                         end, 
                          const boost::system::error_code& read_error, 
                          std::size_t                      read_error_occurens,
                          const boost::system::error_code& write_error, 
                          std::size_t                      write_error_occurens)
- : pimpl_(new impl(begin, end, read_error, read_error_occurens, write_error, write_error_occurens))
+ : pimpl_(new impl(io_service, begin, end, read_error, read_error_occurens, write_error, write_error_occurens))
 {
 }
 
 template <class Iterator>
-socket<Iterator>::socket()
- : pimpl_(new impl())
+socket<Iterator>::socket(boost::asio::io_service& io_service)
+ : pimpl_(new impl(io_service))
 {
 }
 
@@ -279,58 +220,58 @@ void socket<Iterator>::shutdown(boost::asio::ip::tcp::socket::shutdown_type what
 }
 
 template <class Iterator>
-bool socket<Iterator>::process()
-{
-    return pimpl_->process();
-}
-
-template <class Iterator>
 std::string socket<Iterator>::output() const
 {
     return pimpl_->output();
 }
 
 template <class Iterator>
-socket<Iterator>::impl::impl()
+boost::asio::io_service& socket<Iterator>::get_io_service()
+{
+    return pimpl_->get_io_service();
+}
+
+
+template <class Iterator>
+socket<Iterator>::impl::impl(boost::asio::io_service& io_service)
  : current_(Iterator())
  , begin_(Iterator())
  , end_(Iterator())
  , bite_size_(0)
- , handler_()
  , times_(0)
  , output_()
- , writes_()
  , read_error_enabled_(false)
  , read_error_()
  , read_error_occurens_()
  , write_error_enabled_(false)
  , write_error_()
  , write_error_occurens_()
+ , io_service_(io_service)
 {
 }
 
 template <class Iterator>
-socket<Iterator>::impl::impl(Iterator begin, Iterator end, std::size_t bite_size, unsigned times)
+socket<Iterator>::impl::impl(boost::asio::io_service& io_service, Iterator begin, Iterator end, std::size_t bite_size, unsigned times)
  : current_(begin)
  , begin_(begin)
  , end_(end)
  , bite_size_(bite_size)
- , handler_()
  , times_(times)
  , output_()
- , writes_()
  , read_error_enabled_(false)
  , read_error_()
  , read_error_occurens_()
  , write_error_enabled_(false)
  , write_error_()
  , write_error_occurens_()
+ , io_service_(io_service)
 {
     assert(times);
 }
 
 template <class Iterator>
-socket<Iterator>::impl::impl(Iterator                         begin, 
+socket<Iterator>::impl::impl(boost::asio::io_service&         io_service,
+                             Iterator                         begin, 
                              Iterator                         end, 
                              const boost::system::error_code& read_error, 
                              std::size_t                      read_error_occurens,
@@ -340,16 +281,15 @@ socket<Iterator>::impl::impl(Iterator                         begin,
  , begin_(begin)
  , end_(end)
  , bite_size_(0)
- , handler_()
  , times_(1)
  , output_()
- , writes_()
  , read_error_enabled_(true)
- , read_error_()
- , read_error_occurens_()
+ , read_error_(read_error)
+ , read_error_occurens_(read_error_occurens)
  , write_error_enabled_(true)
- , write_error_()
- , write_error_occurens_()
+ , write_error_(write_error)
+ , write_error_occurens_(write_error_occurens)
+ , io_service_(io_service)
 {
 }
 
@@ -359,7 +299,32 @@ void socket<Iterator>::impl::async_read_some(
 		const MutableBufferSequence& buffers,
 		ReadHandler handler)
 {
-    handler_.reset(new handler_keeper<MutableBufferSequence, ReadHandler>(buffers, handler));
+    std::size_t size = std::min<std::size_t>(std::distance(current_, end_), buffer_size(buffers));
+
+    if ( bite_size_ != 0 )
+        size = std::min(size, bite_size_);
+
+    if ( read_error_enabled_ )
+    {
+        size = std::min(size, read_error_occurens_);
+        read_error_occurens_ -= size;
+    }
+
+    Iterator e = current_;
+    std::advance(e, size);
+    std::copy(current_, e, boost::asio::buffers_begin(buffers));
+    current_ = e;
+
+    if ( current_ == end_ && --times_ != 0 )
+    {
+        current_ = begin_;
+    }
+
+    boost::system::error_code ec = read_error_enabled_ && read_error_occurens_ == 0 
+        ? make_error_code(boost::system::errc::success)
+        : read_error_;
+
+    io_service_.post(boost::bind(handler, ec, size));
 }
 
 template <class Iterator>
@@ -372,7 +337,7 @@ void socket<Iterator>::impl::async_write_some(
 
     const std::size_t size = std::distance(boost::asio::buffers_begin(buffers), boost::asio::buffers_end(buffers));
 
-    writes_.push_back(boost::shared_ptr<store_writes_base>(new store_writes<WriteHandler>(handler, size)));
+    io_service_.post(boost::bind<void>(handler, make_error_code(boost::system::errc::success), size));
 }
 
 template <class Iterator>
@@ -433,6 +398,13 @@ std::string socket<Iterator>::impl::output()
 
     return result;
 }
+
+template <class Iterator>
+boost::asio::io_service& socket<Iterator>::impl::get_io_service()
+{
+    return io_service_;
+}
+
 
 
 

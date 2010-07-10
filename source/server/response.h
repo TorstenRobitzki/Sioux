@@ -86,6 +86,16 @@ namespace server
          * @brief default implementation does nothing
          */
         virtual void implement_hurry();
+
+        /**
+         * @brief function will be called from the assoziated connection object 
+         *
+         * Before start() is not called, no IO should be performed. If the function throws an 
+         * exception, the connection tries to answer with an "500 Internal Server Error" error.
+         *
+         * Do not call any function on the connection object.
+         */
+        virtual void start() = 0;
     private:
         bool hurryed_;
     };

@@ -39,7 +39,6 @@ TEST(parse_http_header)
     CHECK_EQUAL("asd \t : \tdsa \r\n \r\n foo\r\n", h.all());
     CHECK_EQUAL("asd", h.name());
     CHECK_EQUAL("dsa \r\n \r\n foo", h.value());
-    
 }
 
 } // namespace http 

@@ -9,8 +9,22 @@
 
 namespace http {
 
+    /////////////////////////
+    // struct request_data
+    details::request_data::request_data()
+        : method_()
+        , uri_()
+        , port_(80)
+        , host_()
+        , error_code_(http_ok)
+    {
+    }
+
+    /////////////////////////
+    // class request_header
     request_header::request_header()
-        : message_base<request_header>()
+        : details::request_data()
+        , message_base<request_header>()
     {
     }
 
@@ -68,6 +82,34 @@ namespace http {
         return tools::split(rest, ' ', uri_, version) && parse_version(version);
     }
 
+    message::error_code request_header::end_of_request()
+    {
+        const header* const host_header = find_header_impl("host");
+
+        if ( host_header == 0 )
+            return bad_request();
+
+        const tools::substring host = host_header->value();
+
+        tools::substring::const_iterator pos = host.end();
+        for ( ; pos != host.begin() && std::isdigit(*(pos-1)) != 0; --pos )
+            ;
+
+        if ( pos != host.begin() && *(pos-1) == ':' )
+        {
+            if ( pos != host.end() && !parse_number(pos, host.end(), port_) || port_ > 0xffff )
+                return bad_request();
+
+            host_ = tools::substring(host.begin(), pos-1);
+        }
+        else
+        {
+            host_ = host;
+        }
+
+        return ok;
+    }
+
     http::http_method_code request_header::method() const
     {
         assert(state() == ok);
@@ -78,6 +120,30 @@ namespace http {
     {
         assert(state() == ok);
         return uri_;
+    }
+
+    tools::substring request_header::host() const
+    {
+        assert(state() == ok);
+        return host_;
+    }
+
+    unsigned request_header::port() const
+    {
+        assert(state() == ok);
+        return port_;
+    }
+
+    http_error_code request_header::error_code() const
+    {
+        assert(state() == syntax_error);
+        return error_code_;
+    }
+
+    message::error_code request_header::bad_request()
+    {
+        error_code_ = http_bad_request;
+        return message::syntax_error;
     }
 
 

@@ -20,6 +20,8 @@ namespace http {
     class response_header : private details::response_data, public message_base<response_header>
     {
     public:
+        response_header();
+
         /**
          * @brief constructs a new response_header with the remaining data past the
          * last read response header
@@ -50,6 +52,7 @@ namespace http {
     private:
         bool start_line_found(const char* start, const char* end);
 
+        error_code end_of_request();
 
         friend message_base<response_header>;
     };

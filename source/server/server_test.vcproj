@@ -153,6 +153,14 @@
 			<File
 				RelativePath=".\connection_test.cpp"
 				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+					/>
+				</FileConfiguration>
 			</File>
 			<File
 				RelativePath=".\proxy_test.cpp"
@@ -170,6 +178,7 @@
 				>
 				<FileConfiguration
 					Name="Debug|Win32"
+					ExcludedFromBuild="true"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -186,6 +195,10 @@
 						Name="VCCLCompilerTool"
 					/>
 				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\test_tools.cpp"
+				>
 			</File>
 		</Filter>
 		<Filter
@@ -207,6 +220,10 @@
 			</File>
 			<File
 				RelativePath=".\test_timer.h"
+				>
+			</File>
+			<File
+				RelativePath=".\test_tools.h"
 				>
 			</File>
 			<File

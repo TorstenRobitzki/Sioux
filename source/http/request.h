@@ -10,9 +10,17 @@
 namespace http
 {
     namespace details {
-        struct request_data {
+        // data is extracted to an onw baseclass, to be able to initialize it before the message_base<>
+        // base class c'tor is invoked.
+        struct request_data 
+        {
+            request_data();
+
             http::http_method_code      method_;
             tools::substring            uri_;
+            unsigned                    port_;
+            tools::substring            host_;
+            http_error_code             error_code_;
         };
     }
 
@@ -46,10 +54,34 @@ namespace http
 
         http::http_method_code  method() const;
 
+        /**
+         * @brief the requested, unmodified uri from the header
+         */
         tools::substring        uri() const;
+
+        /**
+         * @brief the host from the host header field
+         */
+        tools::substring        host() const;
+
+        /**
+         * @brief the port from the host header field
+         */
+        unsigned                port() const;
+
+        /**
+         * @brief in case, that the state() function returns syntax_error, this function will 
+         * deliver a more detailed error code.
+         */
+        http_error_code         error_code() const;
 
     private:
         bool start_line_found(const char* start, const char* end);
+
+        message::error_code end_of_request();
+
+        // returns syntax_error and sets error_code_ to http_bad_request
+        message::error_code bad_request();
 
         friend message_base<request_header>;
 	};

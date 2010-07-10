@@ -10,6 +10,7 @@
 #include "tools/asstring.h"
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/utility.hpp>
+#include <boost/asio/buffer.hpp>
 
 namespace server {
 
@@ -42,15 +43,14 @@ namespace server {
     template <class Connection>
     void error_response<Connection>::start()
     {
-        response_started(shared_from_this());
-
         connection_->async_write_some(
-                boost::buffer(buffer_),
-                boost::bind(
-                    &error_response::handle_written, 
-                    shared_from_this(),
-                    boost::asio::placeholders::error,
-                    boost::asio::placeholders::bytes_transferred));
+            boost::asio::buffer(buffer_),
+            boost::bind(
+                &error_response::handle_written, 
+                shared_from_this(),
+                boost::asio::placeholders::error,
+                boost::asio::placeholders::bytes_transferred),
+            *this);
     }
 
     template <class Connection>

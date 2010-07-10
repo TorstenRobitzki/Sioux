@@ -1,3 +1,4 @@
+// Copyright (c) Torrox GmbH & Co KG. All rights reserved.
 // Please note that the content of this file is confidential or protected by law.
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
@@ -11,26 +12,26 @@ using namespace http::test;
 
 TEST(read_simple_header)
 {
-    traits<>::connection_type   socket(begin(simple_get_11), end(simple_get_11), 5);
+    boost::asio::io_service     queue;
+    traits<>::connection_type   socket(queue, begin(simple_get_11), end(simple_get_11), 5);
     traits<>                    trait;
 
     server::create_connection(socket, trait);
 
-    for (; socket.process(); )
-        ;
+    queue.run(); 
 
     CHECK_EQUAL(1u, trait.requests().size());
 }
 
 TEST(read_multiple_header)
 {
-    traits<>::connection_type   socket(begin(simple_get_11), end(simple_get_11), 400, 2000);
+    boost::asio::io_service     queue;
+    traits<>::connection_type   socket(queue, begin(simple_get_11), end(simple_get_11), 400, 2000);
     traits<>                    traits;
 
     server::create_connection(socket, traits);
 
-    for (; socket.process(); )
-        ;
+    queue.run();
 
     CHECK_EQUAL(2000u, traits.requests().size());
 }
@@ -42,13 +43,13 @@ TEST(read_big_buffer)
         input.insert(input.end(), begin(simple_get_11), end(simple_get_11));
 
     typedef traits<server::test::socket<std::vector<char>::const_iterator> > socket_t;
-    socket_t::connection_type   socket(input.begin(), input.end());
+    boost::asio::io_service     queue;
+    socket_t::connection_type   socket(queue, input.begin(), input.end());
     traits<>                    traits;
 
     server::create_connection(socket, traits);
 
-    for (; socket.process(); )
-        ;
+    queue.run();
 
     CHECK_EQUAL(1000u, traits.requests().size());
 }
@@ -62,13 +63,13 @@ TEST(read_buffer_overflow)
         input.insert(input.end(), begin(header), end(header));
 
     typedef traits<server::test::socket<std::vector<char>::const_iterator> > socket_t;
-    socket_t::connection_type   socket(input.begin(), input.end());
+    boost::asio::io_service     queue;
+    socket_t::connection_type   socket(queue, input.begin(), input.end());
     traits<>                    traits;
 
     server::create_connection(socket, traits);
 
-    for (; socket.process(); )
-        ;
+    queue.run();
 
     CHECK_EQUAL(1u, traits.requests().size());
     CHECK_EQUAL(http::request_header::buffer_full, traits.requests().front()->state());
@@ -79,15 +80,16 @@ TEST(read_buffer_overflow)
  */
 TEST(close_after_sender_closed)
 {
-    traits<>::connection_type   socket(begin(simple_get_11), end(simple_get_11), 0);
+    boost::asio::io_service     queue;
+    traits<>::connection_type   socket(queue, begin(simple_get_11), end(simple_get_11), 0);
     traits<>                    trait;
 
     boost::weak_ptr<server::connection<traits<>, traits<>::connection_type> > connection(server::create_connection(socket, trait));
     CHECK(!connection.expired());
 
-    while ( socket.process() ) 
-        socket.process();
+    queue.run();
 
+    trait.reset_responses();
     CHECK_EQUAL("Hello", socket.output());
     CHECK(connection.expired());
 }
@@ -97,16 +99,17 @@ TEST(close_after_sender_closed)
  */
 TEST(closed_by_connection_header)
 {
-    traits<>::connection_type   socket(begin(simple_get_11_with_close_header), end(simple_get_11_with_close_header), 0);
+    boost::asio::io_service     queue;
+    traits<>::connection_type   socket(queue, begin(simple_get_11_with_close_header), end(simple_get_11_with_close_header), 0);
     traits<>                    trait;
 
     boost::weak_ptr<server::connection<traits<>, traits<>::connection_type> > connection(server::create_connection(socket, trait));
     CHECK(!connection.expired());
 
     // two calls to process to receive one he
-    CHECK(socket.process());
-    CHECK(socket.process());
+    CHECK_EQUAL(2u, queue.run());
 
+    trait.reset_responses();
     CHECK_EQUAL("Hello", socket.output());
     CHECK(connection.expired());
 }

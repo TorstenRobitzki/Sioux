@@ -52,6 +52,11 @@ namespace http
         std::pair<char*, std::size_t> read_buffer();
 
         /**
+         * @brief part of the buffer, that was filled, but contains data that was received behind the header
+         */
+        std::pair<char*, std::size_t> unparsed_buffer();
+
+        /**
          * @brief consumes size byte from the read_buffer()
          *
          * The function returns true, if parsing the request header is done, ether by
@@ -119,8 +124,6 @@ namespace http
          * @param old_header the header that contains data, that doesn't belongs to the previous htt-header
          * @param remaining returns the unparsed bytes. If not 0, parse() can be called with this
          * information.
-         *
-         * @pre state() returned ok
          */
         message_base(const Type& old_header, std::size_t& remaining, copy_trailing_buffer_t);
 
@@ -133,14 +136,16 @@ namespace http
 
         bool parse_version(const tools::substring& version_text);
 
+        // implementation of find_header that doesn't jet expects a fully, correctly parsed header, but instead 
+        // searchs the header parsed to far
+        const header* find_header_impl(const char* header_name) const;
+
     private:
         message_base(const message_base&);
         message_base& operator=(const message_base&);
 
         void crlf_found(const char* start, const char* end);
         void header_found(const char* start, const char* end);
-
-        void end_of_request();
 
         void parse_error();
 

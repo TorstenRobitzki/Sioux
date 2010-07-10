@@ -64,6 +64,12 @@ namespace http {
     }
     
     template <class Type>
+    std::pair<char*, std::size_t> message_base<Type>::unparsed_buffer()  
+    {
+        return std::make_pair(&buffer_[parse_ptr_], write_ptr_ - parse_ptr_);
+    }
+
+    template <class Type>
     bool message_base<Type>::parse(std::size_t size)
     {
         assert(size);
@@ -147,7 +153,8 @@ namespace http {
         {
             if ( start == end )
             {
-               end_of_request();
+                error_ = static_cast<Type*>(this)->end_of_request();
+                assert(error_ != parsing);
             }
             else
             {
@@ -175,15 +182,6 @@ namespace http {
         {
             parse_error();
         }
-    }
-
-    template <class Type>
-    void message_base<Type>::end_of_request() 
-    {
-        assert(parser_state_ == expect_header);
-
-        // TODO Check, that all required headers are present
-        error_ = ok;
     }
 
     template <class Type>
@@ -257,6 +255,12 @@ namespace http {
     const typename message_base<Type>::header* message_base<Type>::find_header(const char* header_name) const
     {
         assert(error_ == ok);
+        return find_header_impl(header_name);
+    }
+
+    template <class Type>
+    const typename message_base<Type>::header* message_base<Type>::find_header_impl(const char* header_name) const
+    {
         std::vector<header>::const_iterator h = headers_.begin();
         for ( ; h != headers_.end() && http::strcasecmp(h->name_.begin(), h->name_.end(), header_name) != 0; ++h )
             ;
@@ -305,17 +309,17 @@ namespace http {
     template class message_base<response_header>;
 
 
-    std::ostream& operator<<(std::ostream& out, request_header::error_code e)
+    std::ostream& operator<<(std::ostream& out, message::error_code e)
     {
         switch (e)
         {
-        case request_header::ok:
+        case message::ok:
             return out << "ok";
-        case request_header::buffer_full:
+        case message::buffer_full:
             return out << "buffer_full";
-        case request_header::syntax_error:
+        case message::syntax_error:
             return out << "syntax_error";
-        case request_header::parsing:
+        case message::parsing:
             return out << "parsing";
         default:
             return out << "unknown request_header::error_code: " << static_cast<int>(e);
