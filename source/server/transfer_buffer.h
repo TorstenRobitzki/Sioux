@@ -40,22 +40,16 @@ namespace server
 
         /**
          * @brief initialized this buffer for transfering a request or response body
+         *
+         * It's expected, that the passed buffer keeps staying valid over the live time
+         * of the transfer_buffer. If there is unparsed data in the request, this data is
+         * first handed out to a reader
          */
         template <class Base>
-        void start(const http::message_base<Base>& request);
+        void start(http::message_base<Base>& request);
 
         boost::asio::const_buffers_1 read_buffer() const;
         boost::asio::mutable_buffers_1 write_buffer();
-
-        /**
-         * @brief returns true, if there is data to be read from the buffer
-         */
-        bool read_buffer_empty() const;
-
-        /**
-         * @brief returns true, if there is no room to write to the buffer
-         */
-        bool write_buffer_full() const;
 
         bool transmission_done() const;
 
@@ -66,11 +60,13 @@ namespace server
         transfer_buffer(const transfer_buffer&);
         transfer_buffer& operator=(const transfer_buffer&);
 
-        char            buffer_[BufferSize];
-        std::size_t     start_;     // start of the region, that is filled with data
-        std::size_t     end_;       // end of the region, that is filled with data
+        char                            buffer_[BufferSize];
+        std::pair<const char*, std::size_t>   unparsed_header_data_;
+        std::size_t                     start_;     // start of the region, that is filled with data
+        std::size_t                     end_;       // end of the region, that is filled with data
 
-        std::size_t     body_size_; // used, when state_ == size_given
+        std::size_t                     body_size_; // used, when state_ == size_given
+
 
         enum 
         {
@@ -78,10 +74,10 @@ namespace server
             size_given,
             chunked,
             done
-        } state_;
+        }                               state_;
 
         // for chunked mode
-        std::size_t     current_chunk_;
+        std::size_t                     current_chunk_;
         enum 
         {
             chunk_size_start,
@@ -93,18 +89,20 @@ namespace server
             chunk_trailer,
             chunk_trailer_lf,
             chunk_last_trailer_lf
-        } chunked_state_;
+        }                               chunked_state_;
 
 
-        void handle_chunked_write(std::size_t);
+        void handle_chunked_write(std::size_t, const char* c);
     };
 
     /////////////////////////
     // implementation
     template <std::size_t BufferSize>
     template <class Base>
-    void transfer_buffer<BufferSize>::start(const http::message_base<Base>& header)
+    void transfer_buffer<BufferSize>::start(http::message_base<Base>& header)
     {
+        unparsed_header_data_ = header.unparsed_buffer();
+
         start_ = 0;
         end_   = 0;
 
@@ -113,13 +111,16 @@ namespace server
             body_size_ = sizeof buffer_;
             chunked_state_ = chunk_size_start;
             state_ = chunked;
+
+            handle_chunked_write(unparsed_header_data_.second, unparsed_header_data_.first);
         }
         else 
         {
             const http::header* const length_header = header.find_header("Content-Length");
             if (  length_header != 0 && http::parse_number(length_header->value().begin(), length_header->value().end(), body_size_) )
             {
-                state_ = size_given;
+                body_size_ -= std::min(body_size_, unparsed_header_data_.second);
+                state_      = body_size_ != 0 ? size_given : done;
             }
             else
             {
@@ -132,6 +133,11 @@ namespace server
     template <std::size_t BufferSize>
     boost::asio::const_buffers_1 transfer_buffer<BufferSize>::read_buffer() const
     {
+        if ( unparsed_header_data_.second != 0 )
+        {
+            return boost::asio::buffer(unparsed_header_data_.first, unparsed_header_data_.second);
+        }
+
         if ( start_ > end_ )
         {
             return boost::asio::buffer(&buffer_[start_], sizeof buffer_ - start_);
@@ -142,8 +148,8 @@ namespace server
 
     template <std::size_t BufferSize>
     boost::asio::mutable_buffers_1 transfer_buffer<BufferSize>::write_buffer()
-    {
-        if ( state_ == done ) 
+    { 
+        if ( state_ == done || unparsed_header_data_.second != 0 ) 
             return boost::asio::buffer(&buffer_[0], 0);
 
         if ( start_ <= end_ )
@@ -160,27 +166,23 @@ namespace server
     }
 
     template <std::size_t BufferSize>
-    bool transfer_buffer<BufferSize>::read_buffer_empty() const
-    {
-        return start_ == end_;
-    }
-
-    template <std::size_t BufferSize>
-    bool transfer_buffer<BufferSize>::write_buffer_full() const
-    {
-        return start_ == 0 && end_ == sizeof buffer_ 
-            || end_ +1 == start_;
-    }
-
-    template <std::size_t BufferSize>
     bool transfer_buffer<BufferSize>::transmission_done() const
     {
-        return state_ == done && read_buffer_empty();
+        return state_ == done && start_ == end_ && unparsed_header_data_.second == 0;
     }
 
     template <std::size_t BufferSize>
     void transfer_buffer<BufferSize>::data_read(std::size_t s)
     {
+        if ( unparsed_header_data_.second != 0 )
+        {
+            assert(s <= unparsed_header_data_.second);
+            unparsed_header_data_.second -= s;
+            unparsed_header_data_.first  += s;
+
+            return;
+        }
+
         assert( s <= buffer_size(read_buffer()) );
         start_ += s;
 
@@ -217,7 +219,7 @@ namespace server
 
             break;
         case chunked:
-            handle_chunked_write(s);
+            handle_chunked_write(s, &buffer_[end_]);
             break;
         default:
             assert(!"invalid state check transmission_done()");
@@ -230,29 +232,29 @@ namespace server
     }
 
     template <std::size_t BufferSize>
-    void transfer_buffer<BufferSize>::handle_chunked_write(std::size_t size)
+    void transfer_buffer<BufferSize>::handle_chunked_write(std::size_t size, const char* c)
     {
-        for ( std::size_t i = end_; size && state_ != done; --size, ++i )
+        for ( ; size && state_ != done; --size, ++c )
         {
             switch ( chunked_state_ )
             {
             case chunk_size_start:
-                if ( !std::isxdigit(buffer_[i]) )
+                if ( !std::isxdigit(*c) )
                     throw transfer_buffer_parse_error("missing chunked size");
 
-                current_chunk_ = http::xdigit_value(buffer_[i]);
+                current_chunk_ = http::xdigit_value(*c);
                 chunked_state_ = chunk_size;
                 break;
             case chunk_size:
-                if ( std::isxdigit(buffer_[i]) ) 
+                if ( std::isxdigit(*c) ) 
                 {
                     if ( current_chunk_ > std::numeric_limits<std::size_t>::max() / 16 )
                         throw transfer_buffer_parse_error("chunk size to big");
 
                     current_chunk_ *= 16;
-                    current_chunk_ +=  http::xdigit_value(buffer_[i]);
+                    current_chunk_ +=  http::xdigit_value(*c);
                 }
-                else if ( buffer_[i] == '\r' )
+                else if ( *c == '\r' )
                 {
                     chunked_state_ = chunk_size_lf;
                 }
@@ -263,11 +265,11 @@ namespace server
 
                 break;
             case chunk_extension:
-                if ( buffer_[i] == '\r' )
+                if ( *c == '\r' )
                     chunked_state_ = chunk_size_lf;
                 break;
             case chunk_size_lf:
-                if ( buffer_[i] != '\n' )
+                if ( *c != '\n' )
                     throw transfer_buffer_parse_error("missing linefeed in chunk size");
 
                 chunked_state_ = current_chunk_ == 0 ? chunk_trailer_start : chunk_data;
@@ -283,27 +285,27 @@ namespace server
 
                     current_chunk_ -= bite;
                     size           -= bite-1; // additional decrement in the for loop
-                    i           += bite-1; // additional increment in the for loop
+                    c              += bite-1; // additional increment in the for loop
 
                     if ( current_chunk_ == 0 )
                         chunked_state_ = chunk_size_start;
                 }
                 break;
             case chunk_trailer_start:
-                chunked_state_ = buffer_[i] == '\r' ? chunk_last_trailer_lf : chunk_trailer;
+                chunked_state_ = *c == '\r' ? chunk_last_trailer_lf : chunk_trailer;
                 break;
             case chunk_trailer:
-                if ( buffer_[i] == '\r' ) 
+                if ( *c == '\r' ) 
                     chunked_state_ = chunk_trailer_lf;
                 break;
             case chunk_trailer_lf:
-                if ( buffer_[i] != '\n' )
+                if ( *c != '\n' )
                     throw transfer_buffer_parse_error("missing linefeed in trailer");
 
                 chunked_state_ = chunk_trailer_start;
                 break;
             case chunk_last_trailer_lf:
-                if ( buffer_[i] != '\n' )
+                if ( *c != '\n' )
                     throw transfer_buffer_parse_error("missing linefeed in trailer");
 
                 state_ = done;

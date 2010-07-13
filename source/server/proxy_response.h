@@ -22,7 +22,7 @@ namespace server
      */
     template <class Connection, std::size_t BodyBufferSize = 1024>
     class proxy_response : public async_response, 
-                           public boost::enable_shared_from_this<proxy_response<Connection> >, 
+                           public boost::enable_shared_from_this<proxy_response<Connection, BodyBufferSize> >, 
                            private boost::noncopyable
     {
     public:
@@ -185,17 +185,8 @@ namespace server
                     if ( response_body_exists_ )        
                     {
                         body_buffer_.start(response_header_from_proxy_);
-
-                        boost::asio::mutable_buffers_1 bb = body_buffer_.write_buffer();
-                        std::pair<char*, std::size_t>  hb = response_header_from_proxy_.unparsed_buffer();
-
-                        // copy the already received data from the end of the header to the body_buffer_
-                        if ( buffer_size(bb) < hb.second)
-                            throw std::runtime_error("can write unparsed_buffer to body_buffer");
-                        std::copy(hb.first, hb.first + hb.second, buffers_begin(bb));
-                        body_buffer_.data_written(hb.second);
-
                         issue_read(body_buffer_.write_buffer());
+                        issue_write(body_buffer_.read_buffer());
                     }
 
                     fail.dismiss();
