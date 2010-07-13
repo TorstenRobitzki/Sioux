@@ -147,6 +147,10 @@
 				RelativePath=".\response.cpp"
 				>
 			</File>
+			<File
+				RelativePath=".\transfer_buffer.cpp"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -171,6 +175,10 @@
 			</File>
 			<File
 				RelativePath=".\response.h"
+				>
+			</File>
+			<File
+				RelativePath=".\transfer_buffer.h"
 				>
 			</File>
 		</Filter>

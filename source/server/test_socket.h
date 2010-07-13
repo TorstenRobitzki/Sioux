@@ -11,8 +11,12 @@
 #include <boost/system/error_code.hpp>
 #include <boost/asio/buffers_iterator.hpp>
 #include <boost/asio/ip/tcp.hpp>
+#include <boost/random/uniform_int.hpp>
+#include <boost/random/variate_generator.hpp>
+#include <boost/random/linear_congruential.hpp>
 #include <vector>
 #include <deque>
+#include <iterator>
 
 #ifdef min
 #   undef min
@@ -60,6 +64,12 @@ public:
     socket(boost::asio::io_service& io_service, Iterator begin, Iterator end);
 
     /**
+     * @brief deleviers and receives data in chunks of random size.
+     */
+    socket(boost::asio::io_service& io_service, Iterator begin, Iterator end, 
+        const boost::minstd_rand& random, std::size_t lower_bound, std::size_t upper_bound);
+
+    /**
      * @brief empty implementation
      */
     socket(boost::asio::io_service& io_service);
@@ -90,6 +100,8 @@ public:
      */
     std::string output() const;
 
+    const std::vector<char>& bin_output() const;
+
     boost::asio::io_service& get_io_service();
 private:
 
@@ -107,6 +119,9 @@ private:
              std::size_t                      read_error_occurens,
              const boost::system::error_code& write_error, 
              std::size_t                      write_error_occurens);
+
+        impl(boost::asio::io_service& io_service, Iterator begin, Iterator end, 
+            const boost::minstd_rand& random, std::size_t lower_bound, std::size_t upper_bound);
 
 	    template<
 		    typename MutableBufferSequence,
@@ -126,22 +141,27 @@ private:
 
         void shutdown(boost::asio::ip::tcp::socket::shutdown_type what);
 
-        bool process();
-
-        std::string output();
+        const std::vector<char>& output();
 
         boost::asio::io_service& get_io_service();
     private:
-        void process_output();
-        void process_input();
+        typedef boost::uniform_int<std::size_t>                                     
+            rand_distribution_type;
+        typedef boost::variate_generator<boost::minstd_rand&, rand_distribution_type>    
+            rand_gen_type;
 
-	    Iterator			                        current_;
+        Iterator			                        current_;
 	    const Iterator		                        begin_;
 	    const Iterator		                        end_;
 
         const std::size_t                           bite_size_;
         unsigned                                    times_;
-
+        
+        bool                                        use_random_generator_;
+        boost::minstd_rand                          random_generator_;
+        rand_distribution_type                      random_destribution_;
+        rand_gen_type                               random_;
+    
         std::vector<char>                           output_;
 
         const bool                                  read_error_enabled_;
@@ -190,6 +210,13 @@ socket<Iterator>::socket(boost::asio::io_service& io_service)
 }
 
 template <class Iterator>
+socket<Iterator>::socket(boost::asio::io_service& io_service, Iterator begin, Iterator end, 
+        const boost::minstd_rand& random, std::size_t lower_bound, std::size_t upper_bound)
+ : pimpl_(new impl(io_service, begin, end, random, lower_bound, upper_bound))
+{
+}
+
+template <class Iterator>
 template <typename MutableBufferSequence, typename ReadHandler>
 void socket<Iterator>::async_read_some(
 		const MutableBufferSequence& buffers,
@@ -222,6 +249,13 @@ void socket<Iterator>::shutdown(boost::asio::ip::tcp::socket::shutdown_type what
 template <class Iterator>
 std::string socket<Iterator>::output() const
 {
+    const std::vector<char>& bin = pimpl_->output();
+    return std::string(bin.begin(), bin.end());
+}
+
+template <class Iterator>
+const std::vector<char>& socket<Iterator>::bin_output() const
+{
     return pimpl_->output();
 }
 
@@ -239,6 +273,10 @@ socket<Iterator>::impl::impl(boost::asio::io_service& io_service)
  , end_(Iterator())
  , bite_size_(0)
  , times_(0)
+ , use_random_generator_(false)
+ , random_generator_()
+ , random_destribution_()
+ , random_(random_generator_, random_destribution_)
  , output_()
  , read_error_enabled_(false)
  , read_error_()
@@ -257,6 +295,10 @@ socket<Iterator>::impl::impl(boost::asio::io_service& io_service, Iterator begin
  , end_(end)
  , bite_size_(bite_size)
  , times_(times)
+ , use_random_generator_(false)
+ , random_generator_()
+ , random_destribution_()
+ , random_(random_generator_, random_destribution_)
  , output_()
  , read_error_enabled_(false)
  , read_error_()
@@ -282,6 +324,10 @@ socket<Iterator>::impl::impl(boost::asio::io_service&         io_service,
  , end_(end)
  , bite_size_(0)
  , times_(1)
+ , use_random_generator_(false)
+ , random_generator_()
+ , random_destribution_()
+ , random_(random_generator_, random_destribution_)
  , output_()
  , read_error_enabled_(true)
  , read_error_(read_error)
@@ -289,6 +335,29 @@ socket<Iterator>::impl::impl(boost::asio::io_service&         io_service,
  , write_error_enabled_(true)
  , write_error_(write_error)
  , write_error_occurens_(write_error_occurens)
+ , io_service_(io_service)
+{
+}
+
+template <class Iterator>
+socket<Iterator>::impl::impl(boost::asio::io_service& io_service, Iterator begin, Iterator end, 
+    const boost::minstd_rand& random, std::size_t lower_bound, std::size_t upper_bound)
+ : current_(begin)
+ , begin_(begin)
+ , end_(end)
+ , bite_size_(0)
+ , times_(1)
+ , use_random_generator_(false)
+ , random_generator_(random)
+ , random_destribution_(lower_bound, upper_bound)
+ , random_(random_generator_, random_destribution_)
+ , output_()
+ , read_error_enabled_(false)
+ , read_error_()
+ , read_error_occurens_()
+ , write_error_enabled_(false)
+ , write_error_()
+ , write_error_occurens_()
  , io_service_(io_service)
 {
 }
@@ -333,11 +402,26 @@ void socket<Iterator>::impl::async_write_some(
         const ConstBufferSequence & buffers,
         WriteHandler handler)
 {
-    output_.insert(output_.end(), boost::asio::buffers_begin(buffers), boost::asio::buffers_end(buffers));
+    std::size_t size = std::distance(boost::asio::buffers_begin(buffers), boost::asio::buffers_end(buffers));
 
-    const std::size_t size = std::distance(boost::asio::buffers_begin(buffers), boost::asio::buffers_end(buffers));
+    if ( write_error_enabled_ )
+    {
+        size = std::min(size, write_error_occurens_);
+        write_error_occurens_ -= size;
+    }
 
-    io_service_.post(boost::bind<void>(handler, make_error_code(boost::system::errc::success), size));
+    boost::asio::buffers_iterator<ConstBufferSequence> end = boost::asio::buffers_begin(buffers);
+    // std::advance results in a compiler error; this might be a bug in boost::asio
+    for ( std::size_t i = 0; i != size; ++i )
+        ++end;
+
+    output_.insert(output_.end(), boost::asio::buffers_begin(buffers), end);
+
+    const boost::system::error_code ec = write_error_enabled_ && write_error_occurens_ == 0 
+        ? write_error_
+        : make_error_code(boost::system::errc::success);
+
+    io_service_.post(boost::bind<void>(handler, ec, size));
 }
 
 template <class Iterator>
@@ -351,52 +435,9 @@ void socket<Iterator>::impl::shutdown(boost::asio::ip::tcp::socket::shutdown_typ
 }
 
 template <class Iterator>
-void socket<Iterator>::impl::process_output()
+const std::vector<char>& socket<Iterator>::impl::output() 
 {
-    writes_.front()->handler();
-    writes_.pop_front();
-}
-
-template <class Iterator>
-void socket<Iterator>::impl::process_input()
-{
-    if ( current_ == end_ && --times_ )
-        current_ = begin_;
-
-    typedef std::iterator_traits<Iterator>::difference_type size_t;
-
-    size_t size = bite_size_ != 0
-        ? std::min(static_cast<size_t>(bite_size_), std::distance(current_, end_))
-        : std::distance(current_, end_);
-
-    Iterator end = current_;
-    std::advance(end, size);
-
-    boost::shared_ptr<read_handler_keeper_base>  old_handler;
-    old_handler.swap(handler_);
-
-    size = old_handler->handle(make_error_code(boost::system::errc::success), current_, end);
-    std::advance(current_, size);
-}
-
-template <class Iterator>
-bool socket<Iterator>::impl::process()
-{
-    if ( handler_.get() == 0 && writes_.empty() )
-        return false;
-
-    writes_.empty() ? process_input() : process_output();
-
-    return true;
-}
-
-template <class Iterator>
-std::string socket<Iterator>::impl::output() 
-{
-    const std::string result(output_.begin(), output_.end());
-    output_.clear();
-
-    return result;
+    return output_;
 }
 
 template <class Iterator>

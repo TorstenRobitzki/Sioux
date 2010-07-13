@@ -68,13 +68,20 @@ namespace server
         /**
          * @brief interface for writing to the connection
          *
-         * @pre a async_response implementation have to call response_started() once before calling async_write_some()
          * @post a async_response implementation have to call response_completed() once after calling async_write_some() the last time
          */
         template<
             typename ConstBufferSequence,
             typename WriteHandler>
         void async_write_some(
+            const ConstBufferSequence&  buffers,
+            WriteHandler                handler,
+            async_response&             sender);
+
+        template<
+            typename ConstBufferSequence,
+            typename WriteHandler>
+        void async_write(
             const ConstBufferSequence&  buffers,
             WriteHandler                handler,
             async_response&             sender);
@@ -99,7 +106,9 @@ namespace server
          * In case of an http_internal_server_error error code, all running requests are canceled and the underlying 
          * connection will be closed.
          */
-        void response_not_possible(async_response& sender, http::http_error_code = http::http_internal_server_error);
+        void response_not_possible(async_response& sender, http::http_error_code );
+
+        void response_not_possible(async_response& sender);
 
         /**
          * @brief closes the reading part of the used connection
@@ -155,24 +164,24 @@ namespace server
         // cancels all pending writes and reads, closes the connection
         void cancel_all();
 
+        void response_not_possible_impl(async_response& sender, const boost::shared_ptr<async_response>& error_response);
+
         Connection                              connection_;
         Trait                                   trait_;
 
         boost::shared_ptr<http::request_header> current_request_;
 
-        // as removing the responses is strictly required, the use of weak_ptr is not nessary,
-        // but might be helpfull for debuging 
-        typedef std::deque<boost::weak_ptr<async_response> > response_list;
+        typedef std::deque<async_response*>     response_list;
         response_list                           responses_;
 
         static async_response& response_from_list(response_list::iterator i)
         {
-            return *boost::shared_ptr<async_response>(*i);
+            return **i;
         }
 
         static const async_response& response_from_list(response_list::const_iterator i)
         {
-            return *boost::shared_ptr<const async_response>(*i);
+            return **i;
         }
 
 
@@ -220,14 +229,25 @@ namespace server
         issue_header_read();
     }
 
-	template <class Trait, class Connection>
+    template <class Trait, class Connection>
+    template<typename ConstBufferSequence, typename WriteHandler>
+    void connection<Trait, Connection>::async_write(
+        const ConstBufferSequence&  buffers,
+        WriteHandler                handler,
+        async_response&             sender)
+    {
+        /// @todo fix it
+        async_write_some(buffers, handler, sender);
+    }
+
+    template <class Trait, class Connection>
     template<typename ConstBufferSequence, typename WriteHandler>
     void connection<Trait, Connection>::async_write_some(
         const ConstBufferSequence&  buffers,
         WriteHandler                handler,
         async_response&             sender)
     {
-        if ( &response_from_list(responses_.begin()) == &sender )
+        if ( responses_.front() == &sender )
         {
             connection_.async_write_some(buffers, handler);
             current_response_is_sending_ = true;
@@ -235,17 +255,10 @@ namespace server
         else
         {
             // hurry resposes that are blocking the sender
-            for ( response_list::const_iterator r = responses_.begin(); ; ++r )
+            for ( response_list::const_iterator r = responses_.begin(); *r != &sender; ++r )
             {
-                if ( !r->expired() )
-                {
-                    boost::shared_ptr<async_response> repo(*r);
-
-                    if ( repo.get() == &sender )
-                        break;
-
-                    repo->hurry();
-                }
+                assert(r != responses_.end());
+                (*r)->hurry();
             }
 
             // store send request until the current sender is ready
@@ -260,7 +273,9 @@ namespace server
         // there is no reason, why there should be outstanding, blocked writes from the current sender
         assert(blocked_writes_.erase(&sender) == 0);
         
-        if ( &response_from_list(responses_.begin()) == &sender )
+        response_list::iterator senders_pos = std::find(responses_.begin(), responses_.end(), &sender);
+
+        if ( senders_pos == responses_.begin() &&  senders_pos != responses_.end() )
         {
             current_response_is_sending_ = false;
             responses_.pop_front();
@@ -283,6 +298,10 @@ namespace server
                     boost::bind(&blocked_write_base::operator(), _1, boost::ref(connection_)));
             }
         }
+        else if ( senders_pos != responses_.end() )
+        {
+            responses_.erase(senders_pos);
+        }
     }
 
 	template <class Trait, class Connection>
@@ -291,14 +310,13 @@ namespace server
 
     }
 
-	template <class Trait, class Connection>
-    void connection<Trait, Connection>::response_not_possible(async_response& sender, http::http_error_code ec)
+    template <class Trait, class Connection>
+    void connection<Trait, Connection>::response_not_possible_impl(async_response& sender, const boost::shared_ptr<async_response>& error_response)
     {
         response_list::iterator senders_pos = responses_.begin();
         for ( ; &response_from_list(senders_pos) != &sender; ++senders_pos )
             ;
         assert(senders_pos != responses_.end());
-        const bool current_reponse = senders_pos == responses_.begin();
 
         const blocked_write_list::const_iterator writes = blocked_writes_.find(&sender);
 
@@ -309,21 +327,33 @@ namespace server
                 boost::bind(&blocked_write_base::cancel, _1));
         }
  
-        boost::shared_ptr<async_response> error_response;
-
-        // if no data was send from this response, consult the error-trait to get an error response
-        if ( !current_reponse || !current_response_is_sending_ )
-            error_response = trait_.error_response(shared_from_this(), ec);
-
         if ( error_response.get() )
         {
-            *senders_pos = error_response;
+            *senders_pos = error_response.get();
             error_response->start();
         }
         else
         {
             cancel_all();
         }
+    }
+
+    template <class Trait, class Connection>
+    void connection<Trait, Connection>::response_not_possible(async_response& sender, http::http_error_code ec)
+    {
+        boost::shared_ptr<async_response> error_response;
+
+        // if no data was send from this response, consult the error-trait to get an error response
+        if ( &response_from_list(responses_.begin()) != &sender || !current_response_is_sending_ )
+            error_response = trait_.error_response(shared_from_this(), ec);
+
+        response_not_possible_impl(sender, error_response);
+    }
+
+    template <class Trait, class Connection>
+    void connection<Trait, Connection>::response_not_possible(async_response& sender)
+    {
+        response_not_possible_impl(sender, boost::shared_ptr<async_response>());
     }
 
     template <class Trait, class Connection>
@@ -386,7 +416,7 @@ namespace server
     bool connection<Trait, Connection>::handle_request_header(const boost::shared_ptr<const http::request_header>& new_request)
     {
         boost::shared_ptr<async_response> response = trait_.create_response(shared_from_this(), new_request);
-        responses_.push_back(response);
+        responses_.push_back(response.get());
 
         try
         {
@@ -402,7 +432,7 @@ namespace server
 
             if ( error_response.get() )
             {
-                responses_.push_back(error_response);
+                responses_.push_back(error_response.get());
                 error_response->start();
             }
 

@@ -94,7 +94,8 @@ void proxy_config::async_get_proxy_connection(
 
 void proxy_config::release_connection(
     const tools::dynamic_type&          connection_type,
-    void*                               connection)
+    void*                               connection,
+    const http::response_header*        /* header */)
 {
     if ( connection_type != typeid (server::test::socket<const char*>) )
         throw std::runtime_error("test::proxy_config::release_connection: invalid type"); 

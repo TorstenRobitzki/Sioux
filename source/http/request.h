@@ -75,6 +75,14 @@ namespace http
          */
         http_error_code         error_code() const;
 
+        /**
+         * @brief returns true, if the header indicates the pressens of a message body 
+         *
+         * The pressens of a message body is indicated by the pressens of a Content-Length
+         * or Transfer-Encoding header
+         */
+        bool                    body_expected() const;
+
     private:
         bool start_line_found(const char* start, const char* end);
 

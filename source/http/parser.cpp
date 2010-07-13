@@ -126,6 +126,17 @@ int strcasecmp(const char* begin1, const char* end1, const char* begin2, const c
     return 0;
 }
 
+unsigned xdigit_value(char c)
+{
+    if ( c >= '0' && c <= '9' )
+        return c - '0';
+
+    if ( c >= 'a' && c <= 'f' )
+        return c - 'a' +10;
+
+    return c - 'A' +10;
+}
+
 ////////////////////////////////////////////////
 // class bad_url
 bad_url::bad_url(const std::string& s)

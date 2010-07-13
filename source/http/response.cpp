@@ -34,6 +34,13 @@ namespace http {
         return phrase_;
     }
 
+    bool response_header::body_expected(http_method_code request_method) const
+    {
+        assert(state() == ok);
+
+        return request_method != http_head && code_ / 100 != 1 && code_ != http_no_content && code_ != http_not_modified;
+    }
+
     bool response_header::start_line_found(const char* start, const char* end)
     {
         assert(start != end);

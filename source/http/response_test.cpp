@@ -49,3 +49,59 @@ TEST(valid_response_line)
     CHECK_EQUAL(static_cast<http_error_code>(599), highest_code.code());
     CHECK_EQUAL("WTF!", highest_code.phrase());
 }
+
+/**
+ * @test the propper working of the body_expected() function
+ */
+TEST(response_body_expected)
+{
+    // response is 200 ok, combined with the request method, a body is expected or not
+    { 
+        const http::response_header header(ok_response_header_apache);
+
+        CHECK_EQUAL(message::ok, header.state());
+        CHECK( header.body_expected(http_options));
+        CHECK( header.body_expected(http_get));
+        CHECK(!header.body_expected(http_head));
+        CHECK( header.body_expected(http_post));
+        CHECK( header.body_expected(http_put));
+        CHECK( header.body_expected(http_delete));
+        CHECK( header.body_expected(http_trace));
+        CHECK( header.body_expected(http_connect));
+    }
+
+    // All 1xx (informational), 204 (no content), and 304 (not modified) responses MUST NOT include a message-body. 
+    { 
+        const http::response_header info(
+            "HTTP/1.1 101 Switching Protocols\r\n\r\n");    
+
+        CHECK_EQUAL(message::ok, info.state());
+        CHECK(!info.body_expected(http_get));
+
+        const http::response_header no_content(
+            "HTTP/1.1 204 Nix da\r\n\r\n");    
+
+        CHECK_EQUAL(message::ok, no_content.state());
+        CHECK(!no_content.body_expected(http_get));
+
+        const http::response_header not_modified(cached_response_apache);    
+
+        CHECK_EQUAL(message::ok, not_modified.state());
+        CHECK(!not_modified.body_expected(http_get));
+    }
+
+    // All other responses do include a message-body, although it MAY be of zero length. 
+    {
+        const http::response_header conflict(
+            "HTTP/1.0 409 Conflict\r\n\r\n");
+
+        CHECK_EQUAL(message::ok, conflict.state());
+        CHECK(conflict.body_expected(http_delete));
+
+        const http::response_header gateway_timeout(
+            "HTTP/1.0 502 GW TO\r\n\r\n");
+
+        CHECK_EQUAL(message::ok, gateway_timeout.state());
+        CHECK(gateway_timeout.body_expected(http_delete));
+    }
+}

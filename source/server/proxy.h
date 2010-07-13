@@ -16,6 +16,10 @@
 #include <string>
 #include <memory>
 
+namespace http {
+    class response_header;
+}
+
 namespace server 
 {
     /** 
@@ -42,7 +46,8 @@ namespace server
         /**
          * @brief returns a connection to talk to the server where a request should be forwarded to
          * @attention if handler is called with a valid connection, release_connection() have to be
-         * called, when the connection isn't used anymore. If connection are not release, this will
+         * called, when the connection isn't used anymore or dismiss_connection() if an error occured
+         * while communicating with the orgin server. If connection are not release, this will
          * leed to resouce leaks.
          * @param orgin_host the orign host from the request header
          * @param orgin_port the orgin port from the request header
@@ -58,7 +63,10 @@ namespace server
          * @pre the passed connection must be obtained by a call to async_get_proxy_connection()
          */
         template <class Connection>
-        void release_connection(Connection*);
+        void release_connection(Connection*, const http::response_header&);
+
+        template <class Connection>
+        void dismiss_connection(Connection*);
     protected:
 
         /**
@@ -95,10 +103,12 @@ namespace server
          * @param connection_type an implementation have to check connection_type and response with an assert or exception, if no 
          * such type will be provided as a connection.
          * @param connection a pointer to the connection. 
+         * @param header the request header read from the orgin server. If this parameter is 0, the connection is to be dismissed.
          */
         virtual void release_connection(
             const tools::dynamic_type&          connection_type,
-            void*                               connection) = 0;
+            void*                               connection,
+            const http::response_header*        header) = 0;
 
     private:
         template <class Handler, class Connection>
@@ -132,9 +142,17 @@ namespace server
     }
 
     template <class Connection>
-    void proxy_config_base::release_connection(Connection* c)
+    void proxy_config_base::release_connection(Connection* c, const http::response_header& h)
     {
-        release_connection(typeid(Connection), c);
+        assert(c);
+        release_connection(typeid(Connection), c, &h);
+    }
+
+    template <class Connection>
+    void proxy_config_base::dismiss_connection(Connection* c)
+    {
+        assert(c);
+        release_connection(typeid(Connection), c, 0);
     }
 
 

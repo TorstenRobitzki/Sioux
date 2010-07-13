@@ -140,6 +140,11 @@ namespace http {
         return error_code_;
     }
 
+    bool request_header::body_expected() const
+    {
+        return find_header("Content-Length") != 0 || find_header("Transfer-Encoding");
+    }
+
     message::error_code request_header::bad_request()
     {
         error_code_ = http_bad_request;

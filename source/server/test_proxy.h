@@ -67,7 +67,8 @@ namespace test {
 
         virtual void release_connection(
             const tools::dynamic_type&          connection_type,
-            void*                               connection);
+            void*                               connection,
+            const http::response_header*        header);
 
         boost::asio::io_service&                io_service_;
         const std::vector<char>                 simulate_response_;

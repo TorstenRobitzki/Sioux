@@ -81,6 +81,40 @@ namespace test {
         "Etag: \"3101d1a-679-458b06f8562aa\"\r\n"
         "\r\n";
 
+    const char ok_response_header_apache[] = 
+        "HTTP/1.1 200 OK\r\n"
+        "Date: Sun, 11 Jul 2010 08:48:13 GMT\r\n"
+        "Server: Apache/2.2.15 (Unix)\r\n"
+        "Last-Modified: Tue, 07 Oct 2008 21:25:14 GMT\r\n"
+        "Etag: \"3101d29-f99-458b06f7a4ec7\"\r\n"
+        "Accept-Ranges: bytes\r\n"
+        "Content-Length: 3993\r\n"
+        "Keep-Alive: timeout=3, max=99\r\n"
+        "Connection: Keep-Alive\r\n"
+        "Content-Type: text/css\r\n"
+        "\r\n";
+
+    const char chunked_response_example[] = 
+        "HTTP/1.1 200 OK\r\n"
+        "Date: Mon, 22 Mar 2004 11:15:03 GMT\r\n"
+        "Content-Type: text/html\r\n"
+        "Transfer-Encoding: chunked\r\n"
+        "Trailer: Expires\r\n"
+        "\r\n"
+        "29\r\n"
+        "<html><body><p>The file you requested is \r\n"
+        "5;foobar\r\n"
+        "3,400\r\n"
+        "22\r\n"
+        "bytes long and was last modified: \r\n"
+        "1d\r\n"
+        "Sat, 20 Mar 2004 21:12:00 GMT\r\n"
+        "13\r\n"
+        ".</p></body></html>\r\n"
+        "0\r\n"
+        "Expires: Sat, 27 Mar 2004 21:12:00 GMT\r\n"
+        "\r\n";
+
     template <unsigned S>
     const char* begin(const char(&t)[S])
     {

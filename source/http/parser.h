@@ -12,6 +12,10 @@
 #include <limits>
 #include <cctype>
 
+#ifdef max
+#   undef max
+#endif
+
 namespace http {
 
 const char CR = '\r';
@@ -174,6 +178,8 @@ bool parse_number(Iter begin, Iter end, unsigned& r)
 int strcasecmp(const char* begin1, const char* end1, const char* null_terminated_str);
 
 int strcasecmp(const char* begin1, const char* end1, const char* begin2, const char* end2);
+
+unsigned xdigit_value(char c);
 
 } // namespace http
 

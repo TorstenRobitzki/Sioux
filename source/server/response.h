@@ -13,7 +13,7 @@ namespace server
     class async_response;
 
     /**
-     * @brief small helper to report an error to the connection as last resort
+     * @brief small helper to report an error to the connection.
      *
      * This scope guard takes a reference to 
      */
@@ -54,6 +54,41 @@ namespace server
         Connection*             con_;
         async_response*         response_;
         http::http_error_code   error_code_;
+    };
+
+    /**
+     * @brief this guard is intendet to call conection::response_not_possible() without error code, in error conditions,
+     *        where it is very likly, that responing with an error message is not possible (write error for example)
+     */
+    template <class Connection>
+    class close_connection_guard
+    {
+    public:
+        close_connection_guard(Connection& con, async_response& resp) 
+            : con_(&con)
+            , response_(&resp)
+        {
+        }
+
+        ~close_connection_guard()
+        {
+            if ( con_ )
+            {
+                assert(response_);
+                con_->response_not_possible(*response_);
+            }
+        }
+
+        void dismiss()
+        {
+            con_ = 0;
+        }
+    private:
+        close_connection_guard(const close_connection_guard&);
+        close_connection_guard& operator=(const close_connection_guard&);
+
+        Connection*             con_;
+        async_response*         response_;
     };
 
     /**

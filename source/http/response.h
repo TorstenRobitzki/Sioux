@@ -49,6 +49,14 @@ namespace http {
         http::http_error_code   code() const;
 
         tools::substring        phrase() const;
+
+        /**
+         * @brief returns true, when it's expected that a body is followed by this header
+         *
+         * @param request_method the method of the request, where this is the coresponding response
+         * @pre state() returned ok.
+         */
+        bool                    body_expected(http_method_code request_method) const;
     private:
         bool start_line_found(const char* start, const char* end);
 
