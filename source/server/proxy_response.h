@@ -227,6 +227,7 @@ namespace server
         {
             if ( response_body_exists_ )
             {
+                writing_body_to_client_ = false;
                 issue_read(body_buffer_.write_buffer());
                 issue_write(body_buffer_.read_buffer());
             }
@@ -315,6 +316,7 @@ namespace server
     {
         // filter all connection headers
         outbuffers_ = filtered_header(response_header_from_proxy_);
+        writing_body_to_client_ = true;
 
         connection_->async_write(
                 outbuffers_, 

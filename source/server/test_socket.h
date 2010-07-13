@@ -14,6 +14,7 @@
 #include <boost/random/uniform_int.hpp>
 #include <boost/random/variate_generator.hpp>
 #include <boost/random/linear_congruential.hpp>
+#include <boost/function.hpp>
 #include <vector>
 #include <deque>
 #include <iterator>
@@ -347,7 +348,7 @@ socket<Iterator>::impl::impl(boost::asio::io_service& io_service, Iterator begin
  , end_(end)
  , bite_size_(0)
  , times_(1)
- , use_random_generator_(false)
+ , use_random_generator_(true)
  , random_generator_(random)
  , random_destribution_(lower_bound, upper_bound)
  , random_(random_generator_, random_destribution_)
@@ -362,8 +363,27 @@ socket<Iterator>::impl::impl(boost::asio::io_service& io_service, Iterator begin
 {
 }
 
+namespace {
+
+    // workaround for an issue, where a object that was returned from boost::bind() couldn't directly passed to boost::bind()
+    template <class Handler>
+    struct handler_container
+    {
+        explicit handler_container(const Handler& h) : handler(h) {}
+
+        Handler handler;
+    };
+
+    template <typename Container>
+    void repost( boost::asio::io_service& io, Container handler, boost::system::error_code ec, std::size_t bytes_transferred)
+    {
+        io.post(boost::bind<void>(handler.handler, ec, bytes_transferred));
+    }
+
+}
+
 template <class Iterator>
-template <typename MutableBufferSequence, typename ReadHandler>
+template <typename MutableBufferSequence, class ReadHandler>
 void socket<Iterator>::impl::async_read_some(
 		const MutableBufferSequence& buffers,
 		ReadHandler handler)
@@ -371,7 +391,16 @@ void socket<Iterator>::impl::async_read_some(
     std::size_t size = std::min<std::size_t>(std::distance(current_, end_), buffer_size(buffers));
 
     if ( bite_size_ != 0 )
+    {
         size = std::min(size, bite_size_);
+    }
+
+    bool repost_result = false;
+    if ( use_random_generator_ )
+    {
+        size = std::min(size, random_());
+        repost_result = random_() % 2 == 1;
+    }
 
     if ( read_error_enabled_ )
     {
@@ -393,7 +422,22 @@ void socket<Iterator>::impl::async_read_some(
         ? make_error_code(boost::system::errc::success)
         : read_error_;
 
-    io_service_.post(boost::bind(handler, ec, size));
+    if ( repost_result )
+    {
+        io_service_.post(
+            boost::bind(
+                repost<handler_container<ReadHandler> >, 
+                boost::ref(io_service_), 
+                handler_container<ReadHandler>(handler), 
+                ec, 
+                size
+            )
+        );
+    }
+    else
+    {
+        io_service_.post(boost::bind(handler, ec, size));
+    }
 }
 
 template <class Iterator>
@@ -403,6 +447,13 @@ void socket<Iterator>::impl::async_write_some(
         WriteHandler handler)
 {
     std::size_t size = std::distance(boost::asio::buffers_begin(buffers), boost::asio::buffers_end(buffers));
+
+    bool repost_result = false;
+    if ( use_random_generator_ )
+    {
+        size = std::min(size, random_());
+        repost_result = random_() % 2 == 1;
+    }
 
     if ( write_error_enabled_ )
     {
@@ -421,7 +472,22 @@ void socket<Iterator>::impl::async_write_some(
         ? write_error_
         : make_error_code(boost::system::errc::success);
 
-    io_service_.post(boost::bind<void>(handler, ec, size));
+    if ( repost_result )
+    {
+        io_service_.post(
+            boost::bind(
+                repost<handler_container<WriteHandler> >, 
+                boost::ref(io_service_), 
+                handler_container<WriteHandler>(handler), 
+                ec, 
+                size
+            )
+        );
+    }
+    else
+    {
+        io_service_.post(boost::bind<void>(handler, ec, size));
+    }
 }
 
 template <class Iterator>
