@@ -11,6 +11,7 @@
 #include "tools/mem_tools.h"
 #include <boost/asio/error.hpp>
 #include <boost/asio/placeholders.hpp>
+#include <boost/asio/write.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/bind.hpp>
@@ -149,6 +150,20 @@ namespace server
             const WriteHandler          handler_;
         };
 
+        template <class ConstBufferSequence, class WriteHandler>
+        class blocked_write_some : public blocked_write_base
+        {
+        public:
+            blocked_write_some(const ConstBufferSequence&  buffers,
+                          WriteHandler                handler);
+        private:
+            void operator()(Connection&);
+            void cancel();
+
+            const ConstBufferSequence   buffers_;
+            const WriteHandler          handler_;
+        };
+
         void issue_header_read();
 		void handle_read(const boost::system::error_code& e, std::size_t bytes_transferred);
 
@@ -166,6 +181,9 @@ namespace server
 
         void response_not_possible_impl(async_response& sender, const boost::shared_ptr<async_response>& error_response);
 
+        // hurries all responses, that are in front of the given sender
+        void connection<Trait, Connection>::hurry_writers(async_response& sender);
+
         Connection                              connection_;
         Trait                                   trait_;
 
@@ -173,17 +191,6 @@ namespace server
 
         typedef std::deque<async_response*>     response_list;
         response_list                           responses_;
-
-        static async_response& response_from_list(response_list::iterator i)
-        {
-            return **i;
-        }
-
-        static const async_response& response_from_list(response_list::const_iterator i)
-        {
-            return **i;
-        }
-
 
         typedef std::map<async_response*, std::vector<blocked_write_base*> >  blocked_write_list;
         blocked_write_list                      blocked_writes_;
@@ -230,14 +237,36 @@ namespace server
     }
 
     template <class Trait, class Connection>
+    void connection<Trait, Connection>::hurry_writers(async_response& sender)
+    {
+        // hurry resposes that are blocking the sender
+        for ( response_list::const_iterator r = responses_.begin(); *r != &sender; ++r )
+        {
+            assert(r != responses_.end());
+            (*r)->hurry();
+        }
+    }
+
+    template <class Trait, class Connection>
     template<typename ConstBufferSequence, typename WriteHandler>
     void connection<Trait, Connection>::async_write(
         const ConstBufferSequence&  buffers,
         WriteHandler                handler,
         async_response&             sender)
     {
-        /// @todo fix it
-        async_write_some(buffers, handler, sender);
+        if ( responses_.front() == &sender )
+        {
+            boost::asio::async_write(connection_, buffers, handler);
+            current_response_is_sending_ = true;
+        }
+        else
+        {
+            hurry_writers(sender);
+
+            // store send request until the current sender is ready
+            blocked_write_list::mapped_type& writes = blocked_writes_[&sender];
+            tools::save_push_back(new blocked_write<ConstBufferSequence, WriteHandler>(buffers, handler), writes);
+        }
     }
 
     template <class Trait, class Connection>
@@ -254,16 +283,12 @@ namespace server
         }
         else
         {
-            // hurry resposes that are blocking the sender
-            for ( response_list::const_iterator r = responses_.begin(); *r != &sender; ++r )
-            {
-                assert(r != responses_.end());
-                (*r)->hurry();
-            }
+            hurry_writers(sender);
 
+            /// @todo bug: nobody notifies sender, when adding the defered send to the list
             // store send request until the current sender is ready
             blocked_write_list::mapped_type& writes = blocked_writes_[&sender];
-            tools::save_push_back(new blocked_write<ConstBufferSequence, WriteHandler>(buffers, handler), writes);
+            tools::save_push_back(new blocked_write_some<ConstBufferSequence, WriteHandler>(buffers, handler), writes);
         }
     }
 
@@ -283,7 +308,7 @@ namespace server
             if ( responses_.empty() )
                 return;
 
-            const blocked_write_list::iterator pending_writes = blocked_writes_.find(&response_from_list(responses_.begin()));
+            const blocked_write_list::iterator pending_writes = blocked_writes_.find(responses_.front());
 
             if ( pending_writes != blocked_writes_.end() )
             {
@@ -313,9 +338,7 @@ namespace server
     template <class Trait, class Connection>
     void connection<Trait, Connection>::response_not_possible_impl(async_response& sender, const boost::shared_ptr<async_response>& error_response)
     {
-        response_list::iterator senders_pos = responses_.begin();
-        for ( ; &response_from_list(senders_pos) != &sender; ++senders_pos )
-            ;
+        const response_list::iterator senders_pos = std::find(responses_.begin(), responses_.end(), &sender);
         assert(senders_pos != responses_.end());
 
         const blocked_write_list::const_iterator writes = blocked_writes_.find(&sender);
@@ -344,7 +367,7 @@ namespace server
         boost::shared_ptr<async_response> error_response;
 
         // if no data was send from this response, consult the error-trait to get an error response
-        if ( &response_from_list(responses_.begin()) != &sender || !current_response_is_sending_ )
+        if ( responses_.front() != &sender || !current_response_is_sending_ )
             error_response = trait_.error_response(shared_from_this(), ec);
 
         response_not_possible_impl(sender, error_response);
@@ -449,6 +472,8 @@ namespace server
         return true;
     }
 
+    ///////////////////////
+    // class blocked_write
 	template <class Trait, class Connection>
     template <class ConstBufferSequence, class WriteHandler>
     connection<Trait, Connection>::blocked_write<ConstBufferSequence, WriteHandler>::blocked_write(
@@ -463,12 +488,38 @@ namespace server
     template <class ConstBufferSequence, class WriteHandler>
     void connection<Trait, Connection>::blocked_write<ConstBufferSequence, WriteHandler>::operator()(Connection& con)
     {
-        con.async_write_some(buffers_, handler_);
+        boost::asio::async_write(con, buffers_, handler_);
     }
 
 	template <class Trait, class Connection>
     template <class ConstBufferSequence, class WriteHandler>
     void connection<Trait, Connection>::blocked_write<ConstBufferSequence, WriteHandler>::cancel()
+    {
+        handler_(make_error_code(canceled_by_error), 0);
+    }
+
+    ////////////////////////////
+    // class blocked_write_some
+	template <class Trait, class Connection>
+    template <class ConstBufferSequence, class WriteHandler>
+    connection<Trait, Connection>::blocked_write_some<ConstBufferSequence, WriteHandler>::blocked_write_some(
+        const ConstBufferSequence&  buffers,
+        WriteHandler                handler)
+        : buffers_(buffers)
+        , handler_(handler)
+    {
+    }
+
+	template <class Trait, class Connection>
+    template <class ConstBufferSequence, class WriteHandler>
+    void connection<Trait, Connection>::blocked_write_some<ConstBufferSequence, WriteHandler>::operator()(Connection& con)
+    {
+        con.async_write_some(buffers_, handler_);
+    }
+
+	template <class Trait, class Connection>
+    template <class ConstBufferSequence, class WriteHandler>
+    void connection<Trait, Connection>::blocked_write_some<ConstBufferSequence, WriteHandler>::cancel()
     {
         handler_(make_error_code(canceled_by_error), 0);
     }

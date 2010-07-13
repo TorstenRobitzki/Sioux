@@ -43,7 +43,7 @@ namespace server {
     template <class Connection>
     void error_response<Connection>::start()
     {
-        connection_->async_write_some(
+        connection_->async_write(
             boost::asio::buffer(buffer_),
             boost::bind(
                 &error_response::handle_written, 

@@ -81,7 +81,7 @@ namespace test {
             }
             else
             {
-                connection_->async_write_some(
+                connection_->async_write(
                     boost::asio::buffer(answer_), 
                     boost::bind(&response::handler, 
                             shared_from_this(),
