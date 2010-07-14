@@ -18,27 +18,32 @@ using namespace server::test;
 using namespace http::test;
 
 namespace {
-    template <class Connection>
-    struct proxy_response_factory
+    template <std::size_t BufferSize = 1024>
+    struct sized_proxy_response_factory
     {
-        template <class Trait>
-        static boost::shared_ptr<server::async_response> create_response(
-            const boost::shared_ptr<Connection>&                    connection,
-            const boost::shared_ptr<const http::request_header>&    header,
-                  Trait&                                            trait)
+        template <class Connection>
+        struct proxy_response_factory
         {
-            return boost::shared_ptr<server::async_response>(
-                new server::proxy_response<Connection>(connection, header, trait.proxy()));
-        }
+            template <class Trait>
+            static boost::shared_ptr<server::async_response> create_response(
+                const boost::shared_ptr<Connection>&                    connection,
+                const boost::shared_ptr<const http::request_header>&    header,
+                      Trait&                                            trait)
+            {
+                return boost::shared_ptr<server::async_response>(
+                    new server::proxy_response<Connection>(connection, header, trait.proxy()));
+            }
+        };
     };
 }
 
-static std::vector<char> simulate_proxy(
+template <std::size_t BufferSize>
+static std::vector<char> simulate_sized_proxy(
     const boost::shared_ptr<proxy_config>&                  proxy,
           server::test::socket<const char*>&                output)
 {
     typedef server::test::socket<const char*>           socket_t;
-    typedef traits<socket_t, proxy_response_factory>    trait_t;
+    typedef traits<socket_t, sized_proxy_response_factory<BufferSize>::proxy_response_factory>    trait_t;
     typedef server::connection<trait_t, socket_t>       connection_t;
 
     boost::asio::io_service&                            queue = proxy->get_io_service();
@@ -67,7 +72,7 @@ static std::string simulate_proxy(
 {
     server::test::socket<const char*> output(proxy->get_io_service(), request.begin(), request.end());
 
-    const std::vector<char> bin = simulate_proxy(proxy, output);
+    const std::vector<char> bin = simulate_sized_proxy<1024>(proxy, output);
 
     return std::string(bin.begin(), bin.end());
 }
@@ -302,15 +307,49 @@ TEST(big_random_chunked_body)
     proxy_response.insert(proxy_response.begin(), begin(response_text), end(response_text));
 
     boost::asio::io_service queue;
-    server::test::socket<const char*>   client_connection(queue, begin(get_local_root_firefox), end(get_local_root_firefox), 
-                            random, 5, 40);
-    server::test::socket<const char*>   proxy_connection(queue, &proxy_response[0], &proxy_response[0] + proxy_response.size(),
-                            random, 1, 2048);
 
-    boost::shared_ptr<proxy_config> proxy(new proxy_config(proxy_connection));
+    // test with an proxy buffer of 1024 bytes
+    { 
+        server::test::socket<const char*>   client_connection(queue, begin(get_local_root_firefox), end(get_local_root_firefox), 
+                                random, 5, 40);
+        server::test::socket<const char*>   proxy_connection(queue, &proxy_response[0], &proxy_response[0] + proxy_response.size(),
+                                random, 1, 2048);
 
-    const std::vector<char> client_received = simulate_proxy(proxy, client_connection);
+        boost::shared_ptr<proxy_config> proxy(new proxy_config(proxy_connection));
 
-    CHECK_EQUAL(proxy_response.size(), client_received.size());
-    CHECK(compare_buffers(proxy_response, client_received, std::cerr));
+        const std::vector<char> client_received = simulate_sized_proxy<1024>(proxy, client_connection);
+
+        CHECK_EQUAL(proxy_response.size(), client_received.size());
+        CHECK(compare_buffers(proxy_response, client_received, std::cerr));
+    }
+
+    // test with a proxy buffer of 200 bytes
+    { 
+        server::test::socket<const char*>   client_connection(queue, begin(get_local_root_firefox), end(get_local_root_firefox), 
+                                random, 5, 40);
+        server::test::socket<const char*>   proxy_connection(queue, &proxy_response[0], &proxy_response[0] + proxy_response.size(),
+                                random, 1, 2048);
+
+        boost::shared_ptr<proxy_config> proxy(new proxy_config(proxy_connection));
+
+        const std::vector<char> client_received = simulate_sized_proxy<200>(proxy, client_connection);
+
+        CHECK_EQUAL(proxy_response.size(), client_received.size());
+        CHECK(compare_buffers(proxy_response, client_received, std::cerr));
+    }
+
+    // test with a proxy buffer of 20 kbytes
+    { 
+        server::test::socket<const char*>   client_connection(queue, begin(get_local_root_firefox), end(get_local_root_firefox), 
+                                random, 5, 40);
+        server::test::socket<const char*>   proxy_connection(queue, &proxy_response[0], &proxy_response[0] + proxy_response.size(),
+                                random, 1, 2048);
+
+        boost::shared_ptr<proxy_config> proxy(new proxy_config(proxy_connection));
+
+        const std::vector<char> client_received = simulate_sized_proxy<20*1024>(proxy, client_connection);
+
+        CHECK_EQUAL(proxy_response.size(), client_received.size());
+        CHECK(compare_buffers(proxy_response, client_received, std::cerr));
+    }
 }
