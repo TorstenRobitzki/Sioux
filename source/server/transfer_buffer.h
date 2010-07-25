@@ -18,6 +18,9 @@
 
 namespace server 
 {
+    /**
+     * @brief acception, that will be thrown, if protocol violation are detected by a transfer_buffer
+     */
     class transfer_buffer_parse_error : public std::runtime_error
     {
     public:
@@ -27,10 +30,17 @@ namespace server
     /**
      * @brief class that is responsible to buffer a body, while transfered between two connections
      *
-     * Later this buffer can become responsible for translating different transfer encodings
+     * Later this buffer can become responsible for translating different transfer encodings.
      *
      * As data written to a connection is to be read from the buffer and data read from a connection is 
      * written to the buffer, functions are named solely with the buffer in mind.
+     *
+     * The intended use is to have one asychron stream of reads from a orgin server, that writes data to the 
+     * buffer and to have one stream of writes, writing the data to the client.
+     *
+     * It's not save to let multiple threads access functions of one object. But it's save to read  
+     * data from a buffer passed by read_buffer() from one thread and to write data to the write_buffer() 
+     * from an onther threads.
      */
     template <std::size_t BufferSize>
     class transfer_buffer
@@ -43,17 +53,44 @@ namespace server
          *
          * It's expected, that the passed buffer keeps staying valid over the live time
          * of the transfer_buffer. If there is unparsed data in the request, this data is
-         * first handed out to a reader
+         * first handed out to a reader.
          */
         template <class Base>
         void start(http::message_base<Base>& request);
 
+        /**
+         * @brief returns the buffer, that can be read from the transfer_buffer
+         *
+         * If the read data was successfully passed around, the function data_read() have
+         * to be called, to indicate, how much data was read.
+         *
+         * It's important to note, that the returned buffer, can have a size of 0. This
+         * inidicates, that the buffer is currently empty.
+         */
         boost::asio::const_buffers_1 read_buffer() const;
+
+        /**
+         * @brief returns the buffer, that can filled with data read from the net
+         *
+         * If writing to the passed buffer has been successfully done, data_written() have
+         * to be called, to indicate, how much data was written to ths buffer.
+         */
         boost::asio::mutable_buffers_1 write_buffer();
 
+        /**
+         * @brief returns true, if the body was completly transfered through this buffer
+         */
         bool transmission_done() const;
 
+
+        /**
+         * @brief indicates, how much data was read from the buffer, that was passed by read_buffer()
+         */
         void data_read(std::size_t);
+
+        /** 
+         * @brief indicates, how much data was written to the buffer, that was passed by write_buffer()
+         */
         void data_written(std::size_t);
 
     private:
@@ -149,7 +186,7 @@ namespace server
     template <std::size_t BufferSize>
     boost::asio::mutable_buffers_1 transfer_buffer<BufferSize>::write_buffer()
     { 
-        if ( state_ == done || unparsed_header_data_.second != 0 ) 
+        if ( state_ == done ) 
             return boost::asio::buffer(&buffer_[0], 0);
 
         if ( start_ <= end_ )

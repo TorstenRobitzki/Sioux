@@ -26,10 +26,10 @@ namespace server
                            private boost::noncopyable
     {
     public:
-        proxy_response(const boost::shared_ptr<Connection>& connection, const boost::shared_ptr<const http::request_header>& header, proxy_config_base& config)
+        proxy_response(const boost::shared_ptr<Connection>& connection, const boost::shared_ptr<const http::request_header>& header, proxy_connector_base& connector)
             : connection_(connection)
             , request_(header)
-            , config_(config)
+            , connector_(connector)
             , outbuffers_()
             , proxy_socket_(0)
             , response_body_exists_(false)
@@ -81,7 +81,7 @@ namespace server
 
         boost::shared_ptr<Connection>                   connection_;
         boost::shared_ptr<const http::request_header>   request_;
-        proxy_config_base&                              config_;
+        proxy_connector_base&                           connector_;
 
         std::vector<tools::substring>                   outbuffers_;
 
@@ -105,7 +105,7 @@ namespace server
     proxy_response<Connection, BodyBufferSize>::~proxy_response()
     {
         if ( proxy_socket_ )
-            config_.dismiss_connection(proxy_socket_);
+            connector_.dismiss_connection(proxy_socket_);
 
         connection_->response_completed(*this);
     }
@@ -113,7 +113,7 @@ namespace server
     template <class Connection, std::size_t BodyBufferSize>
     void proxy_response<Connection, BodyBufferSize>::start()
     {
-        config_.async_get_proxy_connection<Connection::socket_t>(
+        connector_.async_get_proxy_connection<Connection::socket_t>(
             request_->host(), request_->port(),
             boost::bind(&proxy_response::handle_orgin_connect, shared_from_this(), _1, _2));
 
@@ -225,7 +225,7 @@ namespace server
             else
             {
                 // all is done here!
-                config_.release_connection(proxy_socket_, response_header_from_proxy_);
+                connector_.release_connection(proxy_socket_, response_header_from_proxy_);
                 proxy_socket_ = 0;
             }
 
@@ -249,7 +249,7 @@ namespace server
             if ( body_buffer_.transmission_done() )
             {
                 // all is done here!
-                config_.release_connection(proxy_socket_, response_header_from_proxy_);
+                connector_.release_connection(proxy_socket_, response_header_from_proxy_);
                 proxy_socket_ = 0;
             }
             else

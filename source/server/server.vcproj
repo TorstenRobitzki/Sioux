@@ -178,6 +178,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\traits.h"
+				>
+			</File>
+			<File
 				RelativePath=".\transfer_buffer.h"
 				>
 			</File>

@@ -38,10 +38,10 @@ namespace server
     /**
      * @brief base class for a proxy configuration
      */
-    class proxy_config_base
+    class proxy_connector_base
     {
     public:
-        virtual ~proxy_config_base() {}
+        virtual ~proxy_connector_base() {}
 
         /**
          * @brief returns a connection to talk to the server where a request should be forwarded to
@@ -130,9 +130,9 @@ namespace server
     };
 
     ////////////////////////////////////////
-    // proxy_config_base implementation
+    // proxy_connector_base implementation
     template <class Connection, class ConnectHandler>
-    void proxy_config_base::async_get_proxy_connection(
+    void proxy_connector_base::async_get_proxy_connection(
         const tools::substring& orgin_host,
         unsigned                orgin_port,
         ConnectHandler          handler)
@@ -142,14 +142,14 @@ namespace server
     }
 
     template <class Connection>
-    void proxy_config_base::release_connection(Connection* c, const http::response_header& h)
+    void proxy_connector_base::release_connection(Connection* c, const http::response_header& h)
     {
         assert(c);
         release_connection(typeid(Connection), c, &h);
     }
 
     template <class Connection>
-    void proxy_config_base::dismiss_connection(Connection* c)
+    void proxy_connector_base::dismiss_connection(Connection* c)
     {
         assert(c);
         release_connection(typeid(Connection), c, 0);

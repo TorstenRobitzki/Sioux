@@ -39,7 +39,7 @@ namespace {
 
 template <std::size_t BufferSize>
 static std::vector<char> simulate_sized_proxy(
-    const boost::shared_ptr<proxy_config>&                  proxy,
+    const boost::shared_ptr<proxy_connector>&               proxy,
           server::test::socket<const char*>&                output)
 {
     typedef server::test::socket<const char*>           socket_t;
@@ -67,7 +67,7 @@ static std::vector<char> simulate_sized_proxy(
 
 // response send over the client connection
 static std::string simulate_proxy(
-    const boost::shared_ptr<proxy_config>&                  proxy,
+    const boost::shared_ptr<proxy_connector>&               proxy,
     const tools::substring&                                 request)
 {
     server::test::socket<const char*> output(proxy->get_io_service(), request.begin(), request.end());
@@ -80,7 +80,7 @@ static std::string simulate_proxy(
 static std::string through_proxy(const boost::shared_ptr<const http::request_header>& r, const std::string& orgin_response)
 {
     boost::asio::io_service queue;
-    boost::shared_ptr<proxy_config> proxy(new proxy_config(queue, orgin_response));
+    boost::shared_ptr<proxy_connector> proxy(new proxy_connector(queue, orgin_response));
     simulate_proxy(proxy, r->text());
 
     return proxy->received();
@@ -177,7 +177,7 @@ TEST(correct_host_and_port_connected)
         "host: 127.0.0.1:8080\r\n\r\n");
 
     boost::asio::io_service queue;
-    boost::shared_ptr<proxy_config> proxy(new proxy_config(queue, cached_response_apache));
+    boost::shared_ptr<proxy_connector> proxy(new proxy_connector(queue, cached_response_apache));
     simulate_proxy(proxy, request.text());
     
     CHECK_EQUAL("127.0.0.1", proxy->connected_orgin_server().first);
@@ -194,7 +194,7 @@ TEST(responde_when_no_connection_to_orgin_possible)
         "host: 127.0.0.1:8080\r\n\r\n");
 
     boost::asio::io_service queue;
-    boost::shared_ptr<proxy_config> proxy(new proxy_config(queue, proxy_config::connection_not_possible));
+    boost::shared_ptr<proxy_connector> proxy(new proxy_connector(queue, proxy_connector::connection_not_possible));
     const std::string response_text = simulate_proxy(proxy, request.text());
     http::response_header response(response_text.c_str());
     
@@ -213,7 +213,7 @@ TEST(error_while_connecting_the_orgin_server)
         "host: 127.0.0.1:8080\r\n\r\n");
 
     boost::asio::io_service queue;
-    boost::shared_ptr<proxy_config> proxy(new proxy_config(queue, proxy_config::error_while_connecting));
+    boost::shared_ptr<proxy_connector> proxy(new proxy_connector(queue, proxy_connector::error_while_connecting));
     const std::string response_text = simulate_proxy(proxy, request.text());
     http::response_header response(response_text.c_str());
     
@@ -237,7 +237,7 @@ TEST(error_while_writing_header_to_orgin_server)
         make_error_code(boost::system::errc::success), 10000,
         boost::asio::error::connection_aborted, 15);
 
-    boost::shared_ptr<proxy_config> proxy(new proxy_config(orgin_connection));
+    boost::shared_ptr<proxy_connector> proxy(new proxy_connector(orgin_connection));
     const std::string response_text = simulate_proxy(proxy, request.text());
 
     http::response_header response(response_text.c_str());
@@ -262,7 +262,7 @@ TEST(error_while_reading_header_from_orgin_server)
         boost::asio::error::connection_aborted, 15,
         make_error_code(boost::system::errc::success), 10000);
 
-    boost::shared_ptr<proxy_config> proxy(new proxy_config(orgin_connection));
+    boost::shared_ptr<proxy_connector> proxy(new proxy_connector(orgin_connection));
     const std::string response_text = simulate_proxy(proxy, request.text());
 
     http::response_header response(response_text.c_str());
@@ -283,7 +283,7 @@ TEST(remove_connection_headers_from_orgin_response)
         "host: 127.0.0.1:8080\r\n\r\n");
 
     boost::asio::io_service queue;
-    boost::shared_ptr<proxy_config> proxy(new proxy_config(queue, cached_response_apache));
+    boost::shared_ptr<proxy_connector> proxy(new proxy_connector(queue, cached_response_apache));
     
     const std::string response_text = simulate_proxy(proxy, request.text());
     http::response_header response(response_text.c_str());
@@ -315,7 +315,7 @@ TEST(big_random_chunked_body)
         server::test::socket<const char*>   proxy_connection(queue, &proxy_response[0], &proxy_response[0] + proxy_response.size(),
                                 random, 1, 2048);
 
-        boost::shared_ptr<proxy_config> proxy(new proxy_config(proxy_connection));
+        boost::shared_ptr<proxy_connector> proxy(new proxy_connector(proxy_connection));
 
         const std::vector<char> client_received = simulate_sized_proxy<1024>(proxy, client_connection);
 
@@ -330,7 +330,7 @@ TEST(big_random_chunked_body)
         server::test::socket<const char*>   proxy_connection(queue, &proxy_response[0], &proxy_response[0] + proxy_response.size(),
                                 random, 1, 2048);
 
-        boost::shared_ptr<proxy_config> proxy(new proxy_config(proxy_connection));
+        boost::shared_ptr<proxy_connector> proxy(new proxy_connector(proxy_connection));
 
         const std::vector<char> client_received = simulate_sized_proxy<200>(proxy, client_connection);
 
@@ -345,11 +345,62 @@ TEST(big_random_chunked_body)
         server::test::socket<const char*>   proxy_connection(queue, &proxy_response[0], &proxy_response[0] + proxy_response.size(),
                                 random, 1, 2048);
 
-        boost::shared_ptr<proxy_config> proxy(new proxy_config(proxy_connection));
+        boost::shared_ptr<proxy_connector> proxy(new proxy_connector(proxy_connection));
 
         const std::vector<char> client_received = simulate_sized_proxy<20*1024>(proxy, client_connection);
 
         CHECK_EQUAL(proxy_response.size(), client_received.size());
         CHECK(compare_buffers(proxy_response, client_received, std::cerr));
     }
+}
+
+TEST(content_length_proxy_request)
+{    
+    const char response_text[] =
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Length: 10000\r\n\r\n";
+
+    boost::minstd_rand      random;
+
+    std::vector<char> proxy_response = random_body(random, 10000);
+    proxy_response.insert(proxy_response.begin(), begin(response_text), end(response_text));
+
+    boost::asio::io_service queue;
+
+    server::test::socket<const char*>   client_connection(queue, begin(get_local_root_firefox), end(get_local_root_firefox), 
+                            random, 5, 40);
+    server::test::socket<const char*>   proxy_connection(queue, &proxy_response[0], &proxy_response[0] + proxy_response.size(),
+                            random, 1, 2048);
+
+    boost::shared_ptr<proxy_connector> proxy(new proxy_connector(proxy_connection));
+
+    const std::vector<char> client_received = simulate_sized_proxy<1024>(proxy, client_connection);
+
+    CHECK_EQUAL(proxy_response.size(), client_received.size());
+    CHECK(compare_buffers(proxy_response, client_received, std::cerr));
+}
+
+TEST(close_connection_length_proxy_request)
+{    
+    const char response_text[] =
+        "HTTP/1.1 200 OK\r\n\r\n";
+
+    boost::minstd_rand      random;
+
+    std::vector<char> proxy_response = random_body(random, 10000);
+    proxy_response.insert(proxy_response.begin(), begin(response_text), end(response_text));
+
+    boost::asio::io_service queue;
+
+    server::test::socket<const char*>   client_connection(queue, begin(get_local_root_firefox), end(get_local_root_firefox), 
+                            random, 5, 40);
+    server::test::socket<const char*>   proxy_connection(queue, &proxy_response[0], &proxy_response[0] + proxy_response.size(),
+                            random, 1, 2048);
+
+    boost::shared_ptr<proxy_connector> proxy(new proxy_connector(proxy_connection));
+
+    const std::vector<char> client_received = simulate_sized_proxy<1024>(proxy, client_connection);
+
+    CHECK_EQUAL(proxy_response.size(), client_received.size());
+    CHECK(compare_buffers(proxy_response, client_received, std::cerr));
 }

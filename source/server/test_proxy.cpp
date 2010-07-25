@@ -12,7 +12,7 @@ namespace test {
 
 //////////////////////
 // class proxy_config 
-proxy_config::proxy_config(boost::asio::io_service& queue, const std::string& simulate_response)
+proxy_connector::proxy_connector(boost::asio::io_service& queue, const std::string& simulate_response)
  : io_service_(queue)
  , simulate_response_(simulate_response.begin(), simulate_response.end())
  , error_type_(no_error)
@@ -21,7 +21,7 @@ proxy_config::proxy_config(boost::asio::io_service& queue, const std::string& si
 {
 }
 
-proxy_config::proxy_config(socket<const char*>& socket)
+proxy_connector::proxy_connector(socket<const char*>& socket)
  : io_service_(socket.get_io_service())
  , simulate_response_()
  , error_type_(no_error)
@@ -30,7 +30,7 @@ proxy_config::proxy_config(socket<const char*>& socket)
 {
 }
 
-proxy_config::proxy_config(boost::asio::io_service& queue, error_type error)
+proxy_connector::proxy_connector(boost::asio::io_service& queue, error_type error)
  : io_service_(queue)
  , simulate_response_()
  , error_type_(error)
@@ -39,27 +39,27 @@ proxy_config::proxy_config(boost::asio::io_service& queue, error_type error)
 {
 }
 
-proxy_config::~proxy_config()
+proxy_connector::~proxy_connector()
 {
     assert(!socket_in_use_);
 }
 
-std::string proxy_config::received() const
+std::string proxy_connector::received() const
 {
     return socket_.output();
 }
 
-std::pair<std::string, unsigned> proxy_config::connected_orgin_server() const
+std::pair<std::string, unsigned> proxy_connector::connected_orgin_server() const
 {
     return requested_orgin_;
 }
 
-boost::asio::io_service& proxy_config::get_io_service()
+boost::asio::io_service& proxy_connector::get_io_service()
 {
     return io_service_;
 }
        
-void proxy_config::call_cb(connect_callback* p)
+void proxy_connector::call_cb(connect_callback* p)
 {
     std::auto_ptr<connect_callback> del(p);
 
@@ -74,7 +74,7 @@ void proxy_config::call_cb(connect_callback* p)
     }
 }
 
-void proxy_config::async_get_proxy_connection(
+void proxy_connector::async_get_proxy_connection(
     const tools::dynamic_type&          connection_type,
     const tools::substring&             orgin_host,
     unsigned                            orgin_port,
@@ -88,11 +88,11 @@ void proxy_config::async_get_proxy_connection(
     if ( connection_type != typeid (server::test::socket<const char*>) )
         throw std::runtime_error("test::proxy_config::async_get_proxy_connection: invalid type"); 
 
-    io_service_.post(boost::bind(&proxy_config::call_cb, this, call_back.get()));
+    io_service_.post(boost::bind(&proxy_connector::call_cb, this, call_back.get()));
     call_back.release();
 }
 
-void proxy_config::release_connection(
+void proxy_connector::release_connection(
     const tools::dynamic_type&          connection_type,
     void*                               connection,
     const http::response_header*        /* header */)

@@ -8,12 +8,13 @@
 #include "server/test_socket.h"
 #include "server/test_response.h"
 #include "server/error.h"
+#include "server/traits.h"
 #include <vector>
 
 namespace server {
 
     class async_response;
-    class proxy_config;
+    class proxy_connector;
 
 namespace test {
 
@@ -36,15 +37,16 @@ struct response_factory
  *
  * The default behaviour of an incomming request is to answer with a simple "Hello" string
  */
-template <class Network = server::test::socket<const char*>, template <typename> class  ResponseFactory = response_factory >
-class traits
+template <class Network = server::test::socket<const char*>, 
+          template <typename> class  ResponseFactory = response_factory>
+class traits : public server::connection_traits<Network, ResponseFactory>
 {
 public:
     traits() : pimpl_(new impl(0))
     {
     }
 
-    explicit traits(proxy_config& p) : pimpl_(new impl(&p))
+    explicit traits(proxy_connector& p) : pimpl_(new impl(&p))
     {
     }
 
@@ -74,7 +76,7 @@ public:
         return result;
     }
 
-    proxy_config& proxy() const
+    proxy_connector& proxy() const
     {
         return pimpl_->proxy();
     }
@@ -93,7 +95,7 @@ private:
     class impl
     {
     public:
-        explicit impl(proxy_config* p) 
+        explicit impl(proxy_connector* p) 
             :  requests_()
             , proxy_(p)
         {
@@ -124,7 +126,7 @@ private:
             responses_.clear();
         }
 
-        proxy_config& proxy() const
+        proxy_connector& proxy() const
         {
             assert(proxy_);
             return *proxy_;
@@ -132,7 +134,7 @@ private:
     private:
         std::vector<boost::shared_ptr<const http::request_header> >     requests_;
         std::vector<boost::shared_ptr<server::async_response> >         responses_;
-        proxy_config*                                                   proxy_;
+        proxy_connector*                                                   proxy_;
     };
 
     boost::shared_ptr<impl> pimpl_;

@@ -15,13 +15,13 @@ namespace test {
      * @brief configuration that provides server::test::socket<const char*> connections that 
      *        simulate the IO with an orgin server
      */
-    class proxy_config : public proxy_config_base, boost::noncopyable
+    class proxy_connector : public proxy_connector_base, boost::noncopyable
     {
     public:
         /**
          * @brief constructs a proxy_config that will send the passed response text
          */
-        explicit proxy_config(boost::asio::io_service& queue, const std::string& simulate_response);
+        explicit proxy_connector(boost::asio::io_service& queue, const std::string& simulate_response);
 
         enum error_type {
             /** no error at all */
@@ -35,14 +35,14 @@ namespace test {
         /**
          * @brief constructs a proxy, that simulates the passes error situation
          */
-        explicit proxy_config(boost::asio::io_service& queue, error_type error);
+        explicit proxy_connector(boost::asio::io_service& queue, error_type error);
 
         /**
          * @brief constructs a proxy_config that will return the passed response text, if asked for a connection
          */
-        explicit proxy_config(socket<const char*>& socket);
+        explicit proxy_connector(socket<const char*>& socket);
 
-        ~proxy_config();
+        ~proxy_connector();
 
         /**
          * @brief data that was received by the simulated orgin server.
