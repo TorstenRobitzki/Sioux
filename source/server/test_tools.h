@@ -9,6 +9,7 @@
 #include <iosfwd>
 #include <boost/asio/io_service.hpp>
 #include <boost/random/linear_congruential.hpp>
+#include <boost/date_time/posix_time/ptime.hpp>
 
 namespace server
 {
@@ -42,6 +43,11 @@ namespace server
          * @brief compares two buffer and produce a helpfull message, if a difference is found
          */
         bool compare_buffers(const std::vector<char>& org, const std::vector<char>& comp, std::ostream& report);
+
+        /**
+         * @brief waits for the given period and returns then
+         */
+        void wait(const boost::posix_time::time_duration& period);
 
     } // namespace test
 

@@ -11,6 +11,7 @@
 #include "tools/iterators.h"
 #include <boost/bind.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/foreach.hpp>
 #include <set>
 
 using namespace server::test;
@@ -52,11 +53,14 @@ namespace {
  */
 TEST(use_established_proxy_connections)
 {
-    const boost::asio::ip::tcp::endpoint addr(boost::asio::ip::address::from_string("127.0.0.1"), 80);
-    boost::asio::io_service         queue;
-    boost::shared_ptr<server::proxy_connector_base> proxy(
-        new ip_proxy_connector(queue, server::proxy_configuration(), addr));
-    connect_handler<>               handler1;
+    const boost::asio::ip::tcp::endpoint            addr(boost::asio::ip::address::from_string("127.0.0.1"), 80);
+    const server::proxy_configuration               config(
+         server::proxy_configurator()
+         .max_idle_time(boost::posix_time::seconds(2)));
+    boost::asio::io_service                         queue;
+
+    boost::shared_ptr<server::proxy_connector_base> proxy(new ip_proxy_connector(queue, config, addr));
+    connect_handler<>                handler1;
 
     proxy->async_get_proxy_connection<socket_t>(
         tools::substring(), 0, 
@@ -135,7 +139,50 @@ TEST(use_established_proxy_connections)
     CHECK(handler5.connection.connected().first);
     CHECK_EQUAL(addr, handler5.connection.connected().second);
 
-    proxy->release_connection(handler5.con_ptr, http::response_header("HTTP/1.1 200 OK\r\nconnection:close\r\n\r\n"));
+    proxy->release_connection(handler5.con_ptr, http::response_header("HTTP/1.1 200 OK\r\n\r\n"));
+
+    // after waiting the idle timeout, a new connection have to be created
+    wait(boost::posix_time::seconds(3));
+
+    // this will forth the timeout handler to be executed
+    run(queue);
+
+    connect_handler<>               handler6;
+    proxy->async_get_proxy_connection<socket_t>(
+        tools::substring(), 0, 
+        boost::bind(&connect_handler<>::handle_connect, boost::ref(handler6), _1, _2));
+
+    run(queue);
+
+    CHECK(handler5.connection != handler6.connection);
+    CHECK(handler6.called);
+    CHECK(handler6.con_ptr != 0);
+    CHECK(!handler6.error);
+    CHECK(handler6.connection.connected().first);
+    CHECK_EQUAL(addr, handler6.connection.connected().second);
+
+    proxy->release_connection(handler6.con_ptr, http::response_header("HTTP/1.1 200 OK\r\n\r\n"));
+
+    // after waiting the idle timeout, a new connection have to be created, by not running the queue,
+    // the call to async_get_proxy_connection() will find an idle connection and the idle time out will 
+    // _not_ find the idle connection
+    wait(boost::posix_time::seconds(3));
+
+    connect_handler<>               handler7;
+    proxy->async_get_proxy_connection<socket_t>(
+        tools::substring(), 0, 
+        boost::bind(&connect_handler<>::handle_connect, boost::ref(handler7), _1, _2));
+
+    run(queue);
+
+    CHECK(handler7.connection == handler6.connection);
+    CHECK(handler7.called);
+    CHECK(handler7.con_ptr != 0);
+    CHECK(!handler7.error);
+    CHECK(handler7.connection.connected().first);
+    CHECK_EQUAL(addr, handler7.connection.connected().second);
+
+    proxy->release_connection(handler7.con_ptr, http::response_header("HTTP/1.1 200 OK\r\n\r\n"));
 }
 
 /**
@@ -302,6 +349,71 @@ TEST(proxy_connection_timeout)
     CHECK_EQUAL(make_error_code(server::time_out), handler.error );
 }
 
+namespace {
+
+    struct connector_client
+    {
+        connector_client(server::proxy_connector_base* p, unsigned n)
+            : proxy_(p)
+            , remaining_connects_(n)
+        {
+        }
+
+        void start()
+        {
+            proxy_->async_get_proxy_connection<socket_t>(
+                tools::substring(), 0, 
+                boost::bind(&connector_client::handle_connect, this, _1, _2));
+        }
+
+        void handle_connect(socket_t* s, const boost::system::error_code& e)
+        {
+            assert(s);
+            assert(!e);
+
+            if ( remaining_connects_ % 1 == 1 )
+            {
+                static const http::response_header ok200("HTTP/1.1 200 OK\r\n\r\n");
+                proxy_->release_connection(s, ok200);
+            }
+            else
+            {
+                proxy_->dismiss_connection(s);
+            }
+
+            --remaining_connects_;
+
+            if ( remaining_connects_ )
+                start();
+        }
+
+        server::proxy_connector_base*   proxy_;
+        unsigned                        remaining_connects_;
+    };
+}
+
 TEST(proxy_connection_stress)
 {
+    const server::proxy_configuration               config(
+         server::proxy_configurator()
+         .connect_timeout(boost::posix_time::seconds(5)));
+    boost::asio::io_service                         queue;
+    const boost::asio::ip::tcp::endpoint            addr(boost::asio::ip::address::from_string("192.168.1.1"), 88);
+
+    boost::shared_ptr<server::proxy_connector_base> proxy(
+        new ip_proxy_connector(queue, config, addr));
+
+    std::vector<connector_client>                   clients(5, connector_client(&*proxy, 200000));
+
+    BOOST_FOREACH(connector_client & c, clients)
+    {
+        c.start();
+    }
+
+    run(queue, 5);
+
+    BOOST_FOREACH(connector_client & c, clients)
+    {
+        CHECK(c.remaining_connects_ == 0);
+    }
 }

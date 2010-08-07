@@ -354,14 +354,14 @@ namespace server
             boost::mutex::scoped_lock lock(mutex_);
 
             const connection_list_t::iterator new_con_pos = 
-                std::find(connecting_connections_.begin(), connecting_connections_.end(), timed_out_connection);
+                std::find(idle_connections_.begin(), idle_connections_.end(), timed_out_connection);
 
             // if the connect was established, while this function was waiting for the mutex, the connection will not 
             // be in the list and everything will be fine.
-            if ( new_con_pos != connecting_connections_.end() )
+            if ( new_con_pos != idle_connections_.end() )
             {
                 con.swap(*new_con_pos);
-                connecting_connections_.erase(new_con_pos);
+                idle_connections_.erase(new_con_pos);
             }
         }
 

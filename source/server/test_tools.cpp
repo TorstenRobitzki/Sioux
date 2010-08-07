@@ -6,6 +6,9 @@
 #include "tools/hexdump.h"
 #include <boost/random/uniform_int.hpp>
 #include <boost/random/variate_generator.hpp>
+#include <boost/asio/deadline_timer.hpp>
+#include <boost/thread/thread.hpp>
+#include <boost/thread/mutex.hpp>
 #include <limits>
 #include <iterator>
 #include <sstream>
@@ -35,6 +38,30 @@ std::size_t server::test::run(boost::asio::io_service& s)
     }
 
     return sum;
+}
+
+namespace {
+    void run_pool_thread(boost::asio::io_service& q, std::size_t& result, boost::mutex& m )
+    {
+        const std::size_t c = server::test::run(q);
+
+        boost::mutex::scoped_lock lock(m);
+        result += c;
+    }
+}
+
+std::size_t server::test::run(boost::asio::io_service& s, unsigned pool_size)
+{
+    std::size_t         result = 0;
+    boost::mutex        mutex;
+    boost::thread_group group;
+
+    for ( ; pool_size; --pool_size )
+        group.create_thread(boost::bind(&run_pool_thread, boost::ref(s), boost::ref(result), boost::ref(mutex)));
+
+    group.join_all();
+
+    return result;
 }
 
 std::vector<char> server::test::random_body(boost::minstd_rand& random, std::size_t size)
@@ -121,5 +148,13 @@ bool server::test::compare_buffers(const std::vector<char>& org, const std::vect
     }
 
     return true;
+}
+
+void server::test::wait(const boost::posix_time::time_duration& period)
+{
+    boost::asio::io_service     queue;
+    boost::asio::deadline_timer timer(queue, period);
+
+    timer.wait();
 }
 
