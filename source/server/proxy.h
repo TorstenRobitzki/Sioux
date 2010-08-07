@@ -14,7 +14,6 @@
 #include <boost/asio/buffer.hpp>
 #include <boost/utility.hpp>
 #include <string>
-#include <memory>
 
 namespace http {
     class response_header;
@@ -51,6 +50,7 @@ namespace server
          * leed to resouce leaks.
          * @param orgin_host the orign host from the request header
          * @param orgin_port the orgin port from the request header
+         * @param handler callback, that takes a pointer to a Connection and an const boost::system::error_code&
          */
         template <class Connection, class ConnectHandler>
         void async_get_proxy_connection(
@@ -92,10 +92,10 @@ namespace server
          * when a connection could be established, or when an error occured. 
          */
         virtual void async_get_proxy_connection(
-            const tools::dynamic_type&          connection_type,
-            const tools::substring&             orgin_host,
-            unsigned                            orgin_port,
-            std::auto_ptr<connect_callback>&    call_back) = 0;
+            const tools::dynamic_type&                  connection_type,
+            const tools::substring&                     orgin_host,
+            unsigned                                    orgin_port,
+            const boost::shared_ptr<connect_callback>&  call_back) = 0;
 
         /**
          * @brief will be called a connection isn't used anymore
@@ -137,7 +137,7 @@ namespace server
         unsigned                orgin_port,
         ConnectHandler          handler)
     {
-        std::auto_ptr<connect_callback> cb(new callback<ConnectHandler, Connection>(handler));
+        boost::shared_ptr<connect_callback> cb(new callback<ConnectHandler, Connection>(handler));
         async_get_proxy_connection(typeid(Connection), orgin_host, orgin_port, cb);
     }
 

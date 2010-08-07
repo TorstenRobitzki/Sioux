@@ -59,10 +59,8 @@ boost::asio::io_service& proxy_connector::get_io_service()
     return io_service_;
 }
        
-void proxy_connector::call_cb(connect_callback* p)
+void proxy_connector::call_cb(const boost::shared_ptr<connect_callback>& p)
 {
-    std::auto_ptr<connect_callback> del(p);
-
     if ( error_type_ == error_while_connecting )
     {
         p->connection_received(0, make_error_code(boost::asio::error::host_not_found));
@@ -75,10 +73,10 @@ void proxy_connector::call_cb(connect_callback* p)
 }
 
 void proxy_connector::async_get_proxy_connection(
-    const tools::dynamic_type&          connection_type,
-    const tools::substring&             orgin_host,
-    unsigned                            orgin_port,
-    std::auto_ptr<connect_callback>&    call_back)
+    const tools::dynamic_type&                  connection_type,
+    const tools::substring&                     orgin_host,
+    unsigned                                    orgin_port,
+    const boost::shared_ptr<connect_callback>&  call_back)
 {
     if ( error_type_ == connection_not_possible ) 
         throw proxy_error("connection_not_possible");
@@ -88,8 +86,7 @@ void proxy_connector::async_get_proxy_connection(
     if ( connection_type != typeid (server::test::socket<const char*>) )
         throw std::runtime_error("test::proxy_config::async_get_proxy_connection: invalid type"); 
 
-    io_service_.post(boost::bind(&proxy_connector::call_cb, this, call_back.get()));
-    call_back.release();
+    io_service_.post(boost::bind(&proxy_connector::call_cb, this, call_back));
 }
 
 void proxy_connector::release_connection(

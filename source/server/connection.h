@@ -9,7 +9,6 @@
 #include "http/http.h"
 #include "server/response.h"
 #include "tools/mem_tools.h"
-#include <boost/asio/error.hpp>
 #include <boost/asio/placeholders.hpp>
 #include <boost/asio/write.hpp>
 #include <boost/shared_ptr.hpp>
@@ -27,7 +26,9 @@ namespace server
 
     enum error_codes 
     {
-        canceled_by_error
+        canceled_by_error,
+        limit_reached,
+        time_out
     };
 
     class connection_error_category : public boost::system::error_category 

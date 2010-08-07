@@ -21,6 +21,14 @@ namespace server
         std::size_t run(boost::asio::io_service& s);
 
         /**
+         * @brief runs the given io_service until it's queue is empty
+         * @return returns the number of handlers executed
+         *
+         * The queue is run by a pool of threads in paralel. 
+         */
+        std::size_t run(boost::asio::io_service& s, unsigned pool_size);
+
+        /**
          * @brief returns a sequence of pseudo-random bytes with the given length
          */
         std::vector<char> random_body(boost::minstd_rand& random, std::size_t size);

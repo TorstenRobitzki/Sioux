@@ -2,7 +2,7 @@
 // Please note that the content of this file is confidential or protected by law.
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
-#include "server/connection.h"
+#include "server/error_code.h"
 
 namespace server {
 
@@ -19,7 +19,7 @@ namespace server {
     boost::system::error_code make_error_code(error_codes e)
     {
         static connection_error_category cat;
-        return boost::system::error_code(e, &cat);
+        return boost::system::error_code(e, cat);
     }
 
 

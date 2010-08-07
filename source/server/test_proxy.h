@@ -57,18 +57,18 @@ namespace test {
         boost::asio::io_service& get_io_service();
     private:
 
-        void call_cb(connect_callback* p);
+        void call_cb(const boost::shared_ptr<connect_callback>&);
 
         virtual void async_get_proxy_connection(
-            const tools::dynamic_type&          connection_type,
-            const tools::substring&             orgin_host,
-            unsigned                            orgin_port,
-            std::auto_ptr<connect_callback>&    call_back);
+            const tools::dynamic_type&                  connection_type,
+            const tools::substring&                     orgin_host,
+            unsigned                                    orgin_port,
+            const boost::shared_ptr<connect_callback>&  call_back);
 
         virtual void release_connection(
-            const tools::dynamic_type&          connection_type,
-            void*                               connection,
-            const http::response_header*        header);
+            const tools::dynamic_type&                  connection_type,
+            void*                                       connection,
+            const http::response_header*                header);
 
         boost::asio::io_service&                io_service_;
         const std::vector<char>                 simulate_response_;
