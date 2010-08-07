@@ -3,13 +3,44 @@
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 #include "server/connection.h"
-#include "server/test_traits.h"
+#include "server/traits.h"
+#include "server/proxy_connector.h"
 #include <iostream>
 #include <exception>
 #include <boost/asio.hpp>
 
 using namespace boost::asio;
-typedef server::test::traits<ip::tcp::socket>           traits_t;
+
+class traits_t : public server::connection_traits<response_factory>
+{
+public:
+    traits_t()
+        : config_(server::proxy_configurator()
+            .connect_timeout(boost::posix_time::seconds(5))
+            .max_connections(10)
+            .max_idle_time(boost::posix_time::seconds(30))
+        , proxy_(new ip_proxy_connector<ip::tcp::socket>())
+    {
+    }
+
+    server::proxy_configuration                     config_;
+    boost::shared_ptr<server::proxy_connector_base> proxy_;
+};
+
+template <class Connection>
+class response_factory 
+{
+    template <class Trait>
+    static boost::shared_ptr<async_response> create_response(
+        const boost::shared_ptr<Connection>&                    connection,
+        const boost::shared_ptr<const http::request_header>&    header,
+              Trait&                                            trait)
+    {
+        const boost::shared_ptr<response<Connection> > new_response(new response<Connection>(connection, header, "Hello"));
+        return boost::shared_ptr<async_response>(new_response);
+    }
+};
+
 typedef server::connection<traits_t, ip::tcp::socket>   connection_t;
 
 class acceptator
