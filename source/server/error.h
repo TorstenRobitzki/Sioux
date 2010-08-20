@@ -35,7 +35,7 @@ namespace server {
 
     template <class Connection>
     error_response<Connection>::error_response(const boost::shared_ptr<Connection>& con, http::http_error_code ec)
-     : buffer_("HTTP/1.1 " + tools::as_string(static_cast<int>(ec)) + " " + http::reason_phrase(ec) + "\r\n\r\n")
+        : buffer_("HTTP/1.1 " + tools::as_string(static_cast<int>(ec)) + " " + http::reason_phrase(ec) + "\r\nContent-Length:0\r\n\r\n")
      , connection_(con)
     {
     }

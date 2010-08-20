@@ -8,6 +8,7 @@
 #include "http/request.h"
 #include "http/http.h"
 #include "server/response.h"
+#include "server/error_code.h"
 #include "tools/mem_tools.h"
 #include <boost/asio/placeholders.hpp>
 #include <boost/asio/write.hpp>
@@ -23,21 +24,6 @@
 namespace server 
 {
     class async_response;
-
-    enum error_codes 
-    {
-        canceled_by_error,
-        limit_reached,
-        time_out
-    };
-
-    class connection_error_category : public boost::system::error_category 
-    {
-        virtual const char *     name() const;
-        virtual std::string      message( int ev ) const;
-    };
-
-    boost::system::error_code make_error_code(error_codes e);
 
 	/**
 	 * @brief representation of physical connection from a client to this server
@@ -58,7 +44,7 @@ namespace server
          * @brief contructs a connection object by passing an IO object and trait object.
          */
         template <class ConArg>
-		connection(ConArg Arg, const Trait& trait);
+		connection(ConArg Arg, Trait& trait);
 
         ~connection();
 
@@ -186,7 +172,7 @@ namespace server
         void connection<Trait, Connection>::hurry_writers(async_response& sender);
 
         Connection                              connection_;
-        Trait                                   trait_;
+        Trait&                                  trait_;
 
         boost::shared_ptr<http::request_header> current_request_;
 
@@ -212,7 +198,7 @@ namespace server
     // implementation
 	template <class Trait, class Connection>
     template <class ConArg>
-	connection<Trait, Connection>::connection(ConArg arg, const Trait& trait)
+	connection<Trait, Connection>::connection(ConArg arg, Trait& trait)
         : connection_(arg)
         , trait_(trait)
         , current_request_()
@@ -452,7 +438,7 @@ namespace server
 
             /// @todo add logging
             boost::shared_ptr<async_response> error_response(
-                trait_.error_response(shared_from_this(), http::http_internal_server_error));
+                trait_.error_response<connection<Trait, Connection> >(shared_from_this(), http::http_internal_server_error));
 
             if ( error_response.get() )
             {

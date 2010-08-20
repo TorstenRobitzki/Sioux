@@ -295,6 +295,7 @@ namespace server
                 static_cast<void>(remove_con_from_list);
 
                 new_connection->connect_call_back_.swap(connect_call_back);
+                assert(connect_call_back.get());
                 new_connection->timer_.cancel();
 
                 if ( !error )
@@ -305,8 +306,8 @@ namespace server
             }
         }
 
-        assert(connect_call_back.get());
-        connect_call_back->connection_received(connection, error);
+        if ( connect_call_back.get() )
+            connect_call_back->connection_received(connection, error);
     }
 
     template <class Socket>

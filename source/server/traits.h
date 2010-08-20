@@ -28,12 +28,15 @@ namespace server
      * @brief interface to costumize different aspects of handling connections, requests and responses
      */
     template <class Network,
-              template <typename> class ResponseFactory,
+              class ResponseFactory,
               class EventLog = null_event_logger,
               class ErrorLog = null_error_logger>
-    class connection_traits
+    class connection_traits : 
+        public ResponseFactory
     {
     public:
+        connection_traits() {}
+
         ErrorLog& error_log()
         {
             return error_log_;
@@ -45,6 +48,7 @@ namespace server
         }
 
     private:
+        connection_traits(const connection_traits&);
         ErrorLog    error_log_;
         EventLog    event_log_;
     };

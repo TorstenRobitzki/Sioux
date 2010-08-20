@@ -18,6 +18,8 @@ proxy_connection_limit_reached::proxy_connection_limit_reached(const std::string
 
 proxy_configuration::proxy_configuration()
  : max_connections_(20u)
+ , max_idle_time_(boost::posix_time::seconds(5 * 60))
+ , connect_timeout_(boost::posix_time::seconds(5))
 {
 }
 
