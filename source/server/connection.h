@@ -112,6 +112,8 @@ namespace server
          * @brief returns a reference to the underlying connection. Used for the construction phase only.
          */
         socket_t& socket();
+
+        Trait& trait();
 	private:
         class blocked_write_base 
         {
@@ -163,9 +165,6 @@ namespace server
         template <class Handler>
         void unblock_pending_writes(async_response& sender, const Handler&);
 
-        // cancels all pending writes and reads, closes the connection
-        void cancel_all();
-
         void response_not_possible_impl(async_response& sender, const boost::shared_ptr<async_response>& error_response);
 
         // hurries all responses, that are in front of the given sender
@@ -191,7 +190,7 @@ namespace server
      * @relates connection
      */
 	template <class Connection, class Trait>
-    boost::shared_ptr<connection<Trait, Connection> > create_connection(const Connection& con, const Trait& trait);
+    boost::shared_ptr<connection<Trait, Connection> > create_connection(const Connection& con, Trait& trait);
 
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -205,6 +204,7 @@ namespace server
         , current_response_is_sending_(false)
         , shutdown_read_(false)
     {
+        trait_.event_connection_created(*this);
     }
 
     template <class Trait, class Connection>
@@ -214,6 +214,7 @@ namespace server
         assert(responses_.empty());
     
         connection_.close();
+        trait_.event_connection_destroyed(*this);
     }
 
 	template <class Trait, class Connection>
@@ -241,6 +242,8 @@ namespace server
         WriteHandler                handler,
         async_response&             sender)
     {
+        trait_.event_data_write(*this, buffers, sender);
+
         if ( responses_.front() == &sender )
         {
             boost::asio::async_write(connection_, buffers, handler);
@@ -248,6 +251,7 @@ namespace server
         }
         else
         {
+            trait_.event_writer_blocked(*this, buffers, sender);
             hurry_writers(sender);
 
             // store send request until the current sender is ready
@@ -263,6 +267,8 @@ namespace server
         WriteHandler                handler,
         async_response&             sender)
     {
+        trait_.event_data_write(*this, buffers, sender);
+
         if ( responses_.front() == &sender )
         {
             connection_.async_write_some(buffers, handler);
@@ -270,6 +276,8 @@ namespace server
         }
         else
         {
+            trait_.event_writer_blocked(*this, buffers, sender);
+
             hurry_writers(sender);
 
             /// @todo bug: nobody notifies sender, when adding the defered send to the list
@@ -282,6 +290,8 @@ namespace server
     template <class Trait, class Connection>
     void connection<Trait, Connection>::response_completed(async_response& sender)
     {
+        trait_.event_response_completed(*this, sender);
+
         // there is no reason, why there should be outstanding, blocked writes from the current sender
         assert(blocked_writes_.erase(&sender) == 0);
         
@@ -316,12 +326,6 @@ namespace server
         }
     }
 
-	template <class Trait, class Connection>
-    void connection<Trait, Connection>::cancel_all()
-    {
-
-    }
-
     template <class Trait, class Connection>
     void connection<Trait, Connection>::response_not_possible_impl(async_response& sender, const boost::shared_ptr<async_response>& error_response)
     {
@@ -344,13 +348,15 @@ namespace server
         }
         else
         {
-            cancel_all();
+            shutdown_close();
         }
     }
 
     template <class Trait, class Connection>
     void connection<Trait, Connection>::response_not_possible(async_response& sender, http::http_error_code ec)
     {
+        trait_.event_response_not_possible(*this, sender, ec);
+
         boost::shared_ptr<async_response> error_response;
 
         // if no data was send from this response, consult the error-trait to get an error response
@@ -363,12 +369,16 @@ namespace server
     template <class Trait, class Connection>
     void connection<Trait, Connection>::response_not_possible(async_response& sender)
     {
+        trait_.event_response_not_possible(*this, sender);
+
         response_not_possible_impl(sender, boost::shared_ptr<async_response>());
     }
 
     template <class Trait, class Connection>
     void connection<Trait, Connection>::shutdown_read()
     {
+        trait_.event_shutdown_read(*this);
+
         if ( !shutdown_read_ )
         {
             shutdown_read_ = true;
@@ -379,6 +389,8 @@ namespace server
     template <class Trait, class Connection>
     void connection<Trait, Connection>::shutdown_close()
     {
+        trait_.event_shutdown_close(*this);
+
         shutdown_read();
         connection_.shutdown(boost::asio::ip::tcp::socket::shutdown_send);
         connection_.close();
@@ -388,6 +400,12 @@ namespace server
     Connection& connection<Trait, Connection>::socket()
     {
         return connection_;
+    }
+
+    template <class Trait, class Connection>
+    Trait& connection<Trait, Connection>::trait()
+    {
+        return trait_;
     }
 
 	template <class Trait, class Connection>
@@ -512,7 +530,7 @@ namespace server
     }
 
     template <class Connection, class Trait>
-    boost::shared_ptr<connection<Trait, Connection> > create_connection(const Connection& con, const Trait& trait)
+    boost::shared_ptr<connection<Trait, Connection> > create_connection(const Connection& con, Trait& trait)
     {
         const boost::shared_ptr<connection<Trait, Connection> > result(new connection<Trait, Connection>(con, trait));
         result->start();

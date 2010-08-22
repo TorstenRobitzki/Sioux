@@ -35,6 +35,7 @@ namespace server
             , response_body_exists_(false)
             , reading_body_from_orgin_(false)
             , writing_body_to_client_(false)
+            , restart_counter_(0)
         {
             if ( request_->body_expected() )
                 throw std::runtime_error("Request-Body in Proxy currently not implemented");
@@ -45,6 +46,13 @@ namespace server
     private:
         // async_response implementation
         void start();
+
+        // if an error occured, while communication with the orgin server 
+        // returns true, if a restart is issued
+        bool restart();
+
+        // make sure, that after a read-error from the proxy occured, the connection to the proxy will not be restarted.
+        void disable_restart();
 
         typedef report_error_guard<Connection>  error_guard;
         typedef close_connection_guard<Connection> close_guard;
@@ -96,7 +104,10 @@ namespace server
         bool                                            reading_body_from_orgin_;
         bool                                            writing_body_to_client_;
 
+        unsigned                                        restart_counter_;
+
         static const http::filter                       connection_headers_to_be_removed_;
+        static const unsigned                           max_restarts_ = 3;
     };
 
     ////////////////////////////////////////
@@ -104,6 +115,8 @@ namespace server
     template <class Connection, std::size_t BodyBufferSize>
     proxy_response<Connection, BodyBufferSize>::~proxy_response()
     {
+        connection_->trait().event_proxy_response_destroyed(*connection_, *this);
+
         if ( proxy_socket_ )
             connector_.dismiss_connection(proxy_socket_);
 
@@ -113,6 +126,8 @@ namespace server
     template <class Connection, std::size_t BodyBufferSize>
     void proxy_response<Connection, BodyBufferSize>::start()
     {
+        connection_->trait().event_proxy_response_started(*connection_, *this);
+
         connector_.async_get_proxy_connection<Connection::socket_t>(
             request_->host(), request_->port(),
             boost::bind(&proxy_response::handle_orgin_connect, shared_from_this(), _1, _2));
@@ -122,10 +137,41 @@ namespace server
     }
 
     template <class Connection, std::size_t BodyBufferSize>
+    bool proxy_response<Connection, BodyBufferSize>::restart()
+    {
+        ++restart_counter_;
+        connection_->trait().event_proxy_response_restarted(*connection_, *this, restart_counter_);
+
+        if ( restart_counter_ > max_restarts_ )
+            return false;
+
+        if ( proxy_socket_ )
+            connector_.dismiss_connection(proxy_socket_);
+
+        proxy_socket_               = 0;
+        reading_body_from_orgin_    = false;
+        writing_body_to_client_     = false;
+
+        connector_.async_get_proxy_connection<Connection::socket_t>(
+            request_->host(), request_->port(),
+            boost::bind(&proxy_response::handle_orgin_connect, shared_from_this(), _1, _2));
+
+        return true;
+    }
+
+    template <class Connection, std::size_t BodyBufferSize>
+    void proxy_response<Connection, BodyBufferSize>::disable_restart()
+    {
+        restart_counter_ = max_restarts_;
+    }
+
+    template <class Connection, std::size_t BodyBufferSize>
     void proxy_response<Connection, BodyBufferSize>::handle_orgin_connect(
         typename Connection::socket_t*      orgin_socket,
         const boost::system::error_code&    error)
     {
+        connection_->trait().event_proxy_orgin_connected(*connection_, *this, orgin_socket, error);
+
         error_guard fail(*connection_, *this, http::http_bad_gateway);
 
         if ( !error && orgin_socket )
@@ -149,8 +195,10 @@ namespace server
     template <class Connection, std::size_t BodyBufferSize>
     void proxy_response<Connection, BodyBufferSize>::request_written(
         const boost::system::error_code&    error,
-        std::size_t                         /* bytes_transferred */)
+        std::size_t                         bytes_transferred)
     {
+        connection_->trait().event_proxy_request_written(*connection_, *this, error, bytes_transferred);
+
         error_guard fail(*connection_, *this, http::http_bad_gateway);
 
         if ( !error )
@@ -170,7 +218,16 @@ namespace server
         reading_body_from_orgin_ = false;
 
         if ( error )
+        {
+            connection_->trait().log_error(*this, "proxy_response::handle_read_from_orgin", error, bytes_transferred);
+
+            if ( restart() )
+                fail.dismiss();
+
             return;
+        }
+
+        disable_restart();
 
         if ( response_header_from_proxy_.state() == http::message::parsing && bytes_transferred != 0 )
         {
@@ -203,6 +260,8 @@ namespace server
             body_buffer_.data_written(bytes_transferred);
             issue_read(body_buffer_.write_buffer());
             issue_write(body_buffer_.read_buffer());
+ 
+            fail.dismiss();
         }
     }
 
@@ -337,7 +396,6 @@ namespace server
 
     template <class Connection, std::size_t BodyBufferSize>
     const http::filter proxy_response<Connection, BodyBufferSize>::connection_headers_to_be_removed_("connection, keep-alive");
-
 } // namespace server
 
 #endif 

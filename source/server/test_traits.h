@@ -21,6 +21,11 @@ namespace test {
 template <class Connection>
 struct response_factory
 {
+    response_factory() {}
+
+    template <class T>
+    explicit response_factory(const T&) {}
+
     template <class Trait>
     static boost::shared_ptr<async_response> create_response(
         const boost::shared_ptr<Connection>&                    connection,
@@ -39,7 +44,7 @@ struct response_factory
  */
 template <class Network = server::test::socket<const char*>, 
           template <typename> class  ResponseFactory = response_factory>
-class traits : public server::connection_traits<Network, ResponseFactory>
+class traits : public server::connection_traits<Network, ResponseFactory<Network> >
 {
 public:
     traits() : pimpl_(new impl(0))

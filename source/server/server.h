@@ -9,6 +9,7 @@
 #include "server/ip_proxy.h"
 #include "server/connection.h"
 #include "server/error.h"
+#include "server/log.h"
 #include <boost/asio/io_service.hpp>
 #include <boost/thread/thread.hpp>
 
@@ -20,8 +21,13 @@ namespace server {
     public:
         response_factory()
         {
-
         }
+
+        template <class T>
+        explicit response_factory(const T&)
+        {
+        }
+
         template <class Connection>
         boost::shared_ptr<async_response> create_response(
             const boost::shared_ptr<Connection>&                    connection,
@@ -104,8 +110,6 @@ namespace server {
         {
             if ( !error )
             {
-                std::clog<< "new connection: " << end_point_ << std::endl;
-
                 connection_->start();
                 issue_accept();
             }
@@ -136,7 +140,15 @@ namespace server {
          */
         basic_server(boost::asio::io_service& queue, unsigned number_of_threads);
 
-        ~basic_server();
+        /**
+         * @brief constructs a new server and starts the given number of threads to run the given queue
+         *
+         * 0 is a valid value for number_of_threads. In that case, the queue have to be run from some where else.
+         */
+        template <class TraitParameters>
+        basic_server(boost::asio::io_service& queue, unsigned number_of_threads, const TraitParameters& param);
+
+        virtual ~basic_server();
 
         void add_listener(const boost::asio::ip::tcp::endpoint&);
         void add_proxy(const char* route, const boost::asio::ip::tcp::endpoint& orgin, const proxy_configuration&);
@@ -153,11 +165,50 @@ namespace server {
     
     typedef basic_server<connection_traits<boost::asio::ip::tcp::socket, response_factory<boost::asio::ip::tcp::socket> > > server;
 
+    namespace details {
+        class stream_ref_holder
+        {
+        public:
+            explicit stream_ref_holder(std::ostream& out) : out_(out) {}
+            std::ostream& logstream() const { return out_; }
+        private:
+            std::ostream&   out_;
+        };
+    }
+
+    template <class EventLog = stream_event_log, class ErrorLog = stream_error_log>
+    class logging_server : 
+        public details::stream_ref_holder,
+        public basic_server<connection_traits<boost::asio::ip::tcp::socket, response_factory<boost::asio::ip::tcp::socket>, EventLog,  ErrorLog> >
+    {
+    public:
+        logging_server(boost::asio::io_service& queue, unsigned number_of_threads, std::ostream& out)
+            : details::stream_ref_holder(out)
+            , basic_server<connection_traits<boost::asio::ip::tcp::socket, response_factory<boost::asio::ip::tcp::socket>, EventLog, ErrorLog> >(
+                queue, number_of_threads, *this)
+        {
+        }
+    };
+
+    ///////////////////////
+    // imeplementation
     template <class Trait>
     basic_server<Trait>::basic_server(boost::asio::io_service& queue, unsigned number_of_threads)
         : queue_(queue)
         , acceptors_()
         , trait_()
+        , thread_herd_()
+    {
+        for (; number_of_threads; --number_of_threads)
+            thread_herd_.create_thread(boost::bind(&boost::asio::io_service::run, &queue));
+    }
+
+    template <class Trait>
+    template <class TraitParameters>
+    basic_server<Trait>::basic_server(boost::asio::io_service& queue, unsigned number_of_threads, const TraitParameters& param)
+        : queue_(queue)
+        , acceptors_()
+        , trait_(param)
         , thread_herd_()
     {
         for (; number_of_threads; --number_of_threads)

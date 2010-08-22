@@ -215,6 +215,8 @@ private:
     
         std::vector<char>                           output_;
         bool                                        connected_;
+        bool                                        shutdown_read_;
+        bool                                        shutdown_write_;
         boost::asio::ip::tcp::endpoint              endpoint_;
 
         const bool                                  read_error_enabled_;
@@ -378,7 +380,9 @@ socket<Iterator, Trait>::impl::impl(boost::asio::io_service& io_service)
  , random_destribution_()
  , random_(random_generator_, random_destribution_)
  , output_()
- , connected_(false)
+ , connected_(true)
+ , shutdown_read_(false)
+ , shutdown_write_(false)
  , read_error_enabled_(false)
  , read_error_()
  , read_error_occurens_()
@@ -402,7 +406,9 @@ socket<Iterator, Trait>::impl::impl(boost::asio::io_service& io_service, Iterato
  , random_destribution_()
  , random_(random_generator_, random_destribution_)
  , output_()
- , connected_(false)
+ , connected_(true)
+ , shutdown_read_(false)
+ , shutdown_write_(false)
  , read_error_enabled_(false)
  , read_error_()
  , read_error_occurens_()
@@ -433,7 +439,9 @@ socket<Iterator, Trait>::impl::impl(boost::asio::io_service&         io_service,
  , random_destribution_()
  , random_(random_generator_, random_destribution_)
  , output_()
- , connected_(false)
+ , connected_(true)
+ , shutdown_read_(false)
+ , shutdown_write_(false)
  , read_error_enabled_(true)
  , read_error_(read_error)
  , read_error_occurens_(read_error_occurens)
@@ -458,7 +466,9 @@ socket<Iterator, Trait>::impl::impl(boost::asio::io_service& io_service, Iterato
  , random_destribution_(lower_bound, upper_bound)
  , random_(random_generator_, random_destribution_)
  , output_()
- , connected_(false)
+ , connected_(true)
+ , shutdown_read_(false)
+ , shutdown_write_(false)
  , read_error_enabled_(false)
  , read_error_()
  , read_error_occurens_()
@@ -483,6 +493,8 @@ socket<Iterator, Trait>::impl::impl(boost::asio::io_service& io_service, error_o
  , random_(random_generator_, random_destribution_)
  , output_()
  , connected_(false)
+ , shutdown_read_(false)
+ , shutdown_write_(false)
  , read_error_enabled_(false)
  , read_error_()
  , read_error_occurens_()
@@ -497,7 +509,7 @@ socket<Iterator, Trait>::impl::impl(boost::asio::io_service& io_service, error_o
 
 namespace {
 
-    // workaround for an issue, where a object that was returned from boost::bind() couldn't directly passed to boost::bind()
+    // workaround for an issue, where an object that was returned from boost::bind() couldn't directly passed to boost::bind()
     template <class Handler>
     struct handler_container
     {
@@ -520,6 +532,12 @@ void socket<Iterator, Trait>::impl::async_read_some(
 		const MutableBufferSequence& buffers,
 		ReadHandler handler)
 {
+    if ( !connected_ || shutdown_read_ )
+    {
+        io_service_.post(boost::bind(handler, make_error_code(boost::asio::error::not_connected), 0));
+        return;
+    }
+
     std::size_t size = std::min<std::size_t>(std::distance(current_, end_), buffer_size(buffers));
 
     if ( bite_size_ != 0 )
@@ -578,6 +596,12 @@ void socket<Iterator, Trait>::impl::async_write_some(
         const ConstBufferSequence & buffers,
         WriteHandler handler)
 {
+    if ( !connected_ || shutdown_write_ )
+    {
+        io_service_.post(boost::bind<void>(handler, make_error_code(boost::asio::error::not_connected), 0));
+        return;
+    }
+
     std::size_t size = std::distance(boost::asio::buffers_begin(buffers), boost::asio::buffers_end(buffers));
 
     bool repost_result = false;
@@ -647,8 +671,17 @@ void socket<Iterator, Trait>::impl::close()
 }
 
 template <class Iterator, class Trait>
-void socket<Iterator, Trait>::impl::shutdown(boost::asio::ip::tcp::socket::shutdown_type /*what*/)
+void socket<Iterator, Trait>::impl::shutdown(boost::asio::ip::tcp::socket::shutdown_type what)
 {
+    if ( what == boost::asio::ip::tcp::socket::shutdown_both || what == boost::asio::ip::tcp::socket::shutdown_receive )
+    {
+        shutdown_read_ = true;
+    }
+
+    if ( what == boost::asio::ip::tcp::socket::shutdown_both || what == boost::asio::ip::tcp::socket::shutdown_send )
+    {
+        shutdown_write_ = true;
+    }
 }
 
 template <class Iterator, class Trait>

@@ -17,8 +17,8 @@ int main()
 
     try
     {
-        boost::asio::io_service queue;
-        server::server          sioux(queue, 0);
+        boost::asio::io_service     queue;
+        server::logging_server<>    sioux(queue, 0, std::clog);
 
         sioux.add_listener(tcp::endpoint(address(address_v4::any()), 80));
         sioux.add_listener(tcp::endpoint(address(address_v6::any()), 80));

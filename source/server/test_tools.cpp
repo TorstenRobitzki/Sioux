@@ -15,7 +15,7 @@
 
 #ifdef max
 #   undef max
-#endif
+#endif 
 
 #ifdef min
 #   undef min

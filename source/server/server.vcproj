@@ -178,6 +178,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\log.h"
+				>
+			</File>
+			<File
 				RelativePath=".\proxy.h"
 				>
 			</File>
