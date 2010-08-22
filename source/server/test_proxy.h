@@ -6,6 +6,7 @@
 #include "server/test_socket.h"
 #include <boost/utility.hpp>
 #include <boost/asio/io_service.hpp>
+#include <list>
 
 namespace server
 {
@@ -38,9 +39,13 @@ namespace test {
         explicit proxy_connector(boost::asio::io_service& queue, error_type error);
 
         /**
-         * @brief constructs a proxy_config that will return the passed response text, if asked for a connection
+         * @brief constructs a proxy_config that will return the passed socket, if asked for a connection
          */
         explicit proxy_connector(socket<const char*>& socket);
+
+        typedef std::list<socket<const char*> > socket_list_t;
+
+        explicit proxy_connector(socket_list_t& socket);
 
         ~proxy_connector();
 
@@ -73,8 +78,8 @@ namespace test {
         boost::asio::io_service&                io_service_;
         const std::vector<char>                 simulate_response_;
         const error_type                        error_type_;
-        socket<const char*>                     socket_;
-        bool                                    socket_in_use_;
+        socket_list_t                           sockets_;
+        socket_list_t                           sockets_in_use_;
         std::pair<std::string, unsigned>        requested_orgin_;
     };
 

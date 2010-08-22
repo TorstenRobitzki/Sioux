@@ -261,8 +261,10 @@ TEST(error_while_reading_header_from_orgin_server)
         begin(cached_response_apache), end(cached_response_apache),
         boost::asio::error::connection_aborted, 15,
         make_error_code(boost::system::errc::success), 10000);
-
-    boost::shared_ptr<proxy_connector> proxy(new proxy_connector(orgin_connection));
+ 
+    // use 5 connections, because the proxy response will reconnect to the orgin server
+    proxy_connector::socket_list_t orgin_connections(5, orgin_connection);
+    boost::shared_ptr<proxy_connector> proxy(new proxy_connector(orgin_connections));
     const std::string response_text = simulate_proxy(proxy, request.text());
 
     http::response_header response(response_text.c_str());
@@ -404,3 +406,25 @@ TEST(close_connection_length_proxy_request)
     CHECK_EQUAL(proxy_response.size(), client_received.size());
     CHECK(compare_buffers(proxy_response, client_received, std::cerr));
 }
+
+TEST(request_an_other_connection_when_the_first_was_falty)
+{
+    boost::asio::io_service         queue;
+    proxy_connector::socket_list_t  orgin_connections;
+
+    orgin_connections.push_back(
+        server::test::socket<const char*>(
+            queue, 
+            &chunked_response_example[0], &chunked_response_example[0],
+            make_error_code(boost::asio::error::network_reset),0,
+            make_error_code(boost::asio::error::network_reset),10000));
+
+    orgin_connections.push_back(
+        server::test::socket<const char*>(
+            queue, begin(chunked_response_example), end(chunked_response_example)));
+
+    boost::shared_ptr<proxy_connector> connector(new proxy_connector(orgin_connections));
+
+    CHECK_EQUAL(chunked_response_example,
+        simulate_proxy(connector, tools::substring(begin(simple_get_11), end(simple_get_11))));
+} 

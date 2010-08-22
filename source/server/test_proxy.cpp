@@ -16,8 +16,8 @@ proxy_connector::proxy_connector(boost::asio::io_service& queue, const std::stri
  : io_service_(queue)
  , simulate_response_(simulate_response.begin(), simulate_response.end())
  , error_type_(no_error)
- , socket_(queue, &simulate_response_[0], &simulate_response_[0] + simulate_response_.size())
- , socket_in_use_(false) 
+ , sockets_(1, socket<const char*>(queue, &simulate_response_[0], &simulate_response_[0] + simulate_response_.size()))
+ , sockets_in_use_() 
 {
 }
 
@@ -25,8 +25,17 @@ proxy_connector::proxy_connector(socket<const char*>& socket)
  : io_service_(socket.get_io_service())
  , simulate_response_()
  , error_type_(no_error)
- , socket_(socket)
- , socket_in_use_(false)
+ , sockets_(1, socket)
+ , sockets_in_use_()
+{
+}
+
+proxy_connector::proxy_connector(socket_list_t& socket)
+ : io_service_(socket.front().get_io_service())
+ , simulate_response_()
+ , error_type_(no_error)
+ , sockets_(socket)
+ , sockets_in_use_()
 {
 }
 
@@ -34,19 +43,24 @@ proxy_connector::proxy_connector(boost::asio::io_service& queue, error_type erro
  : io_service_(queue)
  , simulate_response_()
  , error_type_(error)
- , socket_(queue)
- , socket_in_use_(false)
+ , sockets_(1, socket<const char*>(queue))
+ , sockets_in_use_()
 {
 }
 
 proxy_connector::~proxy_connector()
 {
-    assert(!socket_in_use_);
+    assert(sockets_in_use_.empty());
 }
 
 std::string proxy_connector::received() const
 {
-    return socket_.output();
+    std::string result;
+
+    for ( socket_list_t::const_iterator i = sockets_.begin(); i != sockets_.end(); ++i )
+        result += i->output();
+
+    return result;
 }
 
 std::pair<std::string, unsigned> proxy_connector::connected_orgin_server() const
@@ -67,8 +81,10 @@ void proxy_connector::call_cb(const boost::shared_ptr<connect_callback>& p)
     }
     else
     {
-        socket_in_use_ = true;
-        p->connection_received(&socket_, make_error_code(boost::system::errc::success));
+        assert(!sockets_.empty());
+        sockets_in_use_.push_back(sockets_.front());
+        sockets_.pop_front();
+        p->connection_received(&sockets_in_use_.front(), make_error_code(boost::system::errc::success));
     }
 }
 
@@ -78,6 +94,8 @@ void proxy_connector::async_get_proxy_connection(
     unsigned                                    orgin_port,
     const boost::shared_ptr<connect_callback>&  call_back)
 {
+    assert(!sockets_.empty());
+
     if ( error_type_ == connection_not_possible ) 
         throw proxy_error("connection_not_possible");
 
@@ -92,13 +110,26 @@ void proxy_connector::async_get_proxy_connection(
 void proxy_connector::release_connection(
     const tools::dynamic_type&          connection_type,
     void*                               connection,
-    const http::response_header*        /* header */)
+    const http::response_header*        header )
 {
     if ( connection_type != typeid (server::test::socket<const char*>) )
         throw std::runtime_error("test::proxy_config::release_connection: invalid type"); 
 
-    assert(connection == &socket_);
-    socket_in_use_ = false;
+    const socket_list_t::iterator pos = std::find(
+        sockets_in_use_.begin(), sockets_in_use_.end(), *static_cast<socket<const char*>*>(connection));
+
+    assert(pos != sockets_in_use_.end());
+
+    if ( header )
+    {
+        sockets_.push_back(*pos);
+    }
+    else
+    {
+        pos->close();
+    }
+
+    sockets_in_use_.erase(pos);
 }
 
 } // namespace test

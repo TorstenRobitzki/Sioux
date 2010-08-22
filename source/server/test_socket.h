@@ -569,8 +569,8 @@ void socket<Iterator, Trait>::impl::async_read_some(
     }
 
     boost::system::error_code ec = read_error_enabled_ && read_error_occurens_ == 0 
-        ? make_error_code(boost::system::errc::success)
-        : read_error_;
+        ? read_error_
+        : make_error_code(boost::system::errc::success);
 
     if ( repost_result )
     {
