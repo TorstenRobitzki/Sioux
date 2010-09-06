@@ -428,3 +428,13 @@ TEST(request_an_other_connection_when_the_first_was_falty)
     CHECK_EQUAL(chunked_response_example,
         simulate_proxy(connector, tools::substring(begin(simple_get_11), end(simple_get_11))));
 } 
+
+TEST(timeout_while_reading_from_orgin)
+{
+    CHECK(false);
+}
+
+TEST(timeout_while_writing_to_orgin)
+{
+    CHECK(false);
+}
