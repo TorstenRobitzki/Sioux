@@ -47,6 +47,11 @@ namespace server
             con_ = 0;
         }
 
+        void set_error_code(http::http_error_code ec)
+        {
+            error_code_ = ec;
+        }
+
     private:
         report_error_guard(const report_error_guard&);
         report_error_guard& operator=(const report_error_guard&);

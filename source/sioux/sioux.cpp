@@ -29,7 +29,22 @@ int main()
         for ( tcp::resolver_iterator  begin = resolver.resolve(query), end; begin != end; ++begin )
             sioux.add_proxy("/", *begin, server::proxy_configuration());
 
-        queue.run();
+        for ( ;; )
+        {
+            try
+            {
+                queue.run();
+            }
+            catch ( const std::exception& e )
+            {
+                std::cerr << "error: " << e.what() << std::endl;
+            }
+            catch ( ... )
+            {
+                std::cerr << "unknown error." << std::endl;
+            }
+        }
+
     }
     catch (const std::exception& e)
     {

@@ -8,7 +8,7 @@
 
 namespace http {
 
-std::string reason_phrase(http_error_code ec) 
+char* const reason_phrase(http_error_code ec) 
 {
 	switch (ec)
 	{
@@ -95,6 +95,11 @@ std::string reason_phrase(http_error_code ec)
 	}
 	
 	return "unknown Error Code";
+}
+
+std::ostream& operator<<(std::ostream& out, http_error_code ec)
+{
+    return out << reason_phrase(ec);
 }
 
 std::string status_line(const std::string& version, http_error_code ec)

@@ -163,7 +163,7 @@ namespace server {
         boost::thread_group                         thread_herd_;
     };
     
-    typedef basic_server<connection_traits<boost::asio::ip::tcp::socket, response_factory<boost::asio::ip::tcp::socket> > > server;
+    typedef basic_server<connection_traits<boost::asio::ip::tcp::socket, response_factory<boost::asio::ip::tcp::socket> > > http_server;
 
     namespace details {
         class stream_ref_holder

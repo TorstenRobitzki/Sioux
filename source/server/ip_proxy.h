@@ -27,6 +27,8 @@ namespace server {
 
     private:
         boost::shared_ptr<ip_proxy_connector<Socket> >  connector_;
+        boost::asio::io_service&                        queue_;
+        boost::shared_ptr<const proxy_configuration>    config_;
     };
 
     template <class Socket>
@@ -35,6 +37,8 @@ namespace server {
         const boost::shared_ptr<const proxy_configuration>&    config, 
         const boost::asio::ip::tcp::endpoint&                  ep)
         : connector_(new ip_proxy_connector<Socket>(queue, config, ep))
+        , queue_(queue)
+        , config_(config)
     {
     }
 
@@ -45,7 +49,7 @@ namespace server {
         const boost::shared_ptr<const http::request_header>&    header)
     {
         boost::shared_ptr<async_response> result(
-            new proxy_response<Connection>(connection, header, *connector_));
+            new proxy_response<Connection>(connection, header, *connector_, queue_, config_));
 
         return result;
     }

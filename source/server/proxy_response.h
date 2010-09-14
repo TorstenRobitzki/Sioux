@@ -6,13 +6,16 @@
 #define SIOUX_SOURCE_SERVER_PROXY_RESPONSE_H
 
 #include "server/response.h"
-#include "server/proxy.h"
+#include "server/proxy_connector.h"
 #include "server/transfer_buffer.h"
+#include "server/timeout.h"
 #include "http/request.h"
 #include "http/response.h"
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/asio/write.hpp>
+#include <boost/asio/deadline_timer.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 
 namespace server
 {
@@ -26,7 +29,21 @@ namespace server
                            private boost::noncopyable
     {
     public:
-        proxy_response(const boost::shared_ptr<Connection>& connection, const boost::shared_ptr<const http::request_header>& header, proxy_connector_base& connector)
+        /**
+         * @brief constructs a new proxy_response
+         *
+         * @param connection the connection where the request was read from and where the response should be written to
+         * @param header request header read from the connection
+         * @param connector connector to obtain a connection to the orgin server 
+         * @param queue io_service, used to implement the timeouts while communicating with the orgin server
+         * @param config a reference to the configuration currently in use
+         */
+        proxy_response(
+            const boost::shared_ptr<Connection>&                    connection, 
+            const boost::shared_ptr<const http::request_header>&    header, 
+            proxy_connector_base&                                   connector,
+            boost::asio::io_service&                                queue,
+            const boost::shared_ptr<const proxy_configuration>&     config)
             : connection_(connection)
             , request_(header)
             , connector_(connector)
@@ -36,6 +53,9 @@ namespace server
             , reading_body_from_orgin_(false)
             , writing_body_to_client_(false)
             , restart_counter_(0)
+            , orgin_time_out_(config->orgin_timeout())
+            , read_timer_(queue)
+            , write_timer_(queue)
         {
             if ( request_->body_expected() )
                 throw std::runtime_error("Request-Body in Proxy currently not implemented");
@@ -82,6 +102,8 @@ namespace server
 
         void issue_write(const boost::asio::const_buffers_1& buffer);
 
+        void orgin_timeout(const boost::system::error_code& error);
+
         void forward_header();
 
         template <class Header>
@@ -105,6 +127,9 @@ namespace server
         bool                                            writing_body_to_client_;
 
         unsigned                                        restart_counter_;
+        const boost::posix_time::time_duration          orgin_time_out_;
+        boost::asio::deadline_timer                     read_timer_;
+        boost::asio::deadline_timer                     write_timer_;
 
         static const http::filter                       connection_headers_to_be_removed_;
         static const unsigned                           max_restarts_ = 3;
@@ -178,15 +203,16 @@ namespace server
         {   
             proxy_socket_ = orgin_socket;
 
-            /// @todo add timeout
-            boost::asio::async_write(
+            server::async_write_with_to(
                 *proxy_socket_,
                 outbuffers_, 
                 boost::bind(
                     &proxy_response::request_written, 
                     shared_from_this(),
                     boost::asio::placeholders::error,
-                    boost::asio::placeholders::bytes_transferred));
+                    boost::asio::placeholders::bytes_transferred),
+                write_timer_,
+                orgin_time_out_);
 
             fail.dismiss();
         } 
@@ -207,6 +233,14 @@ namespace server
             issue_read(response_header_from_proxy_.read_buffer());
             fail.dismiss();
         }
+        else if ( restart() )
+        {
+            fail.dismiss();
+        }
+        else if ( error == server::time_out )
+        {
+            fail.set_error_code(http::http_gateway_timeout);
+        }
     }
 
     template <class Connection, std::size_t BodyBufferSize>
@@ -223,6 +257,9 @@ namespace server
 
             if ( restart() )
                 fail.dismiss();
+
+            if ( error == server::time_out )
+                fail.set_error_code(http::http_gateway_timeout);
 
             return;
         }
@@ -334,13 +371,29 @@ namespace server
         {
             reading_body_from_orgin_ = true;
 
-            proxy_socket_->async_read_some(
+            async_read_some_with_to(
+                *proxy_socket_,
                 buffer,
                 boost::bind(&proxy_response::handle_read_from_orgin, 
                         shared_from_this(),
                         boost::asio::placeholders::error,
-                        boost::asio::placeholders::bytes_transferred)
+                        boost::asio::placeholders::bytes_transferred),
+                read_timer_,
+                orgin_time_out_
             );
+        }
+    }
+
+    template <class Connection, std::size_t BodyBufferSize>
+    void proxy_response<Connection, BodyBufferSize>::orgin_timeout(const boost::system::error_code& error)
+    {
+        if ( !error && proxy_socket_ )
+        {
+            connection_->trait().log_error(*this, "proxy_response::orgin_timeout", );
+
+            // close connection to orgin, pass the connection back to the connector
+            connector_.dismiss_connection(proxy_socket_);
+            proxy_socket_ = 0;
         }
     }
 

@@ -20,6 +20,7 @@ proxy_configuration::proxy_configuration()
  : max_connections_(20u)
  , max_idle_time_(boost::posix_time::seconds(5 * 60))
  , connect_timeout_(boost::posix_time::seconds(5))
+ , orgin_timeout_(boost::posix_time::seconds(1))
 {
 }
 
@@ -53,6 +54,15 @@ void proxy_configuration::connect_timeout(const boost::posix_time::time_duration
     connect_timeout_ = val;
 }
 
+boost::posix_time::time_duration proxy_configuration::orgin_timeout() const
+{
+    return orgin_timeout_;
+}
+
+void proxy_configuration::orgin_timeout(const boost::posix_time::time_duration& val)
+{
+    orgin_timeout_ = val;
+}
 
 //////////////////////////////
 // class proxy_configurator 
@@ -78,6 +88,13 @@ const proxy_configurator& proxy_configurator::max_idle_time(const boost::posix_t
 const proxy_configurator& proxy_configurator::connect_timeout(const boost::posix_time::time_duration& val) const
 {
     config_->connect_timeout(val);
+
+    return *this;
+}
+
+const proxy_configurator& proxy_configurator::orgin_timeout(const boost::posix_time::time_duration& val) const
+{
+    config_->orgin_timeout(val);
 
     return *this;
 }

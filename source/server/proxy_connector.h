@@ -35,20 +35,29 @@ namespace server
     public:
         proxy_configuration();
 
-        // maximum 
+        // maximum number of connections to an orgin server
         unsigned max_connections() const;
         void max_connections(unsigned);
 
+        // the maximum time a connection to an orgin server stays idle before it will be closed
+        // A connection is idle, if it is not used, to communicate with the orgin server, but is connected
+        // to the orgin server.
         boost::posix_time::time_duration max_idle_time() const;
         void max_idle_time(const boost::posix_time::time_duration&);
 
+        // Timeout while trying to connect the orgin server
         boost::posix_time::time_duration connect_timeout() const;
         void connect_timeout(const boost::posix_time::time_duration&);
+
+        // Timeout while communicating with the orgin server (both reading and writing)
+        boost::posix_time::time_duration orgin_timeout() const;
+        void orgin_timeout(const boost::posix_time::time_duration&);
 
     private:
         unsigned                            max_connections_;
         boost::posix_time::time_duration    max_idle_time_;
         boost::posix_time::time_duration    connect_timeout_;
+        boost::posix_time::time_duration    orgin_timeout_;
     };
 
     /**
@@ -62,6 +71,7 @@ namespace server
         const proxy_configurator& max_connections(unsigned) const;
         const proxy_configurator& max_idle_time(const boost::posix_time::time_duration&) const;
         const proxy_configurator& connect_timeout(const boost::posix_time::time_duration&) const;
+        const proxy_configurator& orgin_timeout(const boost::posix_time::time_duration&) const;
 
         boost::shared_ptr<proxy_configuration> config_;
 

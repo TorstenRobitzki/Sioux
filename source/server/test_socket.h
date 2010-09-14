@@ -85,6 +85,25 @@ public:
     socket(boost::asio::io_service& io_service, Iterator begin, Iterator end, std::size_t bite_size, const boost::posix_time::time_duration& delay);
 
     /**
+     * @brief constructs a socket, that issues a delay after every write and read.
+     *
+     * 
+     * @param io_service the io queue
+     * @param begin begin of the simulated input
+     * @param end end of the simulated input
+     * @param bite_size the size of the simulated network reads. 0 == maximum 
+     * @param read_delay the delay that is issued before asynchron reads are executed
+     * @param write_delay the delay that is issued before asynchron writes are executed
+     */
+    socket(
+        boost::asio::io_service& io_service, 
+        Iterator begin, 
+        Iterator end, 
+        std::size_t bite_size, 
+        const boost::posix_time::time_duration& read_delay, 
+        const boost::posix_time::time_duration& write_delay);
+
+    /**
      * @param io_service the io queue
      * @param begin begin of the simulated input
      * @param end end of the simulated input
@@ -178,7 +197,8 @@ private:
              Iterator                                   end, 
              std::size_t                                bite_size, 
              unsigned                                   times,
-             const boost::posix_time::time_duration&    timeout = boost::posix_time::time_duration());
+             const boost::posix_time::time_duration&    read_delay = boost::posix_time::time_duration(),
+             const boost::posix_time::time_duration&    write_delay = boost::posix_time::time_duration());
     
         impl(boost::asio::io_service&         io_service,
              Iterator                         begin, 
@@ -269,7 +289,8 @@ private:
 
         boost::asio::io_service&                    io_service_;
         boost::asio::deadline_timer                 timer_;
-        boost::posix_time::time_duration            timeout_;
+        boost::posix_time::time_duration            read_delay_;
+        boost::posix_time::time_duration            write_delay_;
     };
 
     boost::shared_ptr<impl>  pimpl_;
@@ -291,7 +312,19 @@ socket<Iterator, Trait>::socket(boost::asio::io_service& io_service, Iterator be
 
 template <class Iterator, class Trait>
 socket<Iterator, Trait>::socket(boost::asio::io_service& io_service, Iterator begin, Iterator end, std::size_t bite_size, const boost::posix_time::time_duration& delay)
-: pimpl_(new impl(io_service, begin, end, bite_size, 1, delay))
+  : pimpl_(new impl(io_service, begin, end, bite_size, 1, delay, delay))
+{
+}
+
+template <class Iterator, class Trait>
+socket<Iterator, Trait>::socket(
+        boost::asio::io_service& io_service, 
+        Iterator begin, 
+        Iterator end, 
+        std::size_t bite_size, 
+        const boost::posix_time::time_duration& read_delay, 
+        const boost::posix_time::time_duration& write_delay)
+  : pimpl_(new impl(io_service, begin, end, bite_size, 1, read_delay, write_delay))
 {
 }
 
@@ -443,7 +476,13 @@ socket<Iterator, Trait>::impl::impl(boost::asio::io_service& io_service)
 }
 
 template <class Iterator, class Trait>
-socket<Iterator, Trait>::impl::impl(boost::asio::io_service& io_service, Iterator begin, Iterator end, std::size_t bite_size, unsigned times, const boost::posix_time::time_duration& timeout)
+socket<Iterator, Trait>::impl::impl(boost::asio::io_service&                io_service, 
+                                    Iterator                                begin, 
+                                    Iterator                                end, 
+                                    std::size_t                             bite_size, 
+                                    unsigned                                times,
+                                    const boost::posix_time::time_duration& read_delay,
+                                    const boost::posix_time::time_duration& write_delay)
  : current_(begin)
  , begin_(begin)
  , end_(end)
@@ -466,7 +505,8 @@ socket<Iterator, Trait>::impl::impl(boost::asio::io_service& io_service, Iterato
  , connect_error_mode_(connect_successfully)
  , io_service_(io_service)
  , timer_(io_service_)
- , timeout_(timeout)
+ , read_delay_(read_delay)
+ , write_delay_(write_delay)
 {
     assert(times);
 }
@@ -592,9 +632,9 @@ namespace {
             }
         }
 
-        Handler         handler;
-        const Buffer&   buffer;
-        SocketPtr       socket;
+        Handler     handler;
+        Buffer      buffer;
+        SocketPtr   socket;
     };
 
     template <class Handler, class Buffer, class SocketPtr>
@@ -612,9 +652,9 @@ namespace {
             }
         }
 
-        Handler         handler;
-        const Buffer&   buffer;
-        SocketPtr       socket;
+        Handler     handler;
+        Buffer      buffer;
+        SocketPtr   socket;
     };
 
     template <class Handler, class Buffer, class SocketPtr>
@@ -690,7 +730,7 @@ void socket<Iterator, Trait>::impl::undelayed_async_read_some(
     }
     else
     {
-        io_service_.post(boost::bind(handler, ec, size));
+        io_service_.post(boost::bind<void>(handler, ec, size));
     }
 }
 
@@ -706,9 +746,9 @@ void socket<Iterator, Trait>::impl::async_read_some(
         return;
     }
 
-    if ( timeout_ != boost::posix_time::time_duration() )
+    if ( read_delay_ != boost::posix_time::time_duration() )
     {
-        timer_.expires_from_now(timeout_);
+        timer_.expires_from_now(read_delay_);
         timer_.async_wait(
             delayed_read(handler, buffers, shared_from_this()));
     }
@@ -780,9 +820,9 @@ void socket<Iterator, Trait>::impl::async_write_some(
         return;
     }
 
-    if ( timeout_ != boost::posix_time::time_duration() )
+    if ( write_delay_ != boost::posix_time::time_duration() )
     {
-        timer_.expires_from_now(timeout_);
+        timer_.expires_from_now(write_delay_);
         timer_.async_wait(
             delayed_write(handler, buffers, shared_from_this()));
     }

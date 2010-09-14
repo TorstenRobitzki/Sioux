@@ -30,8 +30,10 @@ namespace {
                 const boost::shared_ptr<const http::request_header>&    header,
                       Trait&                                            trait)
             {
+                boost::shared_ptr<server::proxy_configuration> config(new server::proxy_configuration);
+
                 return boost::shared_ptr<server::async_response>(
-                    new server::proxy_response<Connection>(connection, header, trait.proxy()));
+                    new server::proxy_response<Connection>(connection, header, trait.proxy(), trait.io_queue(), config));
             }
         };
     };
@@ -47,7 +49,7 @@ static std::vector<char> simulate_sized_proxy(
     typedef server::connection<trait_t, socket_t>       connection_t;
 
     boost::asio::io_service&                            queue = proxy->get_io_service();
-    trait_t                                             trait(*proxy);
+    trait_t                                             trait(*proxy, queue);
 
     boost::shared_ptr<connection_t>                     connection(new connection_t(output, trait));
     connection->start();
@@ -222,7 +224,7 @@ TEST(error_while_connecting_the_orgin_server)
 }
 
 /**
- * @test while writing the request header to the proxy,
+ * @test error while writing the request header to the proxy,
  */
 TEST(error_while_writing_header_to_orgin_server)
 {
@@ -230,14 +232,22 @@ TEST(error_while_writing_header_to_orgin_server)
         "GET / HTTP/1.1\r\n"
         "host: 127.0.0.1:8080\r\n\r\n");
 
-    boost::asio::io_service queue;
-    server::test::socket<const char*> orgin_connection(
-        queue, 
-        begin(cached_response_apache), end(cached_response_apache),
-        make_error_code(boost::system::errc::success), 10000,
-        boost::asio::error::connection_aborted, 15);
+    boost::asio::io_service         queue;
+    proxy_connector::socket_list_t  sockets;
 
-    boost::shared_ptr<proxy_connector> proxy(new proxy_connector(orgin_connection));
+    // more than one socket is used, because the proxy_response will retry the read
+    for ( int num_of_sockets = 5; num_of_sockets; --num_of_sockets )
+    {
+        server::test::socket<const char*> orgin_connection(
+            queue, 
+            begin(cached_response_apache), end(cached_response_apache),
+            make_error_code(boost::system::errc::success), 10000,
+            boost::asio::error::connection_aborted, 15);
+
+        sockets.push_back(orgin_connection);
+    }
+
+    boost::shared_ptr<proxy_connector> proxy(new proxy_connector(sockets));
     const std::string response_text = simulate_proxy(proxy, request.text());
 
     http::response_header response(response_text.c_str());
@@ -429,12 +439,68 @@ TEST(request_an_other_connection_when_the_first_was_falty)
         simulate_proxy(connector, tools::substring(begin(simple_get_11), end(simple_get_11))));
 } 
 
+/**
+ * @test test that a small delay doesn't cause a timeout
+ */
+TEST(delayed_reading_from_orgin)
+{
+    boost::asio::io_service             queue;
+    server::test::socket<const char*>   sock(queue, begin(chunked_response_example), end(chunked_response_example), 5, boost::posix_time::microsec(30));
+
+    boost::shared_ptr<proxy_connector> connector(new proxy_connector(sock));
+
+    http::response_header   response(
+        simulate_proxy(connector, tools::substring(begin(simple_get_11), end(simple_get_11))).c_str());
+
+    CHECK_EQUAL(http::message::ok, response.state());
+    CHECK_EQUAL(http::http_ok, response.code());
+}
+
 TEST(timeout_while_reading_from_orgin)
 {
-    CHECK(false);
+    boost::asio::io_service             queue;
+    proxy_connector::socket_list_t      sockets;
+
+    // more than one socket is used, because the proxy_response will retry the read
+    for ( int num_of_sockets = 5; num_of_sockets; --num_of_sockets )
+    {
+        server::test::socket<const char*>   sock(queue, 
+            begin(chunked_response_example), end(chunked_response_example), 5, 
+            boost::posix_time::seconds(30), boost::posix_time::time_duration());
+
+        sockets.push_back(sock);
+    }
+
+    boost::shared_ptr<proxy_connector> connector(new proxy_connector(sockets));
+
+    http::response_header   response(
+        simulate_proxy(connector, tools::substring(begin(simple_get_11), end(simple_get_11))).c_str());
+
+    CHECK_EQUAL(http::message::ok, response.state());
+    CHECK_EQUAL(http::http_gateway_timeout, response.code());
 }
+
 
 TEST(timeout_while_writing_to_orgin)
 {
-    CHECK(false);
+    boost::asio::io_service             queue;
+    proxy_connector::socket_list_t      sockets;
+
+    // more than one socket is used, because the proxy_response will retry the read
+    for ( int num_of_sockets = 5; num_of_sockets; --num_of_sockets )
+    {
+        server::test::socket<const char*>   sock(queue, 
+            begin(chunked_response_example), end(chunked_response_example), 5, 
+            boost::posix_time::time_duration(), boost::posix_time::seconds(30));
+
+        sockets.push_back(sock);
+    }
+
+    boost::shared_ptr<proxy_connector> connector(new proxy_connector(sockets));
+
+    http::response_header   response(
+        simulate_proxy(connector, tools::substring(begin(simple_get_11), end(simple_get_11))).c_str());
+
+    CHECK_EQUAL(http::message::ok, response.state());
+    CHECK_EQUAL(http::http_gateway_timeout, response.code());
 }

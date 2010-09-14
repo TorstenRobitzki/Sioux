@@ -5,6 +5,7 @@
 #include "unittest++/unittest++.h"
 #include "server/test_socket.h"
 #include "server/test_tools.h"
+#include "server/timeout.h"
 #include "http/test_request_texts.h"
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/asio/io_service.hpp>
@@ -34,7 +35,8 @@ TEST(read_timeout_test)
     io_completed result;
 
     boost::asio::io_service queue;
-    server::test::socket<const char*> sock(queue, begin(simple_get_11), end(simple_get_11), 5, boost::posix_time::seconds(1));
+    server::test::socket<const char*> sock(queue, begin(simple_get_11), end(simple_get_11), 5, 
+        boost::posix_time::seconds(1), boost::posix_time::time_duration());
     char b[sizeof simple_get_11];
 
     const boost::posix_time::ptime t1 = boost::posix_time::microsec_clock::universal_time();
@@ -52,7 +54,8 @@ TEST(write_timeout_test)
     io_completed result;
 
     boost::asio::io_service queue;
-    server::test::socket<const char*> sock(queue, begin(simple_get_11), end(simple_get_11), 5, boost::posix_time::seconds(1));
+    server::test::socket<const char*> sock(queue, begin(simple_get_11), end(simple_get_11), 5, 
+        boost::posix_time::time_duration(), boost::posix_time::seconds(1));
 
     const boost::posix_time::ptime t1 = boost::posix_time::microsec_clock::universal_time();
 
@@ -83,4 +86,24 @@ TEST(chancel_read_write)
     CHECK_EQUAL(0u, result_write.bytes_transferred);
     CHECK_EQUAL(make_error_code(boost::asio::error::operation_aborted), result_read.error);
     CHECK_EQUAL(make_error_code(boost::asio::error::operation_aborted), result_write.error);
+}
+
+/**
+ * @test reading with timeout, using the async_read_some_with_to() function
+ */
+TEST(async_read_some_with_to_test)
+{
+    io_completed result;
+
+    boost::asio::io_service     queue;
+    boost::asio::deadline_timer timer(queue);
+    server::test::socket<const char*> sock(queue, begin(simple_get_11), end(simple_get_11), 5, boost::posix_time::seconds(1));
+    char b[sizeof simple_get_11];
+
+    server::async_read_some_with_to(sock, boost::asio::buffer(b), boost::bind<void>(&io_completed::handle_data, &result, _1, _2), timer, boost::posix_time::milliseconds(20));
+
+    run(queue);
+
+    CHECK_EQUAL(0u, result.bytes_transferred);
+    CHECK_EQUAL(result.error, make_error_code(server::time_out));
 }
