@@ -304,6 +304,12 @@ namespace http {
         return result;
     }
 
+    template <class Type>
+    bool message_base<Type>::empty() const
+    {
+        return read_ptr_ == 0;
+    }
+
     // explizit instanziating
     template class message_base<request_header>;
     template class message_base<response_header>;

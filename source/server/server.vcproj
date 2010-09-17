@@ -152,6 +152,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\traits.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\transfer_buffer.cpp"
 				>
 			</File>

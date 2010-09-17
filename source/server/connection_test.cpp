@@ -5,11 +5,15 @@
 #include "unittest++/unittest++.h"
 #include "server/connection.h"
 #include "server/test_traits.h"
+#include "server/test_tools.h"
 #include "http/test_request_texts.h"
+#include <boost/date_time/posix_time/posix_time.hpp>
 
 using namespace server::test;
-using namespace http::test;
- 
+using namespace http::test; 
+
+#if 0
+
 TEST(read_simple_header)
 {
     boost::asio::io_service     queue;
@@ -106,10 +110,134 @@ TEST(closed_by_connection_header)
     boost::weak_ptr<server::connection<traits<>, traits<>::connection_type> > connection(server::create_connection(socket, trait));
     CHECK(!connection.expired());
 
-    // two calls to process to receive one he
-    CHECK_EQUAL(2u, queue.run());
+    queue.run();
 
     trait.reset_responses();
     CHECK_EQUAL("Hello", socket.output());
+
+    // no outstanding reference to the connection object, so no read is pending on the connection to the client
     CHECK(connection.expired());
 }
+
+#endif 
+
+/**
+ * @test tests that a maximum idle time is not exceeded and the connection is closed 
+ */
+TEST(closed_when_idle_time_exceeded)
+{
+    boost::asio::io_service     queue;
+    read_plan                   reads;
+    reads << read(begin(simple_get_11), end(simple_get_11))
+          << delay(boost::posix_time::seconds(60))
+          << read(begin(simple_get_11), end(simple_get_11))
+          << read("");
+
+    traits<>::connection_type   socket(queue, reads);
+    traits<>                    trait;
+
+    boost::weak_ptr<server::connection<traits<>, traits<>::connection_type> > connection(server::create_connection(socket, trait));
+    CHECK(!connection.expired());
+
+    timer time;
+    queue.run();
+
+    // 30sec is the default idle time
+    server::connection_config config;
+    CHECK_CLOSE(config.keep_alive_timeout(), time.elapsed(), boost::posix_time::seconds(1));
+
+    trait.reset_responses();
+    CHECK_EQUAL("Hello", socket.output());
+
+    // no outstanding reference to the connection object, so no read is pending on the connection to the client
+    CHECK(connection.expired());
+}
+
+/**
+ * @test the connection should be forced to be closed, when the connection is closed by the client
+ */
+TEST(closed_by_client_disconnected)
+{
+    boost::asio::io_service     queue;
+    traits<>::connection_type   socket(queue, begin(simple_get_11), begin(simple_get_11) + (sizeof simple_get_11 / 2), 0);
+    traits<>                    trait;
+
+    boost::weak_ptr<server::connection<traits<>, traits<>::connection_type> > connection(server::create_connection(socket, trait));
+    CHECK(!connection.expired());
+
+    queue.run();
+
+    trait.reset_responses();
+    CHECK_EQUAL("", socket.output());
+    CHECK(connection.expired());
+}
+
+/**
+ * @test handle timeout while writing to a client 
+ */
+TEST(timeout_while_writing_to_client)
+{
+    boost::asio::io_service     queue;
+
+    read_plan                   reads;
+    reads << read(begin(simple_get_11), end(simple_get_11))
+          << delay(boost::posix_time::seconds(60))
+          << read("");
+
+    write_plan                  writes;
+    writes << write(2) << delay(boost::posix_time::seconds(60));
+
+    traits<>::connection_type   socket(queue, reads, writes);
+    traits<>                    trait;
+
+    boost::weak_ptr<server::connection<traits<>, traits<>::connection_type> > connection(server::create_connection(socket, trait));
+    CHECK(!connection.expired());
+
+    timer time;
+    queue.run();
+
+    // 3sec is the default timeout
+    server::connection_config config;
+    CHECK_CLOSE(config.timeout(), time.elapsed(), boost::posix_time::seconds(1));
+
+    trait.reset_responses();
+    CHECK_EQUAL("He", socket.output());
+
+    // no outstanding reference to the connection object, so no read is pending on the connection to the client
+    CHECK(connection.expired());
+}
+
+/**
+ * @test handle timeout while reading from a client
+ *
+ * The client starts sending a request header, but stops in the middle of the request to send further data.
+ */
+TEST(timeout_while_reading_from_client)
+{
+    boost::asio::io_service     queue;
+    read_plan                   reads;
+    reads << read(begin(simple_get_11), begin(simple_get_11) + (sizeof simple_get_11 / 2) )
+          << delay(boost::posix_time::seconds(60))
+          << read(begin(simple_get_11), end(simple_get_11))
+          << read("");
+
+    traits<>::connection_type   socket(queue, reads);
+    traits<>                    trait;
+
+    boost::weak_ptr<server::connection<traits<>, traits<>::connection_type> > connection(server::create_connection(socket, trait));
+    CHECK(!connection.expired());
+
+    timer time;
+    queue.run();
+
+    // 3sec is the default timeout
+    server::connection_config config;
+    CHECK_CLOSE(config.timeout(), time.elapsed(), boost::posix_time::seconds(1));
+
+    trait.reset_responses();
+    CHECK_EQUAL("", socket.output());
+
+    // no outstanding reference to the connection object, so no read is pending on the connection to the client
+    CHECK(connection.expired());
+}
+

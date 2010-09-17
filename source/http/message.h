@@ -111,6 +111,11 @@ namespace http
          */
         std::vector<tools::substring> filtered_request_text(const http::filter&) const;
 
+        /**
+         * @brief returns true, if no single byte was received and buffered
+         */
+        bool empty() const;
+
     protected:
         message_base();
 

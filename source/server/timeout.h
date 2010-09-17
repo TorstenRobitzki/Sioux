@@ -7,6 +7,7 @@
 
 #include "server/error_code.h"
 #include <boost/asio/error.hpp>
+#include <boost/asio/deadline_timer.hpp>
 
 namespace server 
 {

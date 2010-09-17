@@ -5,6 +5,7 @@
 #ifndef SIOUX_SOURCE_SERVER_TEST_SOCKET_H
 #define SIOUX_SOURCE_SERVER_TEST_SOCKET_H
 
+#include "server/test_io_plan.h"
 #include <boost/noncopyable.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/enable_shared_from_this.hpp>
@@ -134,6 +135,11 @@ public:
     explicit socket(boost::asio::io_service& io_service);
 
     /**
+     * @brief socket with explicit plans for reading and writing
+     */
+    socket(boost::asio::io_service& io_service, const read_plan& reads, const write_plan& writes = write_plan());
+
+    /**
      * @brief default c'tor
      * 
      * This results in a socket that silently doesn't responde to any read or write attempt
@@ -213,6 +219,8 @@ private:
 
         impl(boost::asio::io_service& io_service, error_on_connect_t);
 
+        impl(boost::asio::io_service& io_service, const read_plan& reads, const write_plan& writes);
+
 	    template<
 		    typename MutableBufferSequence,
 		    typename ReadHandler>
@@ -288,9 +296,13 @@ private:
         const error_on_connect_t                    connect_error_mode_;
 
         boost::asio::io_service&                    io_service_;
-        boost::asio::deadline_timer                 timer_;
+        boost::asio::deadline_timer                 read_timer_;
+        boost::asio::deadline_timer                 write_timer_;
         boost::posix_time::time_duration            read_delay_;
         boost::posix_time::time_duration            write_delay_;
+
+        server::test::read_plan                     read_plan_;
+        server::test::write_plan                    write_plan_;
     };
 
     boost::shared_ptr<impl>  pimpl_;
@@ -350,6 +362,12 @@ template <class Iterator, class Trait>
 socket<Iterator, Trait>::socket(boost::asio::io_service& io_service, Iterator begin, Iterator end, 
         const boost::minstd_rand& random, std::size_t lower_bound, std::size_t upper_bound)
  : pimpl_(new impl(io_service, begin, end, random, lower_bound, upper_bound))
+{
+}
+
+template <class Iterator, class Trait>
+socket<Iterator, Trait>::socket(boost::asio::io_service& io_service, const read_plan& reads, const write_plan& writes)
+ : pimpl_(new impl(io_service, reads, writes))
 {
 }
 
@@ -471,7 +489,8 @@ socket<Iterator, Trait>::impl::impl(boost::asio::io_service& io_service)
  , write_error_occurens_()
  , connect_error_mode_(connect_successfully)
  , io_service_(io_service)
- , timer_(io_service_)
+ , read_timer_(io_service_)
+ , write_timer_(io_service_)
 {
 }
 
@@ -504,7 +523,8 @@ socket<Iterator, Trait>::impl::impl(boost::asio::io_service&                io_s
  , write_error_occurens_()
  , connect_error_mode_(connect_successfully)
  , io_service_(io_service)
- , timer_(io_service_)
+ , read_timer_(io_service_)
+ , write_timer_(io_service_)
  , read_delay_(read_delay)
  , write_delay_(write_delay)
 {
@@ -540,7 +560,8 @@ socket<Iterator, Trait>::impl::impl(boost::asio::io_service&         io_service,
  , write_error_occurens_(write_error_occurens)
  , connect_error_mode_(connect_successfully)
  , io_service_(io_service)
- , timer_(io_service_)
+ , read_timer_(io_service_)
+ , write_timer_(io_service_)
 {
 }
 
@@ -568,7 +589,8 @@ socket<Iterator, Trait>::impl::impl(boost::asio::io_service& io_service, Iterato
  , write_error_occurens_()
  , connect_error_mode_(connect_successfully)
  , io_service_(io_service)
- , timer_(io_service_)
+ , read_timer_(io_service_)
+ , write_timer_(io_service_)
 {
 }
 
@@ -595,10 +617,40 @@ socket<Iterator, Trait>::impl::impl(boost::asio::io_service& io_service, error_o
  , write_error_occurens_()
  , connect_error_mode_(mode)
  , io_service_(io_service)
- , timer_(io_service_)
+ , read_timer_(io_service_)
+ , write_timer_(io_service_)
 {
 }
-
+        
+template <class Iterator, class Trait>
+socket<Iterator, Trait>::impl::impl(boost::asio::io_service& io_service, const read_plan& reads, const write_plan& writes)
+ : current_(Iterator())
+ , begin_(Iterator())
+ , end_(Iterator())
+ , bite_size_(0)
+ , times_(0)
+ , use_random_generator_(false)
+ , random_generator_()
+ , random_destribution_()
+ , random_(random_generator_, random_destribution_)
+ , output_()
+ , connected_(true)
+ , shutdown_read_(false)
+ , shutdown_write_(false)
+ , read_error_enabled_(false)
+ , read_error_()
+ , read_error_occurens_()
+ , write_error_enabled_(false)
+ , write_error_()
+ , write_error_occurens_()
+ , connect_error_mode_(connect_successfully)
+ , io_service_(io_service)
+ , read_timer_(io_service_)
+ , write_timer_(io_service_)
+ , read_plan_(reads)
+ , write_plan_(writes)
+{
+}
 
 namespace {
 
@@ -637,6 +689,37 @@ namespace {
         SocketPtr   socket;
     };
 
+    template <class Buffer>
+    std::size_t copy_read(const std::string& data, Buffer& target)
+    {
+        const std::size_t size = std::min(data.size(), boost::asio::buffer_size(target));
+        std::copy(data.begin(), data.begin()+size, boost::asio::buffers_begin(target));
+
+        return size;
+    }
+
+    template <class Handler, class Buffer, class SocketPtr>
+    struct delayed_planned_read_t
+    {
+        void operator()(const boost::system::error_code& error)
+        {
+            if ( error )
+            {
+                handler(make_error_code(boost::asio::error::operation_aborted), 0);
+            }
+            else
+            {   
+                handler(error, copy_read(data, buffer));
+            }
+        }
+
+        Handler     handler;
+        Buffer      buffer;
+        std::string data;
+        SocketPtr   socket;
+    };
+
+
     template <class Handler, class Buffer, class SocketPtr>
     struct delayed_write_t
     {
@@ -658,6 +741,27 @@ namespace {
     };
 
     template <class Handler, class Buffer, class SocketPtr>
+    struct delayed_planned_write_t
+    {
+        void operator()(const boost::system::error_code& error)
+        {
+            if ( error )
+            {
+                handler(make_error_code(boost::asio::error::operation_aborted), 0);
+            }
+            else
+            {
+                handler(error, size);
+            }
+        }
+
+        Handler     handler;
+        Buffer      buffer;
+        std::size_t size;
+        SocketPtr   socket;
+    };
+
+    template <class Handler, class Buffer, class SocketPtr>
     delayed_read_t<Handler, Buffer, SocketPtr>
     delayed_read(const Handler& handler, const Buffer& buffer, const SocketPtr& socket)
     {
@@ -667,10 +771,28 @@ namespace {
     }
 
     template <class Handler, class Buffer, class SocketPtr>
+    delayed_planned_read_t<Handler, Buffer, SocketPtr>
+    delayed_planned_read(const Handler& handler, const Buffer& buffer, const SocketPtr& socket, const std::string& data)
+    {
+        delayed_planned_read_t<Handler, Buffer, SocketPtr> delay = {handler, buffer, data, socket};
+
+        return delay;
+    }
+
+    template <class Handler, class Buffer, class SocketPtr>
     delayed_write_t<Handler, Buffer, SocketPtr>
     delayed_write(const Handler& handler, const Buffer& buffer, const SocketPtr& socket)
     {
         delayed_write_t<Handler, Buffer, SocketPtr> delay = {handler, buffer, socket};
+
+        return delay;
+    }
+
+    template <class Handler, class Buffer, class SocketPtr>
+    delayed_planned_write_t<Handler, Buffer, SocketPtr>
+    delayed_planned_write(const Handler& handler, const Buffer& buffer, const SocketPtr& socket, std::size_t size)
+    {
+        delayed_planned_write_t<Handler, Buffer, SocketPtr> delay = {handler, buffer, size, socket};
 
         return delay;
     }
@@ -746,10 +868,27 @@ void socket<Iterator, Trait>::impl::async_read_some(
         return;
     }
 
+    if ( !read_plan_.empty() )
+    {
+        const read_plan::item plan = read_plan_.next_read();
+
+        if ( plan.second != boost::posix_time::time_duration() )
+        {
+            read_timer_.expires_from_now(plan.second);
+            read_timer_.async_wait(
+                delayed_planned_read(handler, buffers, shared_from_this(), plan.first));
+        }
+        else
+        {
+            const std::size_t size = copy_read(plan.first, buffers);
+            io_service_.post(boost::bind<void>(handler, boost::system::error_code(), size));
+        }
+    }
+    else
     if ( read_delay_ != boost::posix_time::time_duration() )
     {
-        timer_.expires_from_now(read_delay_);
-        timer_.async_wait(
+        read_timer_.expires_from_now(read_delay_);
+        read_timer_.async_wait(
             delayed_read(handler, buffers, shared_from_this()));
     }
     else
@@ -820,10 +959,32 @@ void socket<Iterator, Trait>::impl::async_write_some(
         return;
     }
 
-    if ( write_delay_ != boost::posix_time::time_duration() )
+    if ( !write_plan_.empty() )
     {
-        timer_.expires_from_now(write_delay_);
-        timer_.async_wait(
+        const write_plan::item item = write_plan_.next_write();
+
+        if ( item.second != boost::posix_time::time_duration() )
+        {
+            write_timer_.expires_from_now(item.second);
+            write_timer_.async_wait(
+                delayed_planned_write(handler, buffers, shared_from_this(), item.first));
+        }
+        else
+        {
+            boost::asio::buffers_iterator<ConstBufferSequence> end = boost::asio::buffers_begin(buffers);
+
+            // std::advance results in a compiler error; this might be a bug in boost::asio
+            for ( std::size_t i = 0; i != item.first; ++i )
+                ++end;
+
+            output_.insert(output_.end(), boost::asio::buffers_begin(buffers), end);
+            io_service_.post(boost::bind<void>(handler, make_error_code(boost::system::errc::success), item.first));
+        }
+    }
+    else if ( write_delay_ != boost::posix_time::time_duration() )
+    {
+        write_timer_.expires_from_now(write_delay_);
+        write_timer_.async_wait(
             delayed_write(handler, buffers, shared_from_this()));
     }
     else
@@ -854,7 +1015,8 @@ template <class Iterator, class Trait>
 void socket<Iterator, Trait>::impl::close()
 {
     connected_ = false;
-    timer_.cancel();
+    read_timer_.cancel();
+    write_timer_.cancel();
 }
 
 template <class Iterator, class Trait>

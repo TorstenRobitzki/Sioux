@@ -9,6 +9,7 @@
 #include "http/http.h"
 #include "server/response.h"
 #include "server/error_code.h"
+#include "server/timeout.h"
 #include "tools/mem_tools.h"
 #include <boost/asio/placeholders.hpp>
 #include <boost/asio/write.hpp>
@@ -33,6 +34,15 @@ namespace server
      *
      * The connection class is not responsible for http persisent connection support,
      * this have to be implemented within the responses.
+     *
+     * The given Trait class has to have a member function keep_alive_timeout(), that returns a 
+     * boost::posix_time::time_duration, that gives the maximum time, that a connection stays
+     * open and idle, until it's closed. A connection is idle, when no response is pending
+     * and when a new header is read.
+     *
+     * The given Trait class has to have a member function timeout(), that returns
+     * a boost::posix_time::time_duration, that gives the maximum time, a read or write can
+     * last until the connection is closed.
 	 */
     template <class Trait, class Connection = Trait::connection_type>
     class connection : public boost::enable_shared_from_this<connection<Trait, Connection> >
@@ -153,7 +163,7 @@ namespace server
             const WriteHandler          handler_;
         };
 
-        void issue_header_read();
+        void issue_header_read(const boost::posix_time::time_duration& time_out);
 		void handle_read(const boost::system::error_code& e, std::size_t bytes_transferred);
 
         /*
@@ -183,6 +193,9 @@ namespace server
 
         bool                                    current_response_is_sending_;
         bool                                    shutdown_read_;
+
+        boost::asio::deadline_timer             read_timer_;
+        boost::asio::deadline_timer             write_timer_;
  	};
 
     /**
@@ -203,6 +216,8 @@ namespace server
         , current_request_()
         , current_response_is_sending_(false)
         , shutdown_read_(false)
+        , read_timer_(connection_.get_io_service())
+        , write_timer_(connection_.get_io_service())
     {
         trait_.event_connection_created(*this);
     }
@@ -221,7 +236,7 @@ namespace server
     void connection<Trait, Connection>::start()
     {
         current_request_.reset(new http::request_header);
-        issue_header_read();
+        issue_header_read(trait_.timeout());
     }
 
     template <class Trait, class Connection>
@@ -246,7 +261,13 @@ namespace server
 
         if ( responses_.front() == &sender )
         {
-            boost::asio::async_write(connection_, buffers, handler);
+            server::async_write_with_to(
+                connection_,
+                buffers,
+                handler,
+                write_timer_,
+                trait_.timeout());
+
             current_response_is_sending_ = true;
         }
         else
@@ -271,7 +292,13 @@ namespace server
 
         if ( responses_.front() == &sender )
         {
-            connection_.async_write_some(buffers, handler);
+            server::async_write_with_to(
+                connection_,
+                buffers,
+                handler,
+                write_timer_,
+                trait_.timeout());
+
             current_response_is_sending_ = true;
         }
         else
@@ -280,7 +307,6 @@ namespace server
 
             hurry_writers(sender);
 
-            /// @todo bug: nobody notifies sender, when adding the defered send to the list
             // store send request until the current sender is ready
             blocked_write_list::mapped_type& writes = blocked_writes_[&sender];
             tools::save_push_back(new blocked_write_some<ConstBufferSequence, WriteHandler>(buffers, handler), writes);
@@ -409,18 +435,20 @@ namespace server
     }
 
 	template <class Trait, class Connection>
-    void connection<Trait, Connection>::issue_header_read()
+    void connection<Trait, Connection>::issue_header_read(const boost::posix_time::time_duration& time_out)
     {
         const std::pair<char*, std::size_t> buffer = current_request_->read_buffer();
         assert(buffer.first && buffer.second);
 
-        connection_.async_read_some(
+        server::async_read_some_with_to(
+            connection_,
             boost::asio::buffer(buffer.first, buffer.second),
             boost::bind(&connection::handle_read, 
                         boost::static_pointer_cast<connection<Trait, Connection> >(shared_from_this()),
                         boost::asio::placeholders::error,
-                        boost::asio::placeholders::bytes_transferred)
-        );
+                        boost::asio::placeholders::bytes_transferred),
+            read_timer_,
+            time_out);
     }
 
 	template <class Trait, class Connection>
@@ -436,7 +464,11 @@ namespace server
                 current_request_.reset(new http::request_header(*current_request_, bytes_transferred, http::request_header::copy_trailing_buffer));
             }
 
-            issue_header_read();
+            const boost::posix_time::time_duration next_read_timeout = current_request_->empty() 
+                ? trait_.keep_alive_timeout()
+                : trait_.timeout();
+
+            issue_header_read(next_read_timeout);
         }
     }
 

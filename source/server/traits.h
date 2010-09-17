@@ -5,6 +5,8 @@
 #ifndef SIOUX_SOURCE_SERVER_TRAITS_H
 #define SIOUX_SOURCE_SERVER_TRAITS_H
 
+#include <boost/date_time/posix_time/posix_time_types.hpp>
+
 namespace http 
 {
     class request_header;
@@ -85,16 +87,36 @@ namespace server
     }
 
     /**
+     * @brief default connection configurations
+     */
+    class connection_config
+    {
+    public:
+        /**
+         * @brief returns an idle timeout of 30 seconds
+         */
+        boost::posix_time::time_duration keep_alive_timeout() const;
+
+        /**
+         * @brief returns a connection timeout of 3 seconds
+         * @todo lookup resonable values from the apache docum
+         */
+        boost::posix_time::time_duration timeout() const;
+    };
+
+    /**
      * @brief interface to costumize different aspects of handling connections, requests and responses
      */
     template <class Network,
               class ResponseFactory,
               class EventLog = null_event_logger,
-              class ErrorLog = null_error_logger>
+              class ErrorLog = null_error_logger,
+              class Configuration = connection_config>
     class connection_traits : 
         public ResponseFactory,
         public EventLog,
-        public ErrorLog
+        public ErrorLog,
+        public Configuration
     {
     public:
         connection_traits() {}

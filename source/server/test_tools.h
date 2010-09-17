@@ -49,6 +49,44 @@ namespace server
          */
         void wait(const boost::posix_time::time_duration& period);
 
+        /**
+         * @brief times the time since construction
+         */
+        class timer
+        {
+        public:
+            timer();
+
+            boost::posix_time::time_duration elapsed() const;
+        private:
+            boost::posix_time::ptime    start_;
+        };
+
+        /**
+         * @brief provide a call back for io functions and record the parameters and the time of the call.
+         *
+         * to provide reference semantic, each object points to an othere copy of an original created with
+         * the default c'tor.
+         */
+        struct io_completed
+        {
+            io_completed();
+            io_completed(const io_completed& org);
+            ~io_completed();
+            io_completed& operator=(const io_completed& rhs);
+
+            void swap(io_completed& other);
+
+            void operator()(const boost::system::error_code& e, std::size_t b);
+
+            boost::system::error_code   error;
+            size_t                      bytes_transferred;
+            boost::posix_time::ptime    when;
+
+        private:
+            mutable io_completed*       next_;
+        };
+
     } // namespace test
 
 } // namespace server
