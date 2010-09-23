@@ -4,6 +4,8 @@
 
 #include "unittest++/unittest++.h"
 #include "json/json.h"
+#include "tools/iterators.h"
+#include <iostream>
 
 TEST(json_string_test)
 {
@@ -94,4 +96,95 @@ TEST(json_special_test)
     CHECK_EQUAL(t.to_json().size(), t.size());
 
     CHECK(t != f);
+    CHECK(null != t);
+    CHECK(null != f);
+}
+
+/*
+ * parse the given string in two parts, to test that the state of the parser is correctly stored
+ * between to calls to parse()
+ */
+static bool split_parse(const std::string& json)
+{
+    assert(!json.empty());
+    const json::value expected = json::parse(json.begin(), json.end());
+
+    if ( json.size() == 1 )
+        return true;
+
+    bool result = true;
+
+    for ( std::string::size_type i = 1u; i != json.size() && result; ++i )
+    {
+        const std::string s1(json, 0, i);
+        const std::string s2(json, i, json.size() -i);
+
+        json::parser p;
+
+        try {
+            p.parse(s1.begin(), s1.end());
+            p.parse(s2.begin(), s2.end());
+            p.flush();
+        }
+        catch (...)
+        {
+            std::cerr << "failed to parse json splitted into:\n" 
+                      << s1 
+                      << "\nand\n"
+                      << s2
+                      << std::endl;
+
+            result = false;
+        }
+
+        if ( p.result() != expected )
+        {
+            result = false;
+
+            std::cerr << "expected:\n" 
+                      << expected.to_json()
+                      << "\nbut got\n"
+                      << p.result().to_json()
+                      << std::endl;
+        }
+    }
+
+    return result;
+}
+
+TEST(simple_parser_test)
+{
+    const char test_json[] = "[[],12.1e12,21,\"Hallo\\u1234\",{\"a\":true,\"b\":false},{},null]";
+
+    const json::value result = json::parse(tools::begin(test_json), tools::end(test_json)-1);
+    CHECK_EQUAL(test_json, result.to_json());
+    CHECK(split_parse(test_json));
+}
+
+TEST(valid_numbers_test)
+{
+    const char* valid_numbers[] = {
+        "0", "-0", "12", "9989087", "-1223", "12.1", "-0.0", "-123.433", 
+        "0.00e12", "-123.89e14", "-123.7e-1", "123e0", "0e0", "0e-0", "1.123e-1",
+        "0.00E12", "-123.89E14", "-123.7E-1", "123E0", "0E0", "0E-0", "1.123E-1"
+    };
+
+    for ( const char* const * i = tools::begin(valid_numbers); i != tools::end(valid_numbers); ++i)
+    {
+        CHECK(split_parse(*i));
+    }
+}
+
+TEST(invalid_numbers_test)
+{
+    const char* invalid_numbers[] = {
+        "a", "b", "-", "-0.", ".12", "-1223.", ".1", 
+        "0.00e", "-123.7e-", "0e", "0e+", "e"
+    };
+
+    for ( const char* const * i = tools::begin(invalid_numbers); i != tools::end(invalid_numbers); ++i)
+    {
+        const std::string s(*i);
+        CHECK_THROW(json::parse(s.begin(), s.end()), json::parse_error);
+    }
 }

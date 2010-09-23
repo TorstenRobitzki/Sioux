@@ -5,8 +5,10 @@
 #include "json/json.h"
 #include "tools/dynamic_type.h"
 #include "tools/asstring.h"
+#include "tools/iterators.h"
 #include <algorithm>
 #include <iterator>
+#include <cctype>
 
 namespace json
 {
@@ -62,7 +64,12 @@ namespace json
         class string_impl : public value::impl
         {
         public:
-            string_impl(const char* s) : data_()
+            explicit string_impl(std::vector<char>& v)
+            {
+                data_.swap(v);
+            }
+
+            explicit string_impl(const char* s) : data_()
             {
                 data_.push_back('\"');
                 
@@ -149,6 +156,11 @@ namespace json
         class number_impl : public value::impl
         {
         public:
+            explicit number_impl(std::vector<char>& buffer)
+            {
+                data_.swap(buffer);
+            }
+
             explicit number_impl(int val)
                 : data_()   
             {
@@ -584,6 +596,506 @@ namespace json
         return !(lhs == rhs);
     }
 
+    /////////////////////
+    // class parse_error
+    parse_error::parse_error(const std::string& s) : std::runtime_error(s)
+    {
+    }
+
+    ////////////////
+    // class parser
+    namespace {
+        enum parser_state 
+        {
+            idle_parsing = 0,
+            start_number_parsing = 100,
+                sign_parsed,
+                pre_dot_parsed,
+                leading_zero_parsed,
+                dot_parsed,
+                post_dot_parsed,
+                exponent_parsed,
+                exponent_sign_parsed,
+                exponent_value_parsed,
+            start_object_parsing = 200,
+                left_brace_parsed,
+                member_name_parsed, 
+                member_value_parsed,
+            start_array_parsing = 300,
+                left_bracket_parsed,
+                array_value_parsed,
+            start_string_parsing = 400,
+                string_parsing,
+                reverse_solidus_parsed,
+                unicode_marker_parse,
+            start_true_parsing = 500,
+            start_false_parsing = 600,
+            start_null_parsing = 700,
+        };
+
+        int main_state(int state)
+        {
+            return state - (state % 100);
+        }
+    }
+
+    parser::parser()
+    {
+        state_.push(idle_parsing);
+    }
+
+    static const char* eat_white_space(const char* begin, const char* end)
+    {
+        for ( ; begin != end && ( *begin == ' ' || *begin == '\t' || *begin == '\n' || *begin == '\r' ); begin )
+            ;
+
+        return begin;
+    }
+
+    bool parser::parse(const char* begin, const char* end)
+    {
+        assert(!state_.empty());
+
+        for ( ; begin != end && !state_.empty(); )
+        {
+            switch ( main_state(state_.top()) )
+            {
+            case idle_parsing:
+                begin = eat_white_space(begin, end);
+
+                if ( begin != end )
+                {
+                    state_.top() = parse_idle(*begin);
+                }
+                break;
+            case start_number_parsing:
+                begin = parse_number(begin, end);
+                break;
+            case start_array_parsing:
+                begin = parse_array(begin, end);
+                break;
+            case start_object_parsing:
+                begin = parse_object(begin, end);
+                break;
+            case start_string_parsing:
+                begin = parse_string(begin, end);
+                break;
+            case start_true_parsing:
+            case start_false_parsing:
+            case start_null_parsing:
+                begin = parse_literal(begin, end);
+                break;
+            default:
+                assert(!"should not happen");
+            }
+        }
+
+        return state_.empty();
+    }
+
+    int parser::parse_idle(char c)
+    {
+        switch ( c )
+        {
+            case '{':
+                return start_object_parsing;
+            case '[':
+                return start_array_parsing;
+            case '\"':
+                return start_string_parsing;
+            case 'f':
+                return start_false_parsing;
+            case 't':
+                return start_true_parsing;
+            case 'n':
+                return start_null_parsing;
+
+            case '-':
+            case '0':
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+            case '8':
+            case '9':
+                return start_number_parsing;
+        }
+
+        throw parse_error("Unexpected character: " + tools::as_string(int(c)));
+    }
+
+
+    static int state_after_digit(int old_state)
+    {
+        if ( old_state >= exponent_parsed )
+        {
+            return exponent_value_parsed;
+        }
+        else if ( old_state >= dot_parsed )
+        {
+            return post_dot_parsed;
+        }
+
+        return pre_dot_parsed;
+    }
+
+    static bool is_complete_number(int state)
+    {
+        return state == pre_dot_parsed 
+            || state == leading_zero_parsed
+            || state == post_dot_parsed
+            || state == exponent_value_parsed;
+    }
+
+    const char* parser::parse_number(const char* begin, const char* end)
+    {
+        assert(!state_.empty());
+        bool stop = false;
+
+        for ( ; begin != end && !stop; )
+        {
+            switch ( *begin )
+            {
+            case '-':
+            case '+':
+                if ( state_.top() > start_number_parsing && state_.top() != exponent_parsed )
+                    throw parse_error("unexpected sign");
+
+                state_.top() = state_.top() == exponent_parsed
+                    ? exponent_sign_parsed
+                    : sign_parsed;
+                break;
+            case '.':
+                if ( state_.top() != pre_dot_parsed && state_.top() != leading_zero_parsed )
+                    throw parse_error("unexpected dot(.)");
+
+                state_.top() = dot_parsed;
+                break;
+            case '0':
+                if ( state_.top() != sign_parsed && state_.top() != start_number_parsing && state_.top() != pre_dot_parsed
+                    && state_.top() != dot_parsed && state_.top() != post_dot_parsed && state_.top() < exponent_parsed )
+                {
+                    throw parse_error("unexpected 0");
+                }
+
+                state_.top() = state_after_digit(state_.top());
+                break;
+            case 'e':
+            case 'E':
+                if ( state_.top() != leading_zero_parsed && state_.top() != pre_dot_parsed && state_.top() != post_dot_parsed )
+                    throw parse_error("unexpected exponent");
+
+                state_.top() = exponent_parsed;
+                break;
+            default :
+                if (isdigit(*begin))
+                {
+                    state_.top() = state_after_digit(state_.top());
+                }
+                else if ( is_complete_number(state_.top()) )
+                {
+                    stop = true;
+                }
+                else
+                {
+                    throw parse_error("incomplete number");
+                }
+            }
+
+            if ( !stop )
+            {
+                buffer_.push_back(*begin);
+                ++begin;
+            }
+        }
+
+        if ( stop )
+        {
+            value_parsed(value(new number_impl(buffer_)));
+        }
+
+        return begin;
+    }
+
+    const char* parser::parse_array(const char* begin, const char* end)
+    {
+        if ( state_.top() == start_array_parsing )
+        {
+            assert(begin != end && *begin == '[');
+
+            state_.top() = left_bracket_parsed;             
+            result_.push(array());
+
+            ++begin;
+        }
+        else if ( state_.top() == left_bracket_parsed )
+        {
+            begin = eat_white_space(begin, end);
+
+            if ( begin != end )
+            {
+                if ( *begin == ']' )
+                {
+                    state_.pop();
+                    ++begin;
+                }
+                else
+                {
+                    state_.top() = array_value_parsed;
+                    state_.push(idle_parsing);
+                }
+            }
+        }
+        else
+        {
+            assert(state_.top() == array_value_parsed);
+
+            begin = eat_white_space(begin, end);
+
+            if ( begin != end )
+            {
+                if ( *begin == ',' )
+                {
+                    state_.top() = array_value_parsed;
+                    state_.push(idle_parsing);
+                }
+                else if ( *begin == ']' )
+                {
+                    state_.pop();
+                }
+                else
+                {
+                    throw parse_error("Unexpected char while parsing array: " + tools::as_string(int(*begin)));
+                }
+
+                ++begin;
+                const value ele = result_.top();
+                result_.pop();
+                static_cast<array&>(result_.top()).add(ele);
+            }
+        }
+
+        return begin;
+    }
+
+    const char* parser::parse_object(const char* begin, const char* end)
+    {
+        if ( state_.top() == start_object_parsing )
+        {
+            assert(begin != end && *begin == '{');
+
+            state_.top() = left_brace_parsed;             
+            result_.push(object());
+
+            ++begin;
+        }
+        else if ( state_.top() == left_brace_parsed )
+        {
+            begin = eat_white_space(begin, end);
+
+            if ( begin != end )
+            {
+                if ( *begin == '}' )
+                {
+                    ++begin;
+                    state_.pop();
+                }
+                else if ( *begin == '\"' )
+                {
+                    state_.top() = member_name_parsed;
+                    state_.push(start_string_parsing);
+                }
+                else
+                {
+                    throw parse_error("Object pair must begin with a string");
+                }
+            }
+        }
+        else if ( state_.top() == member_name_parsed )
+        {
+            begin = eat_white_space(begin, end);
+
+            if ( begin != end )
+            {
+                if ( *begin != ':' )
+                    throw parse_error("colon expected");
+
+                state_.top() = member_value_parsed;
+                state_.push(idle_parsing);
+
+                ++begin;
+            }
+        }
+        else
+        {
+            assert(state_.top() == member_value_parsed);
+
+            begin = eat_white_space(begin, end);
+
+            if ( begin != end )
+            {
+                if ( *begin == ',' )
+                   ++begin;
+
+                state_.top() = left_brace_parsed;
+
+                value  val  = result_.top();
+                result_.pop();
+                string name = static_cast<string&>(result_.top());
+                result_.pop();
+
+                static_cast<object&>(result_.top()).add(name, val);
+            }
+        }
+
+        return begin;
+    }
+
+    const char* parser::parse_string(const char* begin, const char* end)
+    {
+        bool stop = false;
+
+        for ( ; begin != end && !stop; )
+        {
+            switch ( state_.top() )
+            {
+            case start_string_parsing: 
+                assert(*begin == '\"');
+                assert(buffer_.empty());
+
+                state_.top() = string_parsing;
+
+                buffer_.push_back(*begin);
+                ++begin;
+                break;
+            case string_parsing:
+                {
+                    const char* p = begin;
+                    for ( ; p != end && *p != '\"' && *p != '\\'; ++p )
+                        ;
+
+                    buffer_.insert(buffer_.end(), begin, p);
+                    begin = p;
+
+                    if ( begin != end )
+                    {
+                        buffer_.push_back(*begin);
+                        if ( *begin == '\"' )
+                        {
+                            value_parsed(value(new string_impl(buffer_)));
+                            stop = true;
+                        }
+                        else 
+                        {
+                            assert( *begin == '\\' );
+                            state_.top() = reverse_solidus_parsed;
+                        }
+
+                        ++begin;
+                    }
+                }
+                break;
+            case reverse_solidus_parsed:
+                {
+                    if ( *begin == 'u' )
+                    {
+                        state_.top() = unicode_marker_parse;
+                    }
+                    else
+                    {
+                        static const char escapeable_characters[] = { '\"', '\\', '/', 'b', 'f', 'n', 'r', 't'};
+
+                        if ( std::find(tools::begin(escapeable_characters), tools::end(escapeable_characters), *begin)
+                             == tools::end(escapeable_characters) )
+                        {
+                            throw parse_error("Unexpected escaped char: " + tools::as_string(int(*begin)));
+                        }
+
+                        state_.top() = string_parsing;
+                    }
+
+                    buffer_.push_back(*begin);
+                    ++begin;
+                }
+                break;
+            default:
+                {
+                    const int missing_hexdigits = 4 - state_.top() + unicode_marker_parse;
+
+                    assert(missing_hexdigits > 0 && missing_hexdigits <= 4);
+                    
+                    if (!std::isxdigit(*begin))
+                        throw parse_error("Hex-Digit expected.");
+
+                    buffer_.push_back(*begin);
+                    ++begin;
+
+                    ++state_.top();
+
+                    if ( state_.top() - unicode_marker_parse == 4 )
+                        state_.top() = string_parsing;
+                }
+            }
+        }
+
+        return begin;
+    }
+
+    const char* parser::parse_literal(const char* begin, const char* end)
+    {
+        static const char* literals[] = {"true", "false", "null"};
+        static const value values[]   = {true_val(), false_val(), null()};
+
+        const int literal = (state_.top() - start_true_parsing) / 100;
+
+        for ( const char* l = &literals[literal][state_.top() % 100]; 
+            begin != end && *l != 0; ++begin, ++l )
+        {
+            if ( *begin != *l )
+            {
+                throw parse_error("invalid json literal");
+            }
+
+            ++state_.top();
+        }
+
+        if ( begin != end )
+            value_parsed(values[literal]);
+
+        return begin;
+    }
+
+    void parser::value_parsed(const value& v)
+    {
+        state_.pop();
+        result_.push(v);
+    }
+
+    value parser::result() const   
+    {
+        assert(state_.empty());
+        assert(result_.size() == 1);
+
+        return result_.top();
+    }
+
+    void parser::flush()
+    {
+        // still parsing a number
+        if ( !state_.empty() )
+        {
+            if ( !is_complete_number(state_.top()) )
+                throw parse_error("incomplete json number");
+
+            value_parsed(value(new number_impl(buffer_)));
+        }
+
+        if ( !state_.empty() || result_.size() != 1 )
+            throw parse_error("incomplete json expression");
+    }
 
 } // namespace json
 

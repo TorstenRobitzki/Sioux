@@ -38,6 +38,16 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "http_test", "http\http_test
 		{8F834854-8287-498B-939C-B66BB10EBE33} = {8F834854-8287-498B-939C-B66BB10EBE33}
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "data", "data\data.vcproj", "{1B21ED2D-A60C-48DB-BCF5-E080E1046938}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "json", "json\json.vcproj", "{8D678680-DCB3-4204-8BF5-C9CFC5FEF4B7}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "json_test", "json\json_test.vcproj", "{D0758FDF-6342-4831-9AB0-3EA36D76711A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{FDF4BF39-E013-4F44-99AF-ADA86A58E13D} = {FDF4BF39-E013-4F44-99AF-ADA86A58E13D}
+		{8D678680-DCB3-4204-8BF5-C9CFC5FEF4B7} = {8D678680-DCB3-4204-8BF5-C9CFC5FEF4B7}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -80,6 +90,18 @@ Global
 		{17ACEA3A-7EA3-42E6-922D-8CCC3E8C9E75}.Debug|Win32.Build.0 = Debug|Win32
 		{17ACEA3A-7EA3-42E6-922D-8CCC3E8C9E75}.Release|Win32.ActiveCfg = Release|Win32
 		{17ACEA3A-7EA3-42E6-922D-8CCC3E8C9E75}.Release|Win32.Build.0 = Release|Win32
+		{1B21ED2D-A60C-48DB-BCF5-E080E1046938}.Debug|Win32.ActiveCfg = Debug|Win32
+		{1B21ED2D-A60C-48DB-BCF5-E080E1046938}.Debug|Win32.Build.0 = Debug|Win32
+		{1B21ED2D-A60C-48DB-BCF5-E080E1046938}.Release|Win32.ActiveCfg = Release|Win32
+		{1B21ED2D-A60C-48DB-BCF5-E080E1046938}.Release|Win32.Build.0 = Release|Win32
+		{8D678680-DCB3-4204-8BF5-C9CFC5FEF4B7}.Debug|Win32.ActiveCfg = Debug|Win32
+		{8D678680-DCB3-4204-8BF5-C9CFC5FEF4B7}.Debug|Win32.Build.0 = Debug|Win32
+		{8D678680-DCB3-4204-8BF5-C9CFC5FEF4B7}.Release|Win32.ActiveCfg = Release|Win32
+		{8D678680-DCB3-4204-8BF5-C9CFC5FEF4B7}.Release|Win32.Build.0 = Release|Win32
+		{D0758FDF-6342-4831-9AB0-3EA36D76711A}.Debug|Win32.ActiveCfg = Debug|Win32
+		{D0758FDF-6342-4831-9AB0-3EA36D76711A}.Debug|Win32.Build.0 = Debug|Win32
+		{D0758FDF-6342-4831-9AB0-3EA36D76711A}.Release|Win32.ActiveCfg = Release|Win32
+		{D0758FDF-6342-4831-9AB0-3EA36D76711A}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
