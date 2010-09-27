@@ -188,3 +188,101 @@ TEST(invalid_numbers_test)
         CHECK_THROW(json::parse(s.begin(), s.end()), json::parse_error);
     }
 }
+
+TEST(white_space_test)
+{
+    const json::value val = json::parse(" { \"f o\" : \"b a r\" , \"b \" : [ 1 , 2 , true , false ] } ");
+    CHECK_EQUAL(json::parse("{\"f o\":\"b a r\",\"b \":[1,2,true,false]}"), val);
+}
+
+TEST(equality_test)
+{
+    using namespace json;
+    const   number      eins(1);
+    const   number      zwei(2);
+    const   string      test("test");
+    const   string      foo("foo");
+    const   true_val    True;
+    const   false_val   False;
+    const   null        nix;
+    const   object      empty_obj;
+    const   array       empty_ar;
+
+    object  obj;
+    array   ar;
+
+    obj.add(foo, nix);
+    ar.add(null()).add(zwei);
+
+    CHECK_EQUAL(eins, eins);
+    CHECK_EQUAL(test, test);
+    CHECK_EQUAL(True, True);
+    CHECK_EQUAL(False, False);
+    CHECK_EQUAL(nix, nix);
+    CHECK_EQUAL(empty_obj, empty_obj);
+    CHECK_EQUAL(empty_ar, empty_ar);
+    CHECK_EQUAL(obj, obj);
+    CHECK_EQUAL(ar, ar);
+
+    CHECK_EQUAL(eins, number(1));
+    CHECK_EQUAL(test, string("test"));
+    CHECK_EQUAL(True, true_val());
+    CHECK_EQUAL(False, false_val());
+    CHECK_EQUAL(nix, null());
+    CHECK_EQUAL(empty_obj, object());
+    CHECK_EQUAL(empty_ar, array());
+
+    CHECK(eins != zwei);
+    CHECK(eins < zwei || zwei < eins);
+    CHECK(!(eins == zwei));
+    CHECK(test != foo);
+    CHECK(test < foo || foo < test);
+
+    CHECK(True != False);
+    CHECK(True < False || False < True);
+
+    CHECK(empty_obj != empty_ar);
+    CHECK(empty_obj < empty_ar || empty_ar < empty_obj);
+    CHECK(empty_obj != obj);
+    CHECK(empty_ar != ar);
+
+    CHECK(eins != nix);
+    CHECK(zwei != foo);
+    CHECK(True != obj);
+
+    object  obj2;
+    array   ar2;
+
+    obj2.add(foo, nix);
+    ar2.add(null()).add(zwei);
+
+    CHECK_EQUAL(obj, obj2);
+    CHECK_EQUAL(ar, ar2);
+}
+
+TEST(array_test)
+{
+    json::array a = json::parse("[1,2,3,4,5]").upcast<json::array>();
+
+    CHECK_EQUAL(json::number(1), a.at(0));
+    CHECK_EQUAL(json::number(2), a.at(1));
+    CHECK_EQUAL(json::number(3), a.at(2));
+    CHECK_EQUAL(json::number(4), a.at(3));
+    CHECK_EQUAL(json::number(5), a.at(4));
+
+    a.at(2) = json::array();
+    CHECK_EQUAL(json::number(2), a.at(1));
+    CHECK_EQUAL(json::array(), a.at(2));
+    CHECK_EQUAL(json::number(4), a.at(3));
+
+    a.insert(0, json::null());
+    a.insert(6, json::object());
+    CHECK_EQUAL("[null,1,2,[],4,5,{}]", a.to_json());
+
+    a.erase(1, 2);
+    CHECK_EQUAL("[null,[],4,5,{}]", a.to_json());
+
+    a.erase(0, 1);
+    a.erase(3, 1);
+    CHECK_EQUAL("[[],4,5]", a.to_json());
+}

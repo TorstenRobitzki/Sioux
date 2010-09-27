@@ -12,14 +12,59 @@
 #include <string>
 #include <iosfwd>
 #include <stack>
+#include <stdexcept>
 
 namespace json
 {
     class parser;
 
+    class string;
+    class number;
+    class object;
+    class array;
+    class true_val;
+    class false_val;
+    class null;
+
+    class visitor
+    {
+    public:
+        virtual ~visitor() {}
+    
+        virtual void visit(const string&) = 0;
+        virtual void visit(const number&) = 0;
+        virtual void visit(const object&) = 0;
+        virtual void visit(const array&) = 0;
+        virtual void visit(const true_val&) = 0;
+        virtual void visit(const false_val&) = 0;
+        virtual void visit(const null&) = 0;
+    };
+
+    class default_visitor : public visitor
+    {
+        void visit(const string&) {}
+        void visit(const number&) {}
+        void visit(const object&) {}
+        void visit(const array&) {}
+        void visit(const true_val&) {}
+        void visit(const false_val&) {}
+        void visit(const null&) {}
+    };
+
+    class invalid_cast : public std::runtime_error
+    {
+    public:
+        explicit invalid_cast(const std::string& msg);
+    };
+
     class value
     {
     public:
+        /**
+         * @brief visits the visitor visit function with the underlying type/value
+         */
+        void visit(visitor&) const;
+
         /**
          * @brief a defined, but unspecified, striked, weak order
          */
@@ -45,6 +90,13 @@ namespace json
          * @attention this is for test purposes only
          */
         std::string to_json() const;
+
+        /**
+         * @brief converts this to the requested type.
+         * @exception invalid_cast if the underlying type is not the requested type
+         */
+        template <class TargetType>
+        TargetType upcast() const;
     protected:
         explicit value(impl*);
         explicit value(const boost::shared_ptr<impl>& impl);
@@ -92,6 +144,11 @@ namespace json
          * @brief constructs a number from a double value
          */
         explicit number(double value);
+
+        /**
+         * @brief returns the integer value of this
+         */
+        int to_int() const;
     };
 
     class object : public value
@@ -105,7 +162,29 @@ namespace json
         /**
          * @brief adds a new property to the object
          */
-        void add(const string& name, const value& val);
+        object& add(const string& name, const value& val);
+
+        /**
+         * @brief returns a list of all keys
+         * 
+         * The keys will be in a defined, but unspecified order
+         */
+        std::vector<string> keys() const;
+
+        /**
+         * @brief removes the element with the given key
+         */
+        void erase(const string& key);
+
+        /**
+         * @brief returns a reference to the element with the given key
+         */
+        value& at(const string& key);
+
+        /**
+         * @brief returns the element with the given key
+         */
+        const value& at(const string& key) const;
     };
 
     class array : public value
@@ -119,7 +198,32 @@ namespace json
         /**
          * @brief adds a new element to the end of the array
          */
-        void add(const value& val);
+        array& add(const value& val);
+
+        /**
+         * @brief returns the number of elements in the array 
+         */
+        std::size_t length() const;
+
+        /**
+         * @brief element with the given index
+         */
+        const value& at(std::size_t) const;
+
+        /**
+         * @brief element with the given index
+         */
+        value& at(std::size_t);
+
+        /**
+         * @brief erases size elements starting with the element at index
+         */
+        void erase(std::size_t index, std::size_t size);
+
+        /**
+         * @brief inserts a new element at index
+         */
+        void insert(std::size_t index, const value&);
     };
 
     class true_val : public value
@@ -204,37 +308,10 @@ namespace json
     value parse(Iter begin, Iter end);
 
     /**
-     * @brief calculates the shortes update sequence that will alter object a to become object b
+     * @brief constructs a value from a json text
      * @relates value
-     *
-     * The function calculates an array, that descibes the updates to perform. The encoding depends on
-     * the value types to be compared. Only values of the same type can be alter. For arrays, objectes and
-     * strings following update performances are defined:
-     * number(1) : update the element with the name/index of the next value, with the next but one value
-     *             example: [1,3, "Nase"] would replace 
-     * number(2) : deletes the element with the name/index of the next value
-     *             example: [2,"Nase"] deletes the value with the name "Nase" from an object
-     *             example: [2,1] deletes the 2. element from an array or the second character from a string
-     * number(3) : inserts the next but one element at the next index
-     *             example: [3,"Nase",[1]] adds a new element named "Nase" with the value [1] to an object
-     *
-     * In addition, for array and string following range operations are defined
-     * number(4) : deletes the element from the next to the next but one index
-     *             example: [4,6,14] deletes the elements with index 6,14 (inclusiv)
-     * number(5) : updates the range from the second to third index with the 4th value
-     *             example: [5,2,3,"foo"] replaces the a part of a string, so that "012345" would become "01foo345"
-     *             example: [5,2,3,[1,2]] replaces parts of an array
-     *
-     * For array and object, the edit operation applies the next but one array to the element with the name/index 
-     * of the next element
-     * number(6) : updates an element
-     *             example: [6,2,[3,"Nase",[1]]] executes the update(insert) [3,"Nase",[1]] to the element with the index 2
-     *
-     * For all othere value types, the function returns null to indicate failure.
      */
-    value difference(const value& a, const value& b, std::size_t max_size);
-
-    value update(const value& a, const value& update_operations);
+    value parse(const std::string text);
 
 
     template <class Iter>

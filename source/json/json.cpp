@@ -6,9 +6,12 @@
 #include "tools/dynamic_type.h"
 #include "tools/asstring.h"
 #include "tools/iterators.h"
+#include "tools/substring.h"
+#include <boost/lexical_cast.hpp>
 #include <algorithm>
 #include <iterator>
 #include <cctype>
+#include <map>
 
 namespace json
 {
@@ -21,7 +24,7 @@ namespace json
         class false_impl;
         class null_impl;
 
-        class visitor;
+        class impl_visitor;
     }
     
     class value::impl
@@ -39,14 +42,15 @@ namespace json
 
         virtual ~impl() {}
 
-        virtual void visit(const visitor&) const = 0;
+        virtual void visit(const impl_visitor&) const = 0;
         virtual std::size_t size() const = 0;
         virtual void to_json(std::vector<boost::asio::const_buffer>& const_buffer_sequence) const = 0;
         virtual type_code code() const = 0;
+        virtual const char* name() const = 0;
     };
 
     namespace {
-        class visitor
+        class impl_visitor
         {
         public:
             virtual void visit(const string_impl&) const = 0;
@@ -57,9 +61,19 @@ namespace json
             virtual void visit(const false_impl&) const = 0;
             virtual void visit(const null_impl&) const = 0;
 
-            virtual ~visitor() {}
+            virtual ~impl_visitor() {}
         };
 
+        bool less_impl(const std::vector<char>& lhs, const std::vector<char>& rhs)
+        {
+            if ( lhs.size() != rhs.size() )
+                return lhs.size() < rhs.size();
+
+            const std::pair<std::vector<char>::const_iterator, std::vector<char>::const_iterator> found =
+                std::mismatch(lhs.begin(), lhs.end(), rhs.begin());
+
+            return found.first != lhs.end() && *found.first < *found.second;
+        }
 
         class string_impl : public value::impl
         {
@@ -119,17 +133,11 @@ namespace json
 
             bool operator<(const string_impl& rhs) const
             {
-                if ( data_.size() != rhs.data_.size() )
-                    return data_.size() < rhs.data_.size();
-
-                const std::pair<std::vector<char>::const_iterator, std::vector<char>::const_iterator> found =
-                    std::mismatch(data_.begin(), data_.end(), rhs.data_.begin());
-
-                return found.first != data_.end() && *found.first < *found.second;
+                return less_impl(data_, rhs.data_);
             }
 
         private:
-            void visit(const visitor& v) const 
+            void visit(const impl_visitor& v) const 
             {
                 v.visit(*this);
             }
@@ -146,6 +154,11 @@ namespace json
 
             type_code code() const{
                 return string_code;
+            }
+
+            const char* name() const 
+            {
+                return "string";
             }
 
             std::vector<char>   data_;
@@ -194,8 +207,18 @@ namespace json
                 data_.insert(data_.begin(), s.begin(), s.end());
             }
 
+            bool operator<(const number_impl& rhs) const
+            {
+                return less_impl(data_, rhs.data_);
+            }
+
+            int to_int() const
+            {
+                const tools::basic_substring<std::vector<char>::const_iterator> s(data_.begin(), data_.end());
+                return boost::lexical_cast<int>(s);
+            }
         private:
-            void visit(const visitor& v) const
+            void visit(const impl_visitor& v) const
             {
                 v.visit(*this);
             }
@@ -215,6 +238,11 @@ namespace json
                 return number_code;
             }
 
+            const char* name() const 
+            {
+                return "number";
+            }
+
             std::vector<char>   data_;
         };
 
@@ -225,11 +253,56 @@ namespace json
         public:
             void add(const string& name, const value& val)
             {
-                members_.push_back(std::make_pair(name, val));
+                members_.insert(std::make_pair(name, val));
+            }
+
+            bool operator<(const object_impl& rhs) const
+            {
+                if ( members_.size() != rhs.members_.size() )
+                    return members_.size() < rhs.members_.size();
+
+                const std::pair<list_t::const_iterator, list_t::const_iterator> found =
+                    std::mismatch(members_.begin(), members_.end(), rhs.members_.begin());
+    
+                return found.first != members_.end() && *found.first < *found.second;
+            }
+
+            std::vector<string> keys() const
+            {
+                std::vector<string> result;
+                for ( list_t::const_iterator i = members_.begin(); i != members_.end(); ++i )
+                    result.push_back(i->first);
+
+                return result;
+            }
+
+            void erase(const string& key)
+            {
+                members_.erase(key);
+            }
+
+            value& at(const string& key)
+            {
+                const list_t::iterator pos = members_.find(key);
+
+                if ( pos == members_.end() )
+                    throw std::out_of_range("object::at() out of range");
+
+                return pos->second;
+            }
+
+            const value& at(const string& key) const
+            {
+                const list_t::const_iterator pos = members_.find(key);
+
+                if ( pos == members_.end() )
+                    throw std::out_of_range("object::at() out of range");
+
+                return pos->second;
             }
 
         private:
-            void visit(const visitor& v) const
+            void visit(const impl_visitor& v) const
             {
                 v.visit(*this);
             }
@@ -259,13 +332,14 @@ namespace json
 
                 const_buffer_sequence.push_back(boost::asio::buffer(open));
 
-                for ( list_t::const_iterator i = members_.begin(); i != members_.end(); ++i )
+                for ( list_t::const_iterator i = members_.begin(); i != members_.end(); )
                 {
                     i->first.to_json(const_buffer_sequence);
                     const_buffer_sequence.push_back(boost::asio::buffer(colon));
                     i->second.to_json(const_buffer_sequence);
 
-                    if ( i+1 != members_.end() )
+                    ++i;
+                    if ( i != members_.end() )
                         const_buffer_sequence.push_back(boost::asio::buffer(comma));
                 }
 
@@ -277,7 +351,12 @@ namespace json
                 return object_code;
             }
 
-            typedef std::vector<std::pair<string, value> > list_t;
+            const char* name() const 
+            {
+                return "object";
+            }
+
+            typedef std::map<string, value> list_t;
             list_t members_;
         };
 
@@ -290,8 +369,39 @@ namespace json
             {
                 members_.push_back(v);
             }
+
+            bool operator<(const array_impl& rhs) const
+            {
+                if ( members_.size() != rhs.members_.size() )
+                    return members_.size() < rhs.members_.size();
+
+                const std::pair<list_t::const_iterator, list_t::const_iterator> found =
+                    std::mismatch(members_.begin(), members_.end(), rhs.members_.begin());
+    
+                return found.first != members_.end() && *found.first < *found.second;
+            }
+
+            void erase(std::size_t index, std::size_t size)
+            {
+                if ( index + size > members_.size() ) 
+                    throw std::out_of_range("array::erase() out of range");
+
+                members_.erase(members_.begin() + index, members_.begin() + index + size);
+            }
+
+            void insert(std::size_t index, const value& v)
+            {
+                if ( index > members_.size() ) 
+                    throw std::out_of_range("array::insert() out of range");
+
+                members_.insert(members_.begin() + index, v);
+            }
+
+            typedef std::vector<value> list_t;
+            list_t members_;
+
         private:
-            void visit(const visitor& v) const
+            void visit(const impl_visitor& v) const
             {
                 v.visit(*this);
             }
@@ -335,8 +445,10 @@ namespace json
                 return array_code;
             }
 
-            typedef std::vector<value> list_t;
-            list_t members_;
+            const char* name() const 
+            {
+                return "array";
+            }
         };
 
         ////////////////////
@@ -344,7 +456,7 @@ namespace json
         class false_impl : public value::impl
         {
         private:
-            void visit(const visitor& v) const
+            void visit(const impl_visitor& v) const
             {
                 v.visit(*this);
             }
@@ -366,6 +478,11 @@ namespace json
                 return false_code;
             }
 
+            const char* name() const 
+            {
+                return "false_val";
+            }
+
         };
 
         ///////////////////
@@ -373,7 +490,7 @@ namespace json
         class true_impl : public value::impl
         {
         private:
-            void visit(const visitor& v) const
+            void visit(const impl_visitor& v) const
             {
                 v.visit(*this);
             }
@@ -395,6 +512,10 @@ namespace json
                 return true_code;
             }
 
+            const char* name() const 
+            {
+                return "true_val";
+            }
         };
 
         ///////////////////
@@ -402,7 +523,7 @@ namespace json
         class null_impl : public value::impl
         {
         private:
-            void visit(const visitor& v) const
+            void visit(const impl_visitor& v) const
             {
                 v.visit(*this);
             }
@@ -424,6 +545,10 @@ namespace json
                 return null_code;
             }
 
+            const char* name() const 
+            {
+                return "null";
+            }
         };
 
     } // namespace
@@ -452,6 +577,11 @@ namespace json
     {
     }
 
+    int number::to_int() const
+    {
+        return get_impl<number_impl>().to_int();
+    }
+
     ///////////////
     // class object
     object::object()
@@ -459,9 +589,31 @@ namespace json
     {
     }
 
-    void object::add(const string& name, const value& val)
+    object& object::add(const string& name, const value& val)
     {
         get_impl<object_impl>().add(name, val);
+
+        return *this;
+    }
+
+    std::vector<string> object::keys() const
+    {
+        return get_impl<object_impl>().keys();
+    }
+
+    void object::erase(const string& key)
+    {
+        get_impl<object_impl>().erase(key);
+    }
+
+    value& object::at(const string& key)
+    {
+        return get_impl<object_impl>().at(key);
+    }
+
+    const value& object::at(const string& key) const
+    {
+        return get_impl<object_impl>().at(key);
     }
 
     ///////////////
@@ -471,9 +623,36 @@ namespace json
     {
     }
 
-    void array::add(const value& val)
+    array& array::add(const value& val)
     {
         get_impl<array_impl>().add(val);
+
+        return *this;
+    }
+
+    std::size_t array::length() const
+    {
+        return get_impl<array_impl>().members_.size();
+    }
+
+    const value& array::at(std::size_t idx) const
+    {
+        return get_impl<array_impl>().members_.at(idx);
+    }
+
+    value& array::at(std::size_t idx)
+    {
+        return get_impl<array_impl>().members_.at(idx);
+    }
+
+    void array::erase(std::size_t index, std::size_t size)
+    {
+        get_impl<array_impl>().erase(index, size);
+    }
+
+    void array::insert(std::size_t index, const value& v)
+    {
+         get_impl<array_impl>().insert(index, v);
     }
 
     static const boost::shared_ptr<value::impl> single_true(new true_impl());
@@ -494,9 +673,64 @@ namespace json
     {
     }
 
+    /////////////////////////
+    // class invalid_cast : public std::runtime_error
+    invalid_cast::invalid_cast(const std::string& msg)
+     : std::runtime_error(msg)
+    {}
 
     //////////////
     // class value
+    void value::visit(visitor& v) const
+    {
+        struct special : impl_visitor
+        {
+            special(visitor& v, const value& val) : v_(v), val_(val) 
+            {
+            }
+
+            void visit(const string_impl&) const
+            {
+                v_.visit(static_cast<const string&>(val_));
+            }
+
+            void visit(const number_impl&) const 
+            {
+                v_.visit(static_cast<const number&>(val_));
+            }
+
+            void visit(const object_impl&) const 
+            {
+                v_.visit(static_cast<const object&>(val_));
+            }
+
+            void visit(const array_impl&) const 
+            {
+                v_.visit(static_cast<const array&>(val_));
+            }
+
+            void visit(const true_impl&) const 
+            {
+                v_.visit(static_cast<const true_val&>(val_));
+            }
+
+            void visit(const false_impl&) const 
+            {
+                v_.visit(static_cast<const false_val&>(val_));
+            }
+
+            void visit(const null_impl&) const 
+            {
+                v_.visit(static_cast<const null&>(val_));
+            }
+
+            visitor&        v_;
+            const value&    val_;
+        } const execute(v, *this);
+
+        pimpl_->visit(execute);
+    }
+
     bool value::operator < (const value& rhs) const
     {
         const tools::dynamic_type this_type(typeid(*pimpl_));
@@ -507,17 +741,31 @@ namespace json
 
         bool result = false;
 
-        struct v : visitor
+        struct compare_equal_types : impl_visitor
         {
-            v(bool& b, value::impl& i) : result(b), lhs(i) {}
+            compare_equal_types(bool& b, value::impl& i) : result(b), lhs(i) {}
+
             void visit(const string_impl& rhs) const
             {
                 result = static_cast<const string_impl&>(lhs) < rhs;
             }
 
-            void visit(const number_impl&) const {}
-            void visit(const object_impl&) const {}
-            void visit(const array_impl&) const {}
+            void visit(const number_impl& rhs) const 
+            {
+                result = static_cast<const number_impl&>(lhs) < rhs;
+            }
+
+            void visit(const object_impl& rhs) const 
+            {
+                result = static_cast<const object_impl&>(lhs) < rhs;
+            }
+
+            void visit(const array_impl& rhs) const 
+            {
+                result = static_cast<const array_impl&>(lhs) < rhs;
+            }
+
+            // for this three types, the result is false;
             void visit(const true_impl&) const {}
             void visit(const false_impl&) const {}
             void visit(const null_impl&) const {}
@@ -558,6 +806,68 @@ namespace json
 
         return result;
     }
+
+    namespace {
+        template <class A, class B>
+        struct equal_types
+        {
+            static void throw_exception(const char* from, const char* to)
+            {
+                throw invalid_cast("expected " + std::string(to) + " but got " + std::string(from));
+            }
+        };
+
+        template <class A>
+        struct equal_types<A,A>
+        {
+            static void throw_exception(const char*, const char*)
+            {
+            }
+        };
+    }
+
+#   define CAST_VISITOR_VISIT(target_token) \
+        void visit(const target_token&) \
+        { \
+            equal_types<Target, target_token>::throw_exception(runtime_name_,#target_token); \
+        }
+
+    namespace {
+        template <class Target>
+        struct cast_visitor : visitor
+        {
+            cast_visitor(const char* implementation_name) : runtime_name_(implementation_name) 
+            {
+            }
+
+            CAST_VISITOR_VISIT(string)
+            CAST_VISITOR_VISIT(number)
+            CAST_VISITOR_VISIT(object)
+            CAST_VISITOR_VISIT(array)
+            CAST_VISITOR_VISIT(true_val)
+            CAST_VISITOR_VISIT(false_val)
+            CAST_VISITOR_VISIT(null)
+
+            const char* const runtime_name_;
+        };
+    }
+
+    template <class TargetType>
+    TargetType value::upcast() const
+    {
+        cast_visitor<TargetType> throw_invalid_cast(pimpl_->name());
+        visit(throw_invalid_cast);
+
+        return static_cast<const TargetType&>(*this);
+    }
+
+    template string     value::upcast<string>() const;
+    template number     value::upcast<number>() const;
+    template object     value::upcast<object>() const;
+    template array      value::upcast<array>() const;
+    template true_val   value::upcast<true_val>() const;
+    template false_val  value::upcast<false_val>() const;
+    template null       value::upcast<null>() const;
 
     value::value(impl* p)
         : pimpl_(p)
@@ -646,7 +956,7 @@ namespace json
 
     static const char* eat_white_space(const char* begin, const char* end)
     {
-        for ( ; begin != end && ( *begin == ' ' || *begin == '\t' || *begin == '\n' || *begin == '\r' ); begin )
+        for ( ; begin != end && ( *begin == ' ' || *begin == '\t' || *begin == '\n' || *begin == '\r' ); ++begin )
             ;
 
         return begin;
@@ -1095,6 +1405,11 @@ namespace json
 
         if ( !state_.empty() || result_.size() != 1 )
             throw parse_error("incomplete json expression");
+    }
+
+    value parse(const std::string text)
+    {
+        return parse(text.begin(), text.end());
     }
 
 } // namespace json

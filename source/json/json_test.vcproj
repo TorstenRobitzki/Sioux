@@ -151,6 +151,10 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
+				RelativePath=".\delta_test.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\json_test.cpp"
 				>
 			</File>
