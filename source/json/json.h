@@ -167,7 +167,7 @@ namespace json
         /**
          * @brief returns a list of all keys
          * 
-         * The keys will be in a defined, but unspecified order
+         * The keys will be ordered in descent order
          */
         std::vector<string> keys() const;
 
@@ -196,6 +196,21 @@ namespace json
         array();
 
         /**
+         * @brief constructs an array with one element
+         */
+        explicit array(const value& first_value);
+
+        /**
+         * @brief returns a deep copy of this array.
+         *
+         * The copied array contains the same references, not a deep copies of 
+         * the referenced elements, thus adding an element to the original array
+         * is not observable in the copy, but modifing an referenced element will be 
+         * observable in the copy.
+         */
+        array copy() const;
+
+        /**
          * @brief adds a new element to the end of the array
          */
         array& add(const value& val);
@@ -204,6 +219,11 @@ namespace json
          * @brief returns the number of elements in the array 
          */
         std::size_t length() const;
+
+        /**
+         * @brief returns true, if the array is empty (contains no elements)
+         */
+        bool empty() const;
 
         /**
          * @brief element with the given index
@@ -224,7 +244,13 @@ namespace json
          * @brief inserts a new element at index
          */
         void insert(std::size_t index, const value&);
+
+        array& operator+=(const array& rhs);
+    private:
+        explicit array(impl*);
     };
+
+    array operator+(const array& lhs, const array& rhs);
 
     class true_val : public value
     {

@@ -370,6 +370,11 @@ namespace json
                 members_.push_back(v);
             }
 
+            void add(const array_impl& v)
+            {
+                members_.insert(members_.end(), v.members_.begin(), v.members_.end());
+            }
+
             bool operator<(const array_impl& rhs) const
             {
                 if ( members_.size() != rhs.members_.size() )
@@ -623,6 +628,22 @@ namespace json
     {
     }
 
+    array::array(const value& first_value)
+        : value(new array_impl())
+    {
+        add(first_value);
+    }
+
+    array::array(impl* p)
+        : value(p)
+    {
+    }
+
+    array array::copy() const
+    {
+        return array(new array_impl(get_impl<array_impl>()));
+    }
+
     array& array::add(const value& val)
     {
         get_impl<array_impl>().add(val);
@@ -633,6 +654,11 @@ namespace json
     std::size_t array::length() const
     {
         return get_impl<array_impl>().members_.size();
+    }
+
+    bool array::empty() const
+    {
+        return get_impl<array_impl>().members_.empty();
     }
 
     const value& array::at(std::size_t idx) const
@@ -653,6 +679,21 @@ namespace json
     void array::insert(std::size_t index, const value& v)
     {
          get_impl<array_impl>().insert(index, v);
+    }
+
+    array& array::operator+=(const array& rhs)
+    {
+        get_impl<array_impl>().add(rhs.get_impl<array_impl>());
+
+        return *this;
+    }
+
+    array operator+(const array& lhs, const array& rhs)
+    {
+        array result(lhs);
+        result += rhs;
+
+        return result;
     }
 
     static const boost::shared_ptr<value::impl> single_true(new true_impl());
