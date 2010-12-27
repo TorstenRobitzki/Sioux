@@ -35,6 +35,18 @@ std::string as_string(const T& t)
   return s.str();
 }
 
+/**
+ * @brief functor interface for as_string
+ */
+struct to_string 
+{
+    template <class T>
+    std::string operator()(const T& t) const
+    {
+        return as_string(t);
+    }
+};
+
 } // namespace tools
 
 #endif // includeguard

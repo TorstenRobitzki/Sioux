@@ -185,6 +185,10 @@
 				RelativePath=".\substring.h"
 				>
 			</File>
+			<File
+				RelativePath=".\test_order.h"
+				>
+			</File>
 		</Filter>
 	</Files>
 	<Globals>
