@@ -87,23 +87,15 @@ namespace pubsub
     {
     }
 
+    node_group::node_group(const build_node_group& builder)
+        : pimpl_(builder.pimpl_)
+    {
+        builder.pimpl_.reset(new impl);
+    }
+
     bool node_group::in_group(const node_name& name) const
     {
         return pimpl_->in_group(name);
-    }
-
-    node_group& node_group::has_domain(const key_domain& d)
-    {
-        pimpl_->add_filter(std::auto_ptr<filter>(new has_domain_filter(d)));
-
-        return *this;
-    }
-
-    node_group& node_group::has_key(const key& k)
-    {
-        pimpl_->add_filter(std::auto_ptr<filter>(new has_key_filter(k)));
-
-        return *this;
     }
 
     bool node_group::operator==(const node_group& rhs) const
@@ -114,6 +106,27 @@ namespace pubsub
     bool node_group::operator!=(const node_group& rhs) const
     {
         return !(*this == rhs);
+    }
+
+    ///////////////////////////
+    // class build_node_group
+    build_node_group::build_node_group()
+        : pimpl_(new node_group::impl)
+    {
+    }
+
+    build_node_group& build_node_group::has_domain(const key_domain& d)
+    {
+        pimpl_->add_filter(std::auto_ptr<filter>(new has_domain_filter(d)));
+
+        return *this;
+    }
+
+    build_node_group& build_node_group::has_key(const key& k)
+    {
+        pimpl_->add_filter(std::auto_ptr<filter>(new has_key_filter(k)));
+
+        return *this;
     }
 
 

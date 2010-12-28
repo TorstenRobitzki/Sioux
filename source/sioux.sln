@@ -47,6 +47,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "json_test", "json\json_test
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pubsub", "pubsub\pubsub.vcproj", "{1B21ED2D-A60C-48DB-BCF5-E080E1046938}"
+	ProjectSection(ProjectDependencies) = postProject
+		{AD6A7E44-BE76-437B-8C1C-3977A0C181A2} = {AD6A7E44-BE76-437B-8C1C-3977A0C181A2}
+		{8D678680-DCB3-4204-8BF5-C9CFC5FEF4B7} = {8D678680-DCB3-4204-8BF5-C9CFC5FEF4B7}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pubsub_test", "pubsub\pubsub_test.vcproj", "{AA32D41A-E1F0-4C58-BF8C-E1DB646D78AD}"
 	ProjectSection(ProjectDependencies) = postProject

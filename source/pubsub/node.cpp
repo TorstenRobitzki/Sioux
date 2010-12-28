@@ -5,6 +5,7 @@
 #include "pubsub/node.h"
 #include "tools/asstring.h"
 #include <algorithm>
+#include <cstdlib>
 
 namespace pubsub {
 
@@ -22,7 +23,8 @@ namespace pubsub {
         {
             key_domain operator()(const json::string& s) const
             {
-                return key_domain(tools::as_string(s));
+                const std::string text = tools::as_string(s);
+                return key_domain(text.substr(1, text.size()-2));
             }
         };
     }
@@ -97,10 +99,53 @@ namespace pubsub {
 
         key_list::const_iterator pos = std::lower_bound(keys_.begin(), keys_.end(), key(domain, std::string()), sort_by_domain());
 
-        if ( pos != keys_.end() && !(pos->domain() < domain) )
+        if ( pos != keys_.end() && !(domain < pos->domain()) )
             result = std::make_pair(true, *pos);
 
         return result;
+    }
+
+    ///////////////////////
+    // class node_version
+    node_version::node_version()
+        : version_(generate_version())
+    {
+    }
+
+    bool node_version::operator==(const node_version& rhs) const
+    {
+        return version_ == rhs.version_;
+    }
+
+    int node_version::operator-(const node_version& rhs) const
+    {
+        boost::int_fast64_t distance = 
+            static_cast<boost::int_fast64_t>(version_) - static_cast<boost::int_fast64_t>(rhs.version_);
+
+        if ( distance > 0 && distance > std::numeric_limits<int>::max() )
+            return std::numeric_limits<int>::max();
+
+        if ( distance < 0 && distance < std::numeric_limits<int>::min() )
+            return std::numeric_limits<int>::min();
+
+        return static_cast<int>(distance);
+    }
+
+    boost::uint_fast32_t node_version::generate_version()
+    {
+        return std::rand();
+    }
+
+    void node_version::operator-=(unsigned dec)    
+    {
+        version_ -= dec;
+    }
+
+    node_version operator-(node_version start_version, unsigned decrement)
+    {
+        start_version -= decrement;
+
+        return start_version;
     }
 
     ///////////////
@@ -126,9 +171,24 @@ namespace pubsub {
         return versions_.front();
     }
 
-    std::pair<bool, json::value> node::update_from(const node_version& /* known_version */) const
+    std::pair<bool, json::value> node::update_from(const node_version& known_version) const
     {
-        return std::make_pair(false, json::string());
+        assert(!versions_.empty());
+        const int distance = known_version - version_;
+
+        if ( distance <= 0 || distance >= static_cast<int>(versions_.size()) ) 
+            return std::make_pair(false, versions_.back());
+
+        return std::make_pair(true, build_comulated_update(distance));
+    }
+
+    json::array node::build_comulated_update(unsigned versions) const
+    {
+        json::array result;
+        for ( ; versions != 0; --versions )
+            result.add(versions_[versions]);
+
+        return result;
     }
 
     bool node::operator==(const node& rhs) const

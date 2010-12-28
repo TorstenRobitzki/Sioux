@@ -8,7 +8,7 @@
 #include "pubsub/key.h"
 #include "json/json.h"
 #include <deque>
-
+#include <boost/cstdint.hpp>
 
 namespace pubsub
 {
@@ -65,8 +65,18 @@ namespace pubsub
          */
         int operator-(const node_version& rhs) const;
 
-        node_version operator-(unsigned) const;
+        void operator-=(unsigned);
+    private:
+        boost::uint_fast32_t    version_;
+
+        static boost::uint_fast32_t generate_version();
     }; 
+
+    /**
+     * @brief calculates the version, that was decrement versions younger than start_version
+     * @related node_version
+     */
+    node_version operator-(node_version start_version, unsigned decrement);
 
     /**
      * @brief repositiory of node data and possible updates between versions
@@ -108,6 +118,8 @@ namespace pubsub
     private:
         std::deque<json::value> versions_;
         node_version            version_;
+
+        json::array build_comulated_update(unsigned versions) const;
     };
 
 
