@@ -112,7 +112,14 @@ namespace json
         friend class parser;
     };
 
+    /**
+     * @relates value
+     */
     bool operator==(const value& lhs, const value& rhs);
+
+    /**
+     * @relates value
+     */
     bool operator!=(const value& lhs, const value& rhs);
 
     /**
@@ -199,6 +206,11 @@ namespace json
          * @brief constructs an array with one element
          */
         explicit array(const value& first_value);
+
+        /**
+         * @brief constructs an array by copying the first references from an other array
+         */
+        array(const array& original, const std::size_t first_elements);
 
         /**
          * @brief returns a deep copy of this array.

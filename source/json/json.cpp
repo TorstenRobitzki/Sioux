@@ -365,6 +365,16 @@ namespace json
         class array_impl : public value::impl
         {
         public:
+            array_impl()
+                : members_()
+            {
+            }
+
+            array_impl(const array_impl& original, std::size_t first_elements)
+                : members_(original.members_.begin(), original.members_.begin() + first_elements)
+            {
+            }
+
             void add(const value& v)
             {
                 members_.push_back(v);
@@ -624,7 +634,7 @@ namespace json
     ///////////////
     // class array
     array::array()
-        : value(new array_impl())
+        : value(new array_impl)
     {
     }
 
@@ -636,6 +646,11 @@ namespace json
 
     array::array(impl* p)
         : value(p)
+    {
+    }
+
+    array::array(const array& original, const std::size_t first_elements)
+        : value(new array_impl(original.get_impl<array_impl>(), first_elements))
     {
     }
 
@@ -696,21 +711,37 @@ namespace json
         return result;
     }
 
-    static const boost::shared_ptr<value::impl> single_true(new true_impl());
-    static const boost::shared_ptr<value::impl> single_false(new false_impl());
-    static const boost::shared_ptr<value::impl> single_null(new null_impl());
+    namespace {
+        const boost::shared_ptr<value::impl>& single_true()
+        {
+            static const boost::shared_ptr<value::impl> result(new true_impl());
+            return result;
+        }
+
+        const boost::shared_ptr<value::impl>& single_false()
+        {
+            static const boost::shared_ptr<value::impl> result(new false_impl());
+            return result;
+        }
+
+        const boost::shared_ptr<value::impl>& single_null()
+        {
+            static const boost::shared_ptr<value::impl> result(new null_impl());
+            return result;
+        }
+    }
 
     true_val::true_val()
-        : value(single_true)
+        : value(single_true())
     {
     }
 
     false_val::false_val()
-        : value(single_false)
+        : value(single_false())
     {
     }
 
-    null::null() : value(single_null)
+    null::null() : value(single_null())
     {
     }
 
