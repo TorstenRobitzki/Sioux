@@ -8,6 +8,10 @@
 #include "pubsub/pubsub.h"
 #include "pubsub/node.h"
 
+namespace json {
+    class value;
+}
+
 namespace pubsub {
 namespace test {
 
@@ -16,7 +20,7 @@ namespace test {
     public:
         subscriber();
 
-        bool notified(const node_name&, const node&);
+        bool notified(const node_name&, const json::value&);
         bool not_notified();
     private:
         virtual void on_udate(const node_name& name, const node& data);

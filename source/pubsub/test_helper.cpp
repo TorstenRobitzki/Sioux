@@ -15,9 +15,9 @@ namespace test {
     {
     }
 
-    bool subscriber::notified(const node_name& name, const node& data)
+    bool subscriber::notified(const node_name& name, const json::value& data)
     {
-        const bool result = update_calls_ == 1 && name_ == name && data_ == data;
+        const bool result = update_calls_ == 1 && name_ == name && data_.data() == data;
         update_calls_ = 0;
 
         return result;

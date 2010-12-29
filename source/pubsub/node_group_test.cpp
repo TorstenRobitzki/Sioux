@@ -8,6 +8,9 @@
 #include "pubsub/node.h"
 #include "json/json.h"
 
+/**
+ * @test test the node_group compare operations
+ */
 TEST(compare_node_group_test)
 {
     pubsub::node_group  default_group;
@@ -43,14 +46,15 @@ namespace {
     const pubsub::node_name   a_4_c_2(parse("{\"a\":4,\"c\":2}"));
 }
 
+/** 
+ * @test check the domain filtering
+ */
 TEST(in_domain_node_group_test)
 {  
-    pubsub::node_group  filter_all_a(
-        pubsub::build_node_group().
+    const pubsub::node_group  filter_all_a(
         has_domain(pubsub::key_domain("a")));
 
-    pubsub::node_group  filter_all_a_and_b(
-        pubsub::build_node_group().
+    const pubsub::node_group  filter_all_a_and_b(
         has_domain(pubsub::key_domain("a")).
         has_domain(pubsub::key_domain("b")));
 
@@ -65,4 +69,55 @@ TEST(in_domain_node_group_test)
     CHECK(!filter_all_a_and_b.in_group(a_4_c_2));
     CHECK(!filter_all_a_and_b.in_group(pubsub::node_name()));
     CHECK(!filter_all_a_and_b.in_group(b_2_c_2));
+}
+
+/** 
+ * @test check the key filtering
+ */
+TEST(has_key_node_group_test)
+{
+    const pubsub::node_group filter_a_4(
+        has_key(pubsub::key(pubsub::key_domain("a"), "4")));
+
+    CHECK(!filter_a_4.in_group(a_2_b_4));
+    CHECK(filter_a_4.in_group(a_4_b_2));
+    CHECK(filter_a_4.in_group(a_4_c_2));
+    CHECK(!filter_a_4.in_group(pubsub::node_name()));
+    CHECK(!filter_a_4.in_group(b_2_c_2));
+
+    const pubsub::node_group filter_a_4_c_2(
+        has_key(pubsub::key(pubsub::key_domain("a"), "4")).
+        has_key(pubsub::key(pubsub::key_domain("c"), "2")));
+
+    CHECK(!filter_a_4_c_2.in_group(a_2_b_4));
+    CHECK(!filter_a_4_c_2.in_group(a_4_b_2));
+    CHECK(filter_a_4_c_2.in_group(a_4_c_2));
+    CHECK(!filter_a_4_c_2.in_group(pubsub::node_name()));
+    CHECK(!filter_a_4_c_2.in_group(b_2_c_2));
+}
+
+/** 
+ * @test check the combined key and domain filtering
+ */
+TEST(has_key_has_domain_group_test)
+{
+    const pubsub::node_group filter_has_a_b_2(
+        has_domain(pubsub::key_domain("a")).
+        has_key(pubsub::key(pubsub::key_domain("b"), "2")));
+
+    CHECK(!filter_has_a_b_2.in_group(a_2_b_4));
+    CHECK(filter_has_a_b_2.in_group(a_4_b_2));
+    CHECK(!filter_has_a_b_2.in_group(a_4_c_2));
+    CHECK(!filter_has_a_b_2.in_group(pubsub::node_name()));
+    CHECK(!filter_has_a_b_2.in_group(b_2_c_2));
+
+    const pubsub::node_group filter_b_2_has_a(
+        has_key(pubsub::key(pubsub::key_domain("b"), "2")).
+        has_domain(pubsub::key_domain("a")));
+
+    CHECK(!filter_b_2_has_a.in_group(a_2_b_4));
+    CHECK(filter_b_2_has_a.in_group(a_4_b_2));
+    CHECK(!filter_b_2_has_a.in_group(a_4_c_2));
+    CHECK(!filter_b_2_has_a.in_group(pubsub::node_name()));
+    CHECK(!filter_b_2_has_a.in_group(b_2_c_2));
 }

@@ -19,6 +19,9 @@ namespace pubsub
      * 
      * If a node has the key_domains "location, product, company", a node_group can name all of the nodes
      * that have the key_domains "location, product" and from that only specific keys values.
+     *
+     * To configure a node_group a build named build_node_group in combination with a set of free functions 
+     * is used.
      */
     class node_group
     {
@@ -31,6 +34,7 @@ namespace pubsub
 
         /**
          * @brief constructs a node_group from a node_group builder
+         * @sa build_node_group
          */
         node_group(const build_node_group&);
 
@@ -57,7 +61,11 @@ namespace pubsub
      * @brief builder for a node group. 
      *
      * The builder class seperates the node_group in a constant and a mutable part. Use this class
-     * to configure the node_group and when ready, construct the node_group from 
+     * to configure the node_group and when ready, construct the node_group from .
+     *
+     * For every mutator function, there is a free function with the very same name, that constructs
+     * a build_node_group. So instead of calling build_node_group().has_domain(d).has_key(k), 
+     * has_domain(d).has_key(k) can be used to configure the very same node_group.
      * @relates node_group
      */
     class build_node_group
@@ -81,6 +89,19 @@ namespace pubsub
         friend class node_group;
         mutable boost::shared_ptr<node_group::impl> pimpl_;
     };
+
+    /**
+     * @brief constructs a build_node_group, calls has_domain() on it and returns the result
+     * @relates build_node_group
+     */
+    build_node_group has_domain(const key_domain&);
+
+    /**
+     * @brief constructs a build_node_group, calls has_key() on it and returns the result
+     * @relates build_node_group
+     */
+    build_node_group has_key(const key&);
+
 } // namespace pubsub
 
 #endif // include guard

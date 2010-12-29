@@ -4,6 +4,7 @@
 
 #include "pubsub/node.h"
 #include "tools/asstring.h"
+#include "json/delta.h"
 #include <algorithm>
 #include <cstdlib>
 
@@ -131,6 +132,11 @@ namespace pubsub {
         return static_cast<int>(distance);
     }
 
+    void node_version::print(std::ostream& out) const
+    {
+        out << version_;
+    }
+
     boost::uint_fast32_t node_version::generate_version()
     {
         return std::rand();
@@ -141,6 +147,12 @@ namespace pubsub {
         version_ -= dec;
     }
 
+    node_version& node_version::operator++()
+    {
+        ++version_;
+        return *this;
+    }
+
     node_version operator-(node_version start_version, unsigned decrement)
     {
         start_version -= decrement;
@@ -148,11 +160,18 @@ namespace pubsub {
         return start_version;
     }
 
+    std::ostream& operator<<(std::ostream& out, const node_version& v)
+    {
+        v.print(out);
+        return out;
+    }
+
     ///////////////
     // class node
     node::node(const node_version& first_version, const json::value& first_versions_data)
-        : versions_(1u, first_versions_data)
+        : data_(first_versions_data)
         , version_(first_version)
+        , updates_()
     {
     }
 
@@ -163,38 +182,46 @@ namespace pubsub {
 
     node_version node::oldest_version() const
     {
-        return version_ - versions_.size();
+        return version_ - updates_.length();
     }
 
     const json::value& node::data() const
     {
-        return versions_.front();
+        return data_;
     }
 
-    std::pair<bool, json::value> node::update_from(const node_version& known_version) const
+    std::pair<bool, json::value> node::get_update_from(const node_version& known_version) const
     {
-        assert(!versions_.empty());
-        const int distance = known_version - version_;
+        const int distance = version_ - known_version;
 
-        if ( distance <= 0 || distance >= static_cast<int>(versions_.size()) ) 
-            return std::make_pair(false, versions_.back());
+        if ( distance <= 0 || distance > static_cast<int>(updates_.length()) ) 
+            return std::make_pair(false, data_);
 
-        return std::make_pair(true, build_comulated_update(distance));
+        return std::make_pair(true, json::array(updates_, distance, updates_.length() - distance));
     }
 
-    json::array node::build_comulated_update(unsigned versions) const
+    void node::update(const json::value& new_data, unsigned keep_update_size_percent)
     {
-        json::array result;
-        for ( ; versions != 0; --versions )
-            result.add(versions_[versions]);
+        if ( new_data == data_ )
+            return;
 
-        return result;
+        const std::size_t max_size = new_data.size() * keep_update_size_percent / 100;
+
+        if ( max_size != 0 )
+        {
+            std::pair<bool, json::value> update_instruction = delta(data_, new_data, max_size);
+
+            if ( update_instruction.first )
+                updates_.insert(updates_.length(), update_instruction.second);
+
+        }
+
+        data_ = new_data;
+        ++version_;
+
+        // remove oldes versions until the max_size reached
+        while ( !updates_.empty() && updates_.size() > max_size )
+            updates_.erase(0, 1u);
     }
-
-    bool node::operator==(const node& rhs) const
-    {
-        return versions_ == rhs.versions_ && version_ == rhs.version_;
-    }
-
 } // namespace pubsub
 

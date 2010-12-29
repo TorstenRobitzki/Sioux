@@ -8,6 +8,7 @@
 #include "pubsub/key.h"
 #include "json/json.h"
 #include <deque>
+#include <iosfwd>
 #include <boost/cstdint.hpp>
 
 namespace pubsub
@@ -36,6 +37,7 @@ namespace pubsub
         bool operator<(const node_name& rhs) const;
 
         std::pair<bool, key> find_key(const key_domain&) const;
+
     private:
         typedef std::vector<key> key_list;
         key_list keys_;
@@ -66,11 +68,26 @@ namespace pubsub
         int operator-(const node_version& rhs) const;
 
         void operator-=(unsigned);
+
+        /**
+         * @brief increments the version and returns itself
+         */
+        node_version& operator++();
+
+        /**
+         * @brief prints the version in a human readable manner onto the given stream
+         */
+        void print(std::ostream& out) const;
     private:
         boost::uint_fast32_t    version_;
 
         static boost::uint_fast32_t generate_version();
     }; 
+
+    /**
+     * @relates node_version
+     */
+    std::ostream& operator<<(std::ostream& out, const node_version&);
 
     /**
      * @brief calculates the version, that was decrement versions younger than start_version
@@ -106,20 +123,28 @@ namespace pubsub
          * that can be passed to json::update(). If such an update is unknown, the first member will be 
          * false and the second member will contain the current data
          */
-        std::pair<bool, json::value> update_from(const node_version& known_version) const;
+        std::pair<bool, json::value> get_update_from(const node_version& known_version) const;
 
-        /** 
-         * @brief compare two nodes for equal data, and versions
+        /**
+         * @brief changes the current nodes data and increments the current version.
          *
-         * The purpose of this function is testing. It's expected to be not a cheap operation.
+         * The node keeps updates from the old data version to the new data version till a 
+         * certain level of size for the updates is reached.
+         * 
+         * If new_data is equal to data() no action is performed.
+         *
+         * @param new_data the new data of the node
+         * @param keep_update_size_percent the maximum, total size of updates to keep 
+         *                                 expressed as a percentage of the new_data size
+         * @post data() will return new_data
+         * @post current_version() will be incremented if data() != new_data
          */
-        bool operator==(const node& rhs) const;
-        
-    private:
-        std::deque<json::value> versions_;
-        node_version            version_;
+        void update(const json::value& new_data, unsigned keep_update_size_percent);
 
-        json::array build_comulated_update(unsigned versions) const;
+    private:
+        json::value     data_;
+        node_version    version_;
+        json::array     updates_;
     };
 
 

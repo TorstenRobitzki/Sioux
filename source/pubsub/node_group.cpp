@@ -129,6 +129,15 @@ namespace pubsub
         return *this;
     }
 
+    build_node_group has_domain(const key_domain& d)
+    {
+        return build_node_group().has_domain(d);
+    }
+
+    build_node_group has_key(const key& k)
+    {
+        return build_node_group().has_key(k);
+    }
 
 } // namespace pubsub
 
