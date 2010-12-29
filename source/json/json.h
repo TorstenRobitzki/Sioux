@@ -213,6 +213,11 @@ namespace json
         array(const array& original, const std::size_t first_elements);
 
         /**
+         * @brief constructs an array by copying the first references starting at start_idx from an other array
+         */
+        array(const array& other, const std::size_t number_to_copy, const std::size_t start_idx);
+
+        /**
          * @brief returns a deep copy of this array.
          *
          * The copied array contains the same references, not a deep copies of 

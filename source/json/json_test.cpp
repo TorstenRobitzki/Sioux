@@ -91,6 +91,17 @@ TEST(json_array_copy_at_begin_test)
     CHECK_EQUAL("[]", json::array(array,0).to_json());
 }
 
+TEST(json_array_copy_from_test)
+{
+    const json::array array = json::parse("[1,2,3,4,5,6,7]").upcast<json::array>();
+
+    CHECK_EQUAL("[1,2,3,4,5,6,7]", array.to_json());
+    CHECK_EQUAL("[2,3,4,5,6,7]", json::array(array,6u, 1u).to_json());
+    CHECK_EQUAL("[1,2,3,4]", json::array(array,4u, 0).to_json());
+    CHECK_EQUAL("[3]", json::array(array,1u, 2u).to_json());
+    CHECK_EQUAL("[]", json::array(array, 0, 0).to_json());
+}
+
 TEST(json_special_test)
 {
     json::value null = json::null();

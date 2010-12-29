@@ -375,6 +375,11 @@ namespace json
             {
             }
 
+            array_impl(const array_impl& other, const std::size_t number_to_copy, const std::size_t start_idx)
+                : members_(other.members_.begin() + start_idx, other.members_.begin() + number_to_copy + start_idx)
+            {
+            }
+
             void add(const value& v)
             {
                 members_.push_back(v);
@@ -651,6 +656,11 @@ namespace json
 
     array::array(const array& original, const std::size_t first_elements)
         : value(new array_impl(original.get_impl<array_impl>(), first_elements))
+    {
+    }
+
+    array::array(const array& other, const std::size_t number_to_copy, const std::size_t start_idx)
+        : value(new array_impl(other.get_impl<array_impl>(), number_to_copy, start_idx))
     {
     }
 
