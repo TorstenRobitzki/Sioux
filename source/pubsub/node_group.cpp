@@ -6,6 +6,7 @@
 #include "pubsub/key.h"
 #include "pubsub/node.h"
 #include <typeinfo>
+#include <ostream>
 
 namespace pubsub
 {
@@ -14,6 +15,7 @@ namespace pubsub
         {
         public:
             virtual bool in_filter(const node_name&) const = 0;
+            virtual void print(std::ostream&) const = 0;
             virtual ~filter() {}
         };
 
@@ -25,6 +27,11 @@ namespace pubsub
             virtual bool in_filter(const node_name& name) const
             {
                 return name.find_key(domain_).first;
+            }
+
+            virtual void print(std::ostream& out) const 
+            {
+                out << "has_domain(" << domain_ << ")";
             }
 
             const key_domain domain_;
@@ -40,6 +47,11 @@ namespace pubsub
                 const std::pair<bool, key> k = name.find_key(key_.domain());
 
                 return k.first && k.second == key_;
+            }
+
+            virtual void print(std::ostream& out) const 
+            {
+                out << "has_key(" << key_ << ")";
             }
 
             const key key_;
@@ -73,6 +85,17 @@ namespace pubsub
             for ( filter_list::const_iterator i = filters_.begin(); i != filters_.end(); ++i )
                 delete *i;
         }
+
+        void print(std::ostream& out) const
+        {
+            for ( filter_list::const_iterator i = filters_.begin(); i != filters_.end(); ++i )
+            {
+                (*i)->print(out);
+                if ( i+1 != filters_.end() )
+                    out << '.';
+            }
+        }
+
     private:
         impl(const impl&);
         impl& operator=(const impl&);
@@ -106,6 +129,17 @@ namespace pubsub
     bool node_group::operator!=(const node_group& rhs) const
     {
         return !(*this == rhs);
+    }
+
+    void node_group::print(std::ostream& out) const
+    {
+        return pimpl_->print(out);
+    }
+
+    std::ostream& operator<<(std::ostream& out, const node_group& group)
+    {
+        group.print(out);
+        return out;
     }
 
     ///////////////////////////

@@ -7,6 +7,8 @@
 
 #include "pubsub/pubsub.h"
 #include "pubsub/node.h"
+#include <map>
+#include <boost/thread/mutex.hpp>
 
 namespace json {
     class value;
@@ -30,32 +32,46 @@ namespace test {
         unsigned    update_calls_;
     };
 
+    /**
+     * @brief implementation of the adapter interface for testing.
+     * 
+     */
     class adapter : public ::pubsub::adapter
     {
     public:
-        adapter();
-
         /**
-         * @brief returns true, if the authorize() function was called exactly once 
+         * @brief returns true, if the authorize() function was called at least once 
          *        with the given parameters.
          */
-        bool authorization_requested(const ::pubsub::subscriber&, const node_name&);
-        bool validation_requested(const node_name&);
-        bool initial_value_requested(const node_name&);
+        bool authorization_requested(const boost::shared_ptr<::pubsub::subscriber>&, const node_name&) const;
+        void answer_authorization_request(const boost::shared_ptr<::pubsub::subscriber>&, const node_name&, bool is_authorized);
+        void skip_authorization_request(const boost::shared_ptr<::pubsub::subscriber>&, const node_name&);
+
+        bool validation_requested(const node_name&) const;
+        void answer_validation_request(const node_name&, bool is_valid);
+        void skip_validation_request(const node_name&);
+
+        bool initialization_requested(const node_name&) const;
+        void answer_initialization_request(const node_name&, const json::value& answer);
+        void skip_initialization_request(const node_name&);
+
+        /**
+         * @brief no pending unanswered or unskiped requests
+         */
+        bool empty() const;
     private:
-        virtual bool valid_node(const node_name& node_name);
-        virtual json::value node_init(const node_name& node_name);
-        virtual bool authorize(const ::pubsub::subscriber&, const node_name& node_name);
+        virtual void valid_node(const node_name& node_name, const boost::shared_ptr<validation_call_back>&);
+        virtual void authorize(const boost::shared_ptr<::pubsub::subscriber>&, const node_name& node_name, const boost::shared_ptr<authorization_call_back>&);
+        virtual void node_init(const node_name& node_name, const boost::shared_ptr<initialization_call_back>&);
 
-        unsigned                    authorize_calls_;
-        const ::pubsub::subscriber* subscriber_;
-        node_name                   authorized_node_name_;
+        typedef std::multimap<std::pair<const boost::shared_ptr<::pubsub::subscriber>, node_name>, boost::shared_ptr<authorization_call_back> > authorization_request_list;
+        typedef std::multimap<node_name, boost::shared_ptr<validation_call_back> > validation_request_list;
+        typedef std::multimap<node_name, boost::shared_ptr<initialization_call_back> > initialization_request_list;
 
-        unsigned                    validation_calls_;
-        node_name                   validated_node_name_;
-
-        unsigned                    initialization_calls_;
-        node_name                   initialization_node_name_;
+        mutable boost::mutex        mutex_;
+        authorization_request_list  authorization_request_;
+        validation_request_list     validation_request_;
+        initialization_request_list initialization_request_;
     };
 }
 }

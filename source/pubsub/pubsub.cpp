@@ -4,7 +4,23 @@
 
 #include "pubsub/pubsub.h"
 
-namespace pubsub {
+namespace pubsub
+{
+    // class adapter
+    void adapter::invalid_node_subscription(const node_name&, const boost::shared_ptr<subscriber>&)
+    {
+    }
 
-}
+    void adapter::unauthorized_subscription(const node_name&, const boost::shared_ptr<subscriber>&)
+    {
+    }
+
+    void adapter::initialization_failed(const node_name&, const boost::shared_ptr<subscriber>&)
+    {
+    }
+
+} // namespace pubsub
+
+
+
 

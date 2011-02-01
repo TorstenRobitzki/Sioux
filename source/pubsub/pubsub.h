@@ -17,7 +17,7 @@ namespace pubsub
     class node;
     class node_version;
     class node_name;
-
+    class root;
     /*
     - Hohe Anzahl Subscriber auf einen Knoten
         - vielleicht Gruppierung von Subscribern
@@ -47,32 +47,6 @@ namespace pubsub
 
     
     /**
-     * @brief describes update policy, node timeout
-     */
-    class configuration
-    {
-    public:
-        /**
-         * @brief the time, that a node without subscriber should stay in the data model
-         */
-        boost::posix_time::time_duration    node_timeout() const;
-
-        /**
-         * @brief The time that have to elapse, before a new version of a document will
-         *        be published. 
-         *
-         * If at the time, where the update was made, the time isn't elapsed, the update
-         * will be published, when the time elapses.
-         */
-        boost::posix_time::time_duration    min_update_period() const;
-
-        /**
-         * @brief the ratio of update costs to full document size in %
-         */
-        unsigned max_update_size() const;
-    };
-
-    /**
      * @brief interface for a subcriber / receiver of updates 
      */
     class subscriber
@@ -88,6 +62,61 @@ namespace pubsub
     };
 
     /**
+     * @brief interface, that will be implemented by the pubsub library to provide
+     *        validation call back.
+     */
+    class validation_call_back
+    {
+    public:
+        /**
+         * @brief to be call, if the node_name is valid
+         */
+        virtual void is_valid() = 0;
+
+        /**
+         * @brief to be call, if a node_name is not valid
+         */
+        virtual void not_valid() = 0;
+
+        virtual ~validation_call_back() {}
+    };
+
+    /**
+     * @brief interface, that will be implmented by the pubsub library to provide
+     *        a call back for asynchronous node initialization
+     */
+    class initialization_call_back
+    {
+    public:
+        /**
+         * @brief to be called, when a nodes initial value is ready.
+         */
+        virtual void initial_value(const json::value&) = 0;
+
+        virtual ~initialization_call_back() {}
+    };
+
+    /**
+     * @brief interface, that will be implemented by the pubsub library to provide
+     *        a call back for asynchronous authorization.
+     */
+    class authorization_call_back
+    {
+    public:
+        /**
+         * @brief to be called, if the requesting subscriber is authorized to access the requested node
+         */
+        virtual void is_authorized() = 0;
+
+        /**
+         * @brief to be called, when the subscriber is not authorized to access the requested node
+         */
+        virtual void not_authorized() = 0;
+
+        virtual ~authorization_call_back() {}
+    };
+
+    /**
      * @brief application interface
      */
     class adapter
@@ -96,25 +125,47 @@ namespace pubsub
         /**
          * @brief returns true, if the given node_name names a valid node
          */
-        virtual bool valid_node(const node_name& node_name) = 0;
-
-        /**
-         * @brief returns the initial value of the node 
-         *
-         * Asynchronous
-         */
-        virtual json::value node_init(const node_name& node_name) = 0;
+        virtual void valid_node(const node_name& node_name, const boost::shared_ptr<validation_call_back>&) = 0;
 
         /**
          * @brief returns true, if the given subscriber is authorized to subscribe to the named node
          */
-        virtual bool authorize(const subscriber&, const node_name& node_name) = 0;
+        virtual void authorize(const boost::shared_ptr<subscriber>&, const node_name& node_name, const boost::shared_ptr<authorization_call_back>&) = 0;
+
+        /**
+         * @brief will be called, when node initialization is required
+         *
+         * When the data of the node is known, update_node() should be called
+         * on the passed target.
+         * @sa initialization_failed()
+         */
+        virtual void node_init(const node_name& node_name, const boost::shared_ptr<initialization_call_back>&) = 0;
+
+        /**
+         * @brief will be called, when ever a subscriber tried to subscribe to an invalid node
+         *
+         * The default implementation does nothing. The passed subscriber will not be further accessed,
+         * and can be deleted.
+         */
+        virtual void invalid_node_subscription(const node_name& node, const boost::shared_ptr<subscriber>&);
+
+        /**
+         * @brief will be called, when ever a subscriber tried to subscribe to a node and is not authorized to do so.
+         *
+         * The default implementation does nothing. The passed subscriber will not be further accessed,
+         * and can be deleted.
+         */
+        virtual void unauthorized_subscription(const node_name& node, const boost::shared_ptr<subscriber>&);
+
+        /**
+         * @brief will be called, when ever the initialization of a node failed.
+         *
+         * When validation and authorization was done successfully or was not nessary, but the callback passed to node_init()
+         * was not called and no copy of the passed reference was made.
+         */
+        virtual void initialization_failed(const node_name& node, const boost::shared_ptr<subscriber>& first_subscriber);
 
         virtual ~adapter() {}
-    };
-
-    class transaction
-    {
     };
 
 } // namespace data

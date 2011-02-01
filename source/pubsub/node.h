@@ -38,10 +38,20 @@ namespace pubsub
 
         std::pair<bool, key> find_key(const key_domain&) const;
 
+        /**
+         * @brief prints the node_name in a human readable manner onto the given stream
+         */
+        void print(std::ostream&) const;
     private:
         typedef std::vector<key> key_list;
         key_list keys_;
     };
+
+    /**
+     * @brief prints the given node_name in a human readable manner onto the given stream
+     * @relates node_name
+     */
+    std::ostream& operator<<(std::ostream& out, const node_name& name);
 
     /**
      * @brief version of a node

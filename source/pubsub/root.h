@@ -40,12 +40,17 @@ namespace pubsub
          * @param adapter user defined adapter to define aspects like authorization and validation
          * @param default_configuration a default configuration to be used for all node that do not have a different configuration defined
          */
-        root(boost::asio::io_service& io_queue, adapter& adapter, const boost::shared_ptr<const configuration>& default_configuration);
+        root(boost::asio::io_service& io_queue, adapter& adapter, const configuration& default_configuration);
 
         /**
          * @brief adds or changes the configuration of the given group of nodes
+         *
+         * The new_configuration is added at the the end of the list of configurations. For every new node,
+         * this list is searched for an entry where the name of the node fits with a given node_group. If an entry
+         * is found, the stored configuration is applied to the new node. If no entry is found, the default configuration 
+         * passed to the c'tor is used.
          */
-        void add_configuration(const node_group& node_name, const boost::shared_ptr<const configuration>& new_config);
+        void add_configuration(const node_group& node_name, const configuration& new_config);
         
         /**
          * @brief removes the named configuration
@@ -56,21 +61,33 @@ namespace pubsub
         /**
          * @brief adds the subscriber to the given node
          */
-        void subscribe(subscriber&, const node_name& node_name);
+        void subscribe(boost::shared_ptr<subscriber>&, const node_name& node_name);
 
         /**
          * @brief adds the subscriber to the given node. 
-         * @param version Tihs is the version that is currently known to the subscriber
+         * @param version This is the version that is currently known to the subscriber
          */
-        void subscribe(subscriber&, const node_name& node_name, const node_version& version);
+        void subscribe(boost::shared_ptr<subscriber>&, const node_name& node_name, const node_version& version);
 
-        void unsubscribe(const subscriber&, const node_name& node_name);
+        /**
+         * @brief stops the subscription of the subscriber to the named node.
+         */
+        void unsubscribe(const boost::shared_ptr<subscriber>&, const node_name& node_name);
+
+        /**
+         * @brief stops all subscriptions of the subscriber
+         */
+        void unsubscribe_all(const boost::shared_ptr<subscriber>&);
 
         void update_node(const node_name& node_name, const json::value& new_data);
 
-        transaction start_transaction();
-        void commit(transaction);
-        void rollback(transaction);
+    private:
+        // no copy, no assigment; not implemted
+        root(const root&);
+        root& operator=(const root&);
+
+        class impl;
+        impl*   pimpl_;
     };
 
 } // namespace pubsub

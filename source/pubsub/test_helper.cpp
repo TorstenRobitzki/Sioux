@@ -38,66 +38,126 @@ namespace test {
         data_ = data;
     }
 
+    namespace {
+        template <class Con>
+        typename Con::mapped_type find_and_remove(Con& container, const typename Con::key_type& key)
+        {
+            const typename Con::iterator pos = container.find(key);
+
+            if ( pos == container.end() )
+                throw std::runtime_error("can't find key");
+
+            const Con::mapped_type result = pos->second;
+            container.erase(pos);
+
+            return result;
+        }
+
+    }
+
     /////////////////
     // class adapter
-    adapter::adapter()
-        : authorize_calls_(0)
-        , subscriber_(0)
-        , authorized_node_name_()
-        , validation_calls_(0)
-        , validated_node_name_()
-        , initialization_calls_(0)
-        , initialization_node_name_()
+    bool adapter::authorization_requested(const boost::shared_ptr<::pubsub::subscriber>& user, const node_name& name) const
     {
+        boost::mutex::scoped_lock lock(mutex_);
+        const authorization_request_list::const_iterator pos = authorization_request_.find(std::make_pair(user, name));
+
+        return pos != authorization_request_.end();
     }
 
-    bool adapter::authorization_requested(const ::pubsub::subscriber& client, const node_name& name)
+    void adapter::answer_authorization_request(const boost::shared_ptr<::pubsub::subscriber>& user, const node_name& name, bool is_authorized)
     {
-        const bool result = authorize_calls_ == 1 && subscriber_ == &client && authorized_node_name_ == name;
-        authorize_calls_ = 0;
+        boost::mutex::scoped_lock lock(mutex_);
+        const boost::shared_ptr<authorization_call_back> cb = find_and_remove(authorization_request_, std::make_pair(user, name));
 
-        return result;
+        if ( is_authorized )
+        {
+            cb->is_authorized();    
+        }
+        else
+        {
+            cb->not_authorized();
+        }
     }
 
-    bool adapter::validation_requested(const node_name& node)
+    void adapter::skip_authorization_request(const boost::shared_ptr<::pubsub::subscriber>& user, const node_name& name)
     {
-        const bool result = validation_calls_ == 1 && validated_node_name_ == node;
-        validation_calls_ = 0;
-
-        return result;
+        boost::mutex::scoped_lock lock(mutex_);
+        find_and_remove(authorization_request_, std::make_pair(user, name));
     }
 
-    bool adapter::initial_value_requested(const node_name& node)
+    bool adapter::validation_requested(const node_name& name) const
     {
-        const bool result = initialization_calls_ == 1 && initialization_node_name_ == node;
-        initialization_calls_ = 0;
+        boost::mutex::scoped_lock lock(mutex_);
+        const validation_request_list::const_iterator pos = validation_request_.find(name);
 
-        return result;
+        return pos != validation_request_.end();
     }
 
-    bool adapter::valid_node(const node_name& node_name)
+    void adapter::answer_validation_request(const node_name& name, bool is_valid)
     {
-        validated_node_name_ = node_name;
-        ++validation_calls_;
+        boost::mutex::scoped_lock lock(mutex_);
+        const boost::shared_ptr<validation_call_back> cb = find_and_remove(validation_request_, name);
 
-        return true;
+        if ( is_valid )
+        {
+            cb->is_valid();
+        }
+        else
+        {
+            cb->not_valid();
+        }
     }
 
-    json::value adapter::node_init(const node_name& node_name)
+    void adapter::skip_validation_request(const node_name& name)
     {
-        initialization_node_name_ = node_name;
-        ++initialization_calls_;
-
-        return json::string();
+        boost::mutex::scoped_lock lock(mutex_);
+        find_and_remove(validation_request_, name);
     }
 
-    bool adapter::authorize(const ::pubsub::subscriber& client, const node_name& node_name)
+    bool adapter::initialization_requested(const node_name& name) const
     {
-        authorized_node_name_ = node_name;
-        subscriber_ = &client;
-        ++authorize_calls_;
+        boost::mutex::scoped_lock lock(mutex_);
+        const initialization_request_list::const_iterator pos = initialization_request_.find(name);
 
-        return true;
+        return pos != initialization_request_.end();
+    }
+
+    void adapter::answer_initialization_request(const node_name& name, const json::value& answer)
+    {
+        boost::mutex::scoped_lock lock(mutex_);
+        find_and_remove(initialization_request_, name)->initial_value(answer);
+    }
+
+    void adapter::skip_initialization_request(const node_name& name)
+    {
+        boost::mutex::scoped_lock lock(mutex_);
+        find_and_remove(initialization_request_, name);
+    }
+
+    bool adapter::empty() const
+    {
+        boost::mutex::scoped_lock lock(mutex_);
+        return authorization_request_.empty() && validation_request_.empty() && initialization_request_.empty();
+    }
+
+    void adapter::valid_node(const node_name& name, const boost::shared_ptr<validation_call_back>& cb)
+    {
+        boost::mutex::scoped_lock lock(mutex_);
+        validation_request_.insert(std::make_pair(name, cb));
+    }
+
+    void adapter::node_init(const node_name& name, const boost::shared_ptr<initialization_call_back>& cb)
+    {
+        boost::mutex::scoped_lock lock(mutex_);
+        initialization_request_.insert(std::make_pair(name, cb));
+    }
+
+    void adapter::authorize(const boost::shared_ptr<::pubsub::subscriber>& user, const node_name& name, const boost::shared_ptr<authorization_call_back>& cb)
+    {
+        boost::mutex::scoped_lock lock(mutex_);
+        const authorization_request_list::key_type key(user, name);
+        authorization_request_.insert(std::make_pair(key, cb));
     }
 
 }

@@ -3,6 +3,7 @@
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 #include "pubsub/key.h"
+#include <ostream>
 
 namespace pubsub {
 
@@ -37,6 +38,11 @@ namespace pubsub {
         return domain_name_;
     }
 
+    std::ostream& operator<<(std::ostream& out, const key_domain& k)
+    {
+        return out << k.name();
+    }
+
     //////////////
     // class key
     key::key()
@@ -63,6 +69,17 @@ namespace pubsub {
     const key_domain& key::domain() const
     {
         return domain_;
+    }
+
+    void key::print(std::ostream& out) const
+    {
+        out << domain_ << ":" << value_;
+    }
+
+    std::ostream& operator<<(std::ostream& out, const key& k)
+    {
+        k.print(out);
+        return out;
     }
 
 } // namespace pubsub

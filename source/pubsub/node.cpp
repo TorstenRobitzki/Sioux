@@ -106,6 +106,26 @@ namespace pubsub {
         return result;
     }
 
+    void node_name::print(std::ostream& out) const
+    {
+        out << "{";
+
+        for ( key_list::const_iterator i = keys_.begin(); i != keys_.end(); ++i )
+        {
+            out << *i;
+            if ( i+1 != keys_.end() )
+                out << ", ";
+        }
+
+        out << "}";
+    }
+
+    std::ostream& operator<<(std::ostream& out, const node_name& name)
+    {   
+        name.print(out);
+        return out;
+    }
+
     ///////////////////////
     // class node_version
     node_version::node_version()

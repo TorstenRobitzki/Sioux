@@ -6,6 +6,7 @@
 #define SIOUX_SOURCE_PUBSUB_KEY_H
 
 #include <string>
+#include <iosfwd>
 
 namespace pubsub
 {
@@ -46,6 +47,12 @@ namespace pubsub
     };
 
     /**
+     * @brief prints the name of the domain onto the stream
+     * @relates key_domain
+     */
+    std::ostream& operator<<(std::ostream&, const key_domain&);
+
+    /**
      * @brief key 
      */
     class key
@@ -62,11 +69,21 @@ namespace pubsub
         bool operator<(const key& rhs) const;
 
         const key_domain& domain() const;
+
+        /**
+         * @brief prints the key in a human readable manner onto the given stream in the form: domain:value
+         */
+        void print(std::ostream& out) const;
     private:
         key_domain  domain_;
         std::string value_;
     };
 
+    /**
+     * @brief prints the given key in a human readable manner onto the given stream in the form: domain:value
+     * @relates key
+     */
+    std::ostream& operator<<(std::ostream& out, const key& k);
 }
 
 #endif // include guard

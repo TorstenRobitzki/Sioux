@@ -6,6 +6,7 @@
 #define SIOUX_SOURCE_PUBSUB_NODE_GROUP_H
 
 #include <boost/shared_ptr.hpp>
+#include <iosfwd>
 
 namespace pubsub
 {
@@ -52,10 +53,21 @@ namespace pubsub
          */
         bool operator!=(const node_group& rhs) const;
 
+        /**
+         * @brief prints the group in a human readable manner onto the given stream
+         */
+        void print(std::ostream& out) const;
+
         class impl;
     private:
         boost::shared_ptr<impl> pimpl_;
     };
+
+    /**
+     * @brief prints the group in a human readable manner onto the given stream
+     * @relates node_group
+     */
+    std::ostream& operator<<(std::ostream& out, const node_group& group);
 
     /**
      * @brief builder for a node group. 
