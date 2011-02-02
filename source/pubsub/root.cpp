@@ -110,24 +110,29 @@ namespace {
                 , user_(usr)
                 , config_(config)
                 , queue_(io_queue)
-                , destructor_action_(report_nothing)
+                , destructor_action_(report_invalid_node)
                 , root_impl_(root)
             {
             }
 
             virtual ~validator()
             {
-                switch ( destructor_action_ )
+                try {
+                    switch ( destructor_action_ )
+                    {
+                    case report_invalid_node:
+                        not_valid();
+                        break;
+                    case report_unauthorized_subscription:
+                        not_authorized();
+                        break;
+                    case report_initialization_failed:
+                        not_initialized();
+                        break;
+                    }
+                }
+                catch (...)
                 {
-                case report_invalid_node:
-                    adapter_.invalid_node_subscription(node_, user_);
-                    break;
-                case report_unauthorized_subscription:
-                    adapter_.unauthorized_subscription(node_, user_);
-                    break;
-                case report_initialization_failed:
-                    adapter_.initialization_failed(node_, user_);
-                    break;
                 }
             }
         private:
@@ -165,7 +170,14 @@ namespace {
 
             void not_valid() 
             {
-                adapter_.invalid_node_subscription(node_, user_);
+                user_->on_invalid_node_subscription(node_);
+                queue_.post(
+                    boost::bind(
+                        &adapter::invalid_node_subscription,
+                        &adapter_,
+                        node_,
+                        user_));
+
                 destructor_action_ = report_nothing;
             }
 
@@ -176,7 +188,14 @@ namespace {
 
             void not_authorized()
             {
-                adapter_.unauthorized_subscription(node_, user_);
+                user_->on_unauthorized_node_subscription(node_);
+                queue_.post(
+                    boost::bind(
+                        &adapter::unauthorized_subscription,
+                        &adapter_,
+                        node_,
+                        user_));
+
                 destructor_action_ = report_nothing;
             }
 
@@ -184,6 +203,19 @@ namespace {
             {
                 // finialy, an intitial, valid and authorized 
                 root_impl_.add_initial_authorized_and_validated_node(node_, data, user_, config_);
+                destructor_action_ = report_nothing;
+            }
+
+            void not_initialized()
+            {
+                user_->on_failed_node_subscription(node_);
+
+                queue_.post(
+                    boost::bind(
+                    &adapter::initialization_failed,    
+                    &adapter_,
+                    node_,
+                    user_));
             }
 
             adapter&                                        adapter_;

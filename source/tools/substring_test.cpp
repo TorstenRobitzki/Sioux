@@ -32,7 +32,7 @@ TEST(substring_char_pointer_test)
 
     CHECK(tools::substring(tools::begin(buffer1), tools::begin(buffer1)+5) == "es wa");
 
-    CHECK_EQUAL(0, tools::substring().size());
+    CHECK_EQUAL(0u, tools::substring().size());
     CHECK_EQUAL(sizeof buffer1 -1, s1.size());
 }
 

@@ -6,6 +6,20 @@
 
 namespace pubsub
 {
+
+    // class subscriber
+    void subscriber::on_invalid_node_subscription(const node_name&)
+    {
+    }
+
+    void subscriber::on_unauthorized_node_subscription(const node_name&)
+    {
+    }
+
+    void subscriber::on_failed_node_subscription(const node_name&)
+    {
+    }
+
     // class adapter
     void adapter::invalid_node_subscription(const node_name&, const boost::shared_ptr<subscriber>&)
     {

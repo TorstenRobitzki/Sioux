@@ -58,6 +58,26 @@ namespace pubsub
          */
         virtual void on_udate(const node_name& name, const node& data) = 0;
 
+        /**
+         * @brief will be called, when a subscription was done to an invalid node.
+         *
+         * This default implementation does nothing.
+         */
+        virtual void on_invalid_node_subscription(const node_name& node);
+
+        /**
+         * @brief will be called, when the authorization to a subscribed node failed.
+         *
+         * This default implementation does nothing.
+         */
+        virtual void on_unauthorized_node_subscription(const node_name& node);
+
+        /**
+         * @brief will be called, when the initialization of a node that this subscriber subscribed
+         *        to, failed. This default implementation does nothing.
+         */
+        virtual void on_failed_node_subscription(const node_name& node);
+
         virtual ~subscriber() {}
     };
 
