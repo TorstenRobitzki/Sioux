@@ -8,7 +8,7 @@
 
 namespace http {
 
-char* const reason_phrase(http_error_code ec) 
+char const * reason_phrase(http_error_code ec) 
 {
 	switch (ec)
 	{

@@ -39,7 +39,7 @@ namespace server {
                 return proxies_.front().second->create_response(connection, header);
             }
 
-            proxy_list_t::const_iterator proxy = proxies_.begin();
+            typename proxy_list_t::const_iterator proxy = proxies_.begin();
             for ( ; proxy != proxies_.end(); ++proxy )
             {
                 const std::size_t s = std::min( header->uri().size(), proxy->first.size());

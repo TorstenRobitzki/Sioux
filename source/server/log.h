@@ -6,6 +6,7 @@
 #define SIOUX_SERVER_LOG_H
 
 #include <boost/thread/mutex.hpp>
+#include <boost/asio/buffers_iterator.hpp>
 #include <ostream>
 
 namespace server

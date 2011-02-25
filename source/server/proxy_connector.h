@@ -16,6 +16,7 @@
 #include <boost/date_time/posix_time/posix_time_types.hpp>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/thread/mutex.hpp>
+#include <boost/bind.hpp>
 #include <stdexcept>
 #include <deque>
 
@@ -134,7 +135,7 @@ namespace server
         void connect_timeout(const boost::shared_ptr<connection>&, const boost::system::error_code& error);
         void connect_idle_timeout(const boost::shared_ptr<connection>&, const boost::system::error_code& error);
         
-        static void remove_from_list(connection_list_t&, typename connection_list_t::const_iterator);
+        static void remove_from_list(connection_list_t&, typename connection_list_t::iterator);
 
         boost::mutex                                        mutex_;
         boost::asio::io_service&                            queue_;
@@ -211,7 +212,7 @@ namespace server
             new_connection->socket_.async_connect(
                 addr_, 
                 boost::bind(
-                    &ip_proxy_connector::connection_handler, shared_from_this(), 
+                    &ip_proxy_connector::connection_handler, this->shared_from_this(), 
                     new_connection, _1));
 
             tools::scope_guard stop_connecting = tools::make_obj_guard(
@@ -222,7 +223,7 @@ namespace server
                 config_->connect_timeout());
             new_connection->timer_.async_wait(
                 boost::bind(
-                &ip_proxy_connector::connect_timeout, shared_from_this(),
+                &ip_proxy_connector::connect_timeout, this->shared_from_this(),
                 new_connection, _1));
 
             stop_connecting.dismiss();
@@ -248,7 +249,7 @@ namespace server
         template <class L>
         typename L::value_type find_and_remove(L& list, void* value)
         {
-            for ( L::iterator i = list.begin(); ; ++i )
+            for ( typename L::iterator i = list.begin(); ; ++i )
             {
                 assert(i != list.end());
                 if ( &**i == value )
@@ -278,7 +279,7 @@ namespace server
             in_use->timer_.expires_from_now(config_->max_idle_time());
             in_use->timer_.async_wait(
                 boost::bind(
-                    &ip_proxy_connector::connect_idle_timeout, shared_from_this(),
+                    &ip_proxy_connector::connect_idle_timeout, this->shared_from_this(),
                     in_use, _1));
 
             idle_connections_.push_back(in_use);
@@ -294,7 +295,7 @@ namespace server
         {
             boost::mutex::scoped_lock lock(mutex_);
         
-            const connection_list_t::iterator new_con_pos = 
+            const typename connection_list_t::iterator new_con_pos = 
                 std::find(connecting_connections_.begin(), connecting_connections_.end(), new_connection);
 
             // if the new connection is not found, the connect attempt must have been timed out
@@ -333,7 +334,7 @@ namespace server
         {
             boost::mutex::scoped_lock lock(mutex_);
 
-            const connection_list_t::iterator timed_out_con_pos = 
+            const typename connection_list_t::iterator timed_out_con_pos = 
                 std::find(connecting_connections_.begin(), connecting_connections_.end(), timed_out_connection);
 
             // if the connect was established, while this function was waiting for the mutex, the connection will not 
@@ -364,7 +365,7 @@ namespace server
         {
             boost::mutex::scoped_lock lock(mutex_);
 
-            const connection_list_t::iterator new_con_pos = 
+            const typename connection_list_t::iterator new_con_pos = 
                 std::find(idle_connections_.begin(), idle_connections_.end(), timed_out_connection);
 
             // if the connect was established, while this function was waiting for the mutex, the connection will not 
@@ -385,7 +386,7 @@ namespace server
     }
 
     template <class Socket>
-    void ip_proxy_connector<Socket>::remove_from_list(connection_list_t& list, typename connection_list_t::const_iterator pos)
+    void ip_proxy_connector<Socket>::remove_from_list(connection_list_t& list, typename connection_list_t::iterator pos)
     {
         list.erase(pos);
     }

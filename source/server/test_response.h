@@ -66,7 +66,7 @@ namespace test {
 
         void start()
         {
-            self_ = shared_from_this();
+            self_ = this->shared_from_this();
 
             if ( response_type_ == auto_response )
                 simulate_incomming_data();
@@ -85,7 +85,7 @@ namespace test {
                 connection_->async_write(
                     boost::asio::buffer(answer_), 
                     boost::bind(&response::handler, 
-                            shared_from_this(),
+                            this->shared_from_this(),
                             boost::asio::placeholders::error,
                             boost::asio::placeholders::bytes_transferred),
                     *this);

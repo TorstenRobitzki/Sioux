@@ -178,13 +178,13 @@ namespace tools
     template <class Iterator>
     basic_substring<Iterator>::operator boost::asio::const_buffer() const
     {
-        return boost::asio::const_buffer(begin_, size() * sizeof std::iterator_traits<Iterator>::value_type);
+        return boost::asio::const_buffer(begin_, size() * sizeof (typename std::iterator_traits<Iterator>::value_type));
     }
 
     template <class Iterator>
     std::ostream& operator<<(std::ostream& out, const basic_substring<Iterator>& text)
     {
-        for ( basic_substring<Iterator>::const_iterator i = text.begin(), end = text.end(); i != end; ++i )
+        for ( typename basic_substring<Iterator>::const_iterator i = text.begin(), end = text.end(); i != end; ++i )
             out << *i;
 
         return out;

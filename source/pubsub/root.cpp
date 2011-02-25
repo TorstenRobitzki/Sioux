@@ -129,6 +129,8 @@ namespace {
                     case report_initialization_failed:
                         not_initialized();
                         break;
+                    case report_nothing:
+                    	break;
                     }
                 }
                 catch (...)
@@ -143,7 +145,7 @@ namespace {
                         &adapter::node_init, 
                         boost::ref(adapter_), 
                         boost::cref(node_), 
-                        shared_from_this()));
+                        this->shared_from_this()));
 
                 destructor_action_ = report_initialization_failed;
             }
@@ -158,7 +160,7 @@ namespace {
                             boost::ref(adapter_), 
                             boost::cref(user_),
                             boost::cref(node_), 
-                            shared_from_this()));
+                            this->shared_from_this()));
 
                     destructor_action_ = report_unauthorized_subscription;
                 }

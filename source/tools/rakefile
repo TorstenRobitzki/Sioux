@@ -1,0 +1,5 @@
+# Copyright (c) Torrox GmbH & Co KG. All rights reserved.
+# Please note that the content of this file is confidential or protected by law.
+# Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
+
+test 'tools_test', :libraries => ['tools', 'unittest++'], :extern_libs => ['boost_thread'], :sources =>  FileList['./source/tools/*_test.cpp'] 

@@ -153,9 +153,9 @@ namespace server
     {
         connection_->trait().event_proxy_response_started(*connection_, *this);
 
-        connector_.async_get_proxy_connection<Connection::socket_t>(
+        connector_.async_get_proxy_connection<typename Connection::socket_t>(
             request_->host(), request_->port(),
-            boost::bind(&proxy_response::handle_orgin_connect, shared_from_this(), _1, _2));
+            boost::bind(&proxy_response::handle_orgin_connect, this->shared_from_this(), _1, _2));
 
         // while waiting for the response, the request to the orgin server can be assembled
         outbuffers_ = filtered_header(*request_);
@@ -177,9 +177,9 @@ namespace server
         reading_body_from_orgin_    = false;
         writing_body_to_client_     = false;
 
-        connector_.async_get_proxy_connection<Connection::socket_t>(
+        connector_.async_get_proxy_connection<typename Connection::socket_t>(
             request_->host(), request_->port(),
-            boost::bind(&proxy_response::handle_orgin_connect, shared_from_this(), _1, _2));
+            boost::bind(&proxy_response::handle_orgin_connect, this->shared_from_this(), _1, _2));
 
         return true;
     }
@@ -208,7 +208,7 @@ namespace server
                 outbuffers_, 
                 boost::bind(
                     &proxy_response::request_written, 
-                    shared_from_this(),
+                    this->shared_from_this(),
                     boost::asio::placeholders::error,
                     boost::asio::placeholders::bytes_transferred),
                 write_timer_,
@@ -375,7 +375,7 @@ namespace server
                 *proxy_socket_,
                 buffer,
                 boost::bind(&proxy_response::handle_read_from_orgin, 
-                        shared_from_this(),
+                        this->shared_from_this(),
                         boost::asio::placeholders::error,
                         boost::asio::placeholders::bytes_transferred),
                 read_timer_,
@@ -389,7 +389,7 @@ namespace server
     {
         if ( !error && proxy_socket_ )
         {
-            connection_->trait().log_error(*this, "proxy_response::orgin_timeout", );
+            connection_->trait().log_error(*this, "proxy_response::orgin_timeout");
 
             // close connection to orgin, pass the connection back to the connector
             connector_.dismiss_connection(proxy_socket_);
@@ -406,7 +406,7 @@ namespace server
             connection_->async_write_some(
                 buffer,
                 boost::bind(&proxy_response::handle_body_written,
-                        shared_from_this(),
+                        this->shared_from_this(),
                         boost::asio::placeholders::error,
                         boost::asio::placeholders::bytes_transferred),
                 *this
@@ -425,7 +425,7 @@ namespace server
                 outbuffers_, 
                 boost::bind(
                     &proxy_response::response_header_written, 
-                    shared_from_this(),
+                    this->shared_from_this(),
                     boost::asio::placeholders::error,
                     boost::asio::placeholders::bytes_transferred),
                 *this);

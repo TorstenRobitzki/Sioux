@@ -6,7 +6,7 @@
 #define SIOUX_SOURCE_TOOLS_HEXDUMP_H
 
 #include <string>
-#include <ostream>
+#include <ostream>  
 #include <sstream>
 
 namespace tools {

@@ -1,0 +1,270 @@
+# Copyright (c) Torrox GmbH & Co KG. All rights reserved.
+# Please note that the content of this file is confidential or protected by law.
+# Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
+
+require 'pathname'
+require 'rake/clean'
+require 'yaml'
+
+SOURCE_FOLDER = File.expand_path 'source'
+INCLUDE_FOLDER = SOURCE_FOLDER 
+SOURCE_FOLDER_PATHNAME = Pathname.new SOURCE_FOLDER
+OUTPUT_FOLDER = File.expand_path 'obj'
+EXE_FOLDER = File.expand_path 'bin'
+LIBRARY_FOLDER = File.expand_path 'lib'
+OBJECT_FILE_EXT = 'o'
+DEPENDS_FILE_EXT = 'd'
+TEST_DEFAULT_LIBS = ['unittest++']
+
+INCLUDE_PATH = ['.', INCLUDE_FOLDER, File.join(SOURCE_FOLDER_PATHNAME, 'unittest++')]
+
+FLAVORS = ['debug', 'release']
+COMPILER_FLAGS = "-Wall -pedantic -Wno-parentheses -c -pipe -I#{INCLUDE_FOLDER}"
+COMPILER_FLAGS_BY_FLAVORS = {
+	'debug' => '-ggdb -O0 -fno-inline',
+	'release' => ''
+}
+
+LINK_FLAGS = '-ggdb'
+
+BOOST_LIBRARY_POST_FIX_BY_FLAVOR = {
+	'debug' => '-mt-sd',
+	'release' => '-mt-s'
+}
+
+executables = []
+
+def library_name_from_path path
+	Pathname.new(path).basename.to_s
+end
+
+def library_file_name lib, flavor
+	File.expand_path(File.join(LIBRARY_FOLDER, flavor, 'lib' + lib)) + '.a'
+end
+
+def external_library_file_name lib, flavor
+	"#{lib}#{BOOST_LIBRARY_POST_FIX_BY_FLAVOR[flavor]}"
+end
+
+def exe_file_name exe, flavor
+	File.expand_path(File.join(EXE_FOLDER, flavor, exe)) + '.exe'
+end
+
+# converts /Users/todi/sioux/source/tools/time.cpp, 'debug', 'o' to /Users/todi/sioux/bin/debug/tools/time.o
+def object_file_name_from_source source_file_name, flavor, extension
+	file       = File.basename(source_file_name, '.cpp')
+	source_dir = Pathname.new(File.dirname(File.absolute_path(source_file_name)))
+	rel_dir    = source_dir.relative_path_from(SOURCE_FOLDER_PATHNAME)
+
+	File.join(OUTPUT_FOLDER, flavor, rel_dir, file) + '.' + extension
+end
+
+def check_flavor flavor
+	raise "flavor #{flavor} not configured" unless FLAVORS.include?(flavor)
+end
+
+def expand_include_file_name file_name, path_list, current_path
+	path_list.each do |path|
+		result = File.join(File.realpath(path, current_path), file_name)
+		
+		return result if File.exists?(result)
+	end
+
+	throw "unable to determine dependencies for inlude \"#{file_name}\"; current_path: #{current_path}"
+end
+
+INCLUDE_LINE_PATTERN = /^#[ \t]*include[ \t]*"(.+)"/
+SCAN_FILE_CACHE = {}
+
+def scan_file_for_includes source_file, current_path
+	dependent_include_files = {}
+
+	cache_key = [current_path, source_file]
+	cache = SCAN_FILE_CACHE.fetch(cache_key, nil)
+	return cache if cache
+	
+	rake_output_message("scanning #{source_file}\n")
+
+	File.foreach(source_file) do |line|
+		if INCLUDE_LINE_PATTERN.match(line) then
+			dependent_include_files[expand_include_file_name($1, INCLUDE_PATH, current_path)] = 1
+		end
+	end
+	
+	SCAN_FILE_CACHE[cache_key] = dependent_include_files 
+	dependent_include_files
+end
+
+def build_dependencies source_file, dependency_file, flavor	
+	already_scanned = {}
+	to_be_scanned   = {source_file => 1}
+
+	while !to_be_scanned.empty?
+		file_name = to_be_scanned.first[0]
+		to_be_scanned.delete file_name
+		
+		unless already_scanned.has_key? file_name then
+			already_scanned[file_name] = 1
+
+			to_be_scanned.merge! scan_file_for_includes(file_name, File.split(source_file)[0] )
+		end			
+	end
+	
+	File.open(dependency_file, 'w') do |output|
+		YAML.dump(already_scanned.keys, output)
+	end
+end
+
+def build_object source_file, object_file, flavor, dependency_file
+	sh "g++ #{source_file} -o #{object_file} #{COMPILER_FLAGS} #{COMPILER_FLAGS_BY_FLAVORS[flavor]}"
+end
+
+def read_dependencies dependency_file
+	begin
+		[*YAML.load_file(dependency_file)]
+	rescue
+		[]
+	end
+end
+
+def build_library library_file, object_files, flavor
+	File.delete(library_file) if File.exist?(library_file)
+	sh "ar -q #{library_file} #{object_files.join(' ')}"
+end
+
+def build_executable executable, objects, libraries, external_libraries, flavor
+	File.delete(executable) if File.exist?(executable)
+	sh "g++ -o #{executable} #{LINK_FLAGS} #{objects.join(' ')} -L#{File.join(LIBRARY_FOLDER, flavor)} #{libraries.collect{|l| '-l' +l }.join(' ')} #{external_libraries.collect{|l| '-l' + l }.join(' ')}"
+end
+
+# List of libraries in the source folder
+libraries  = FileList[File.join(SOURCE_FOLDER, '*')].reject do |file|
+	!File.directory?(file) 
+end.collect do |lib_path|
+	library_name_from_path lib_path
+end
+
+FLAVORS.each do |flavor|
+	directory File.join(LIBRARY_FOLDER, flavor)
+
+	libraries.each do |lib| 
+		CLEAN.include File.join(OUTPUT_FOLDER, flavor, lib, '*.' + OBJECT_FILE_EXT)
+		CLEAN.include File.join(OUTPUT_FOLDER, flavor, lib, '*.' + DEPENDS_FILE_EXT)
+	end
+	
+	CLOBBER.include File.join(LIBRARY_FOLDER, flavor, '*');
+end
+
+def create_object_to_source_dependencies source_files, flavor
+	[source_files].flatten.collect do |source_file|
+		object_file  = object_file_name_from_source source_file, flavor, OBJECT_FILE_EXT
+		depends_file = object_file_name_from_source source_file, flavor, DEPENDS_FILE_EXT
+		object_dir   = File.dirname object_file 
+
+		directory object_dir 
+		
+		depends = [source_file] + read_dependencies(depends_file) + [object_dir]
+
+		file object_file => depends + [depends_file] do
+			build_object(source_file, object_file, flavor, depends_file)
+		end
+
+		file depends_file => depends do 
+			build_dependencies(source_file, depends_file, flavor)
+		end
+		
+		object_file
+	end
+end
+
+# create libraries task 
+library_tasks = libraries.collect do |library_name|
+	libs_by_name_and_flavor = {}
+	source_files = FileList[File.join(SOURCE_FOLDER, library_name, '*.cpp')].exclude(/.*test\.cpp/)
+
+	FLAVORS.each do |flavor|
+		object_files = create_object_to_source_dependencies source_files, flavor 
+		lib_file     = library_file_name(library_name, flavor)
+		lib_dir      = File.dirname lib_file 
+
+		directory lib_dir
+		file lib_file => lib_dir 
+
+		libs_by_name_and_flavor[[library_name, flavor]] = file lib_file  => object_files do |lib|
+			build_library lib.name, object_files, flavor unless object_files.empty? 
+		end
+	end
+
+	task library_name.to_sym, [:flavor] do |t, args|
+		args.with_defaults(:flavor => 'debug')
+		check_flavor args.flavor
+		
+		libs_by_name_and_flavor[[library_name, args.flavor]].invoke
+	end
+end
+
+def test test_name, *dependencies
+	params = {:libraries => [], :extern_libs => [], :sources => [] }
+	dependencies.each {|p| params.merge! p }
+	sources    = params.delete(:sources)
+	libraries  = params.delete(:libraries)
+	external_libs = params.delete(:extern_libs)
+	
+	raise "unrecongnized parameters to 'test': #{params}" unless params.empty?
+
+	tests_by_flavor = {}
+
+	FLAVORS.each do |flavor|
+		exe_name        = exe_file_name test_name, flavor
+		exe_dir         = File.dirname exe_name
+		
+		object_files       = create_object_to_source_dependencies sources, flavor
+		libraries_files    = libraries.collect {|l| library_file_name l, flavor }
+		external_lib_files = external_libs.collect {|e| external_library_file_name e, flavor }
+
+		directory exe_dir
+		file exe_name => exe_dir 
+
+		tests_by_flavor[flavor] = file exe_name => object_files + libraries_files do |exe|
+			build_executable exe_name, object_files, libraries, external_lib_files, flavor
+		end 
+	end
+	
+	task test_name.to_sym, [:flavor] do |t, args|
+		args.with_defaults(:flavor => 'debug')
+		check_flavor args.flavor
+
+		tests_by_flavor[args.flavor].invoke
+		sh exe_file_name(test_name, args.flavor)
+	end
+end
+
+# include sub rake files
+libraries.each do |library_name|
+	rakefile = File.join(SOURCE_FOLDER, library_name, 'rakefile')
+	if File.exist? rakefile then
+		load rakefile
+	end	 
+end
+
+desc 'build all executables shiped with a sioux server'
+task :exes => executables
+
+desc 'build all libraries used to build a sioux server'
+task :libs, [:flavor] do |t, args|
+	args.with_defaults(:flavor => 'debug')
+	check_flavor args.flavor
+
+	library_tasks.each { |t| t.invoke(args.flavor) }
+end
+
+desc 'run all tests'
+task :tests, [:flavor] => :build_tests
+
+desc 'lists the available tests'
+task :list_tests do
+	
+end
+
+task :default => [:exes, :libs] 
+

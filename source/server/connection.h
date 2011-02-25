@@ -13,6 +13,7 @@
 #include "tools/mem_tools.h"
 #include <boost/asio/placeholders.hpp>
 #include <boost/asio/write.hpp>
+#include <boost/asio/ip/tcp.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/bind.hpp>
@@ -44,7 +45,7 @@ namespace server
      * a boost::posix_time::time_duration, that gives the maximum time, a read or write can
      * last until the connection is closed.
 	 */
-    template <class Trait, class Connection = Trait::connection_type>
+    template <class Trait, class Connection = typename Trait::connection_type>
     class connection : public boost::enable_shared_from_this<connection<Trait, Connection> >
 	{
 	public:
@@ -178,7 +179,7 @@ namespace server
         void response_not_possible_impl(async_response& sender, const boost::shared_ptr<async_response>& error_response);
 
         // hurries all responses, that are in front of the given sender
-        void connection<Trait, Connection>::hurry_writers(async_response& sender);
+        void hurry_writers(async_response& sender);
 
         Connection                              connection_;
         Trait&                                  trait_;
@@ -276,7 +277,7 @@ namespace server
             hurry_writers(sender);
 
             // store send request until the current sender is ready
-            blocked_write_list::mapped_type& writes = blocked_writes_[&sender];
+            typename blocked_write_list::mapped_type& writes = blocked_writes_[&sender];
             tools::save_push_back(new blocked_write<ConstBufferSequence, WriteHandler>(buffers, handler), writes);
         }
     }
@@ -308,7 +309,7 @@ namespace server
             hurry_writers(sender);
 
             // store send request until the current sender is ready
-            blocked_write_list::mapped_type& writes = blocked_writes_[&sender];
+            typename blocked_write_list::mapped_type& writes = blocked_writes_[&sender];
             tools::save_push_back(new blocked_write_some<ConstBufferSequence, WriteHandler>(buffers, handler), writes);
         }
     }
@@ -331,13 +332,13 @@ namespace server
             if ( responses_.empty() )
                 return;
 
-            const blocked_write_list::iterator pending_writes = blocked_writes_.find(responses_.front());
+            const typename blocked_write_list::iterator pending_writes = blocked_writes_.find(responses_.front());
 
             if ( pending_writes != blocked_writes_.end() )
             {
                 // first remove all pending writes from the list
-                blocked_write_list::mapped_type                             list;
-                tools::ptr_container_guard<blocked_write_list::mapped_type> delete_blocked_writes(list);
+                typename blocked_write_list::mapped_type                             list;
+                tools::ptr_container_guard<typename blocked_write_list::mapped_type> delete_blocked_writes(list);
 
                 list.swap(pending_writes->second);
                 blocked_writes_.erase(pending_writes);
@@ -358,11 +359,11 @@ namespace server
         const response_list::iterator senders_pos = std::find(responses_.begin(), responses_.end(), &sender);
         assert(senders_pos != responses_.end());
 
-        const blocked_write_list::const_iterator writes = blocked_writes_.find(&sender);
+        const typename blocked_write_list::const_iterator writes = blocked_writes_.find(&sender);
 
         if ( writes != blocked_writes_.end() )
         {
-            tools::ptr_container_guard<blocked_write_list::mapped_type> guard(writes->second);
+            tools::ptr_container_guard<typename blocked_write_list::mapped_type> guard(writes->second);
             std::for_each(writes->second.begin(), writes->second.end(), 
                 boost::bind(&blocked_write_base::cancel, _1));
         }
@@ -387,7 +388,7 @@ namespace server
 
         // if no data was send from this response, consult the error-trait to get an error response
         if ( responses_.front() != &sender || !current_response_is_sending_ )
-            error_response = trait_.error_response(shared_from_this(), ec);
+            error_response = trait_.error_response(this->shared_from_this(), ec);
 
         response_not_possible_impl(sender, error_response);
     }
@@ -444,7 +445,7 @@ namespace server
             connection_,
             boost::asio::buffer(buffer.first, buffer.second),
             boost::bind(&connection::handle_read, 
-                        boost::static_pointer_cast<connection<Trait, Connection> >(shared_from_this()),
+                        boost::static_pointer_cast<connection<Trait, Connection> >(this->shared_from_this()),
                         boost::asio::placeholders::error,
                         boost::asio::placeholders::bytes_transferred),
             read_timer_,
@@ -475,7 +476,7 @@ namespace server
 	template <class Trait, class Connection>
     bool connection<Trait, Connection>::handle_request_header(const boost::shared_ptr<const http::request_header>& new_request)
     {
-        boost::shared_ptr<async_response> response = trait_.create_response(shared_from_this(), new_request);
+        boost::shared_ptr<async_response> response = trait_.create_response(this->shared_from_this(), new_request);
         responses_.push_back(response.get());
 
         try
@@ -488,7 +489,7 @@ namespace server
 
             /// @todo add logging
             boost::shared_ptr<async_response> error_response(
-                trait_.error_response<connection<Trait, Connection> >(shared_from_this(), http::http_internal_server_error));
+                trait_.error_response(this->shared_from_this(), http::http_internal_server_error));
 
             if ( error_response.get() )
             {

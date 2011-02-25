@@ -91,7 +91,7 @@ namespace http
         // returns syntax_error and sets error_code_ to http_bad_request
         message::error_code bad_request();
 
-        friend message_base<request_header>;
+        friend class message_base<request_header>;
 	};
 
 } // namespace http

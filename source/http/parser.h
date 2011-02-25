@@ -145,13 +145,13 @@ void split_url(const std::string& url, std::string& scheme, std::string& authori
 // decodes all encoded characters
 std::string url_decode(const std::string&);
 
-template <class Iter>
-bool parse_number(Iter begin, Iter end, unsigned& r)
+template <class Iter, typename SizeT>
+bool parse_number(Iter begin, Iter end, SizeT& r)
 {
     if ( begin == end ) 
         return false;
 
-    unsigned result = 0;
+    SizeT result = 0;
 
     for ( ; begin != end; ++begin )
     {

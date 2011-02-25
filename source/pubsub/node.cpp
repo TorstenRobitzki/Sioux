@@ -7,6 +7,7 @@
 #include "json/delta.h"
 #include <algorithm>
 #include <cstdlib>
+#include <limits>
 
 namespace pubsub {
 

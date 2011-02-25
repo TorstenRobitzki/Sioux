@@ -102,6 +102,29 @@ TEST(json_array_copy_from_test)
     CHECK_EQUAL("[]", json::array(array, 0, 0).to_json());
 }
 
+/**
+ * @test make sure, a copy has in independent array of elements
+ */
+TEST(json_array_copy_test)
+{
+    const json::array array = json::parse("[1,2,3,4,5,6,7]").upcast<json::array>();
+    json::array copy(array.copy());
+
+    copy.erase(0,4);
+    CHECK_EQUAL("[1,2,3,4,5,6,7]", array.to_json());
+    CHECK(array != copy);
+}
+
+TEST(json_array_copy_test2)
+{
+    const json::array array = json::parse("[1,2,3]").upcast<json::array>();
+    json::array copy(array.copy());
+
+    copy.erase(0,3);
+    CHECK_EQUAL("[1,2,3]", array.to_json());
+    CHECK(array != copy);
+}
+
 TEST(json_special_test)
 {
     json::value null = json::null();

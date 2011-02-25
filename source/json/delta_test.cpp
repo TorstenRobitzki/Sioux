@@ -29,6 +29,16 @@ TEST(array_range_operations)
     CHECK_EQUAL(start, json::update(start, json::array()));
 }
 
+TEST(array_range_operations2)
+{
+    const json::value start    = json::parse("[1,2,3]");
+    const json::value update   = json::parse("[5,0,3,[4,5,6]]");
+    const json::value expected = json::parse("[4,5,6]");
+
+    CHECK_EQUAL(expected, json::update(start, update));
+    CHECK_EQUAL(start, json::update(start, json::array()));
+}
+
 TEST(object_update)
 {
     const json::value start    = json::parse("{\"foo\":null, \"bar\" : 1, \"ar\": []}");
@@ -78,11 +88,23 @@ namespace
         const std::pair<bool, json::value> delta = json::delta(av, bv, std::numeric_limits<std::size_t>::max());
 
         if ( delta.first && update(av, delta.second) != bv )
-            throw std::runtime_error("update(\"" + tools::as_string(av) +"\",\"" + tools::as_string(delta.second) +
+        	throw std::runtime_error("update(\"" + tools::as_string(av) +"\",\"" + tools::as_string(delta.second) +
                 " != \"" + tools::as_string(bv) + "\"");
 
         return delta.first ? tools::as_string(delta.second) : "";
     }
+}
+
+/**
+ * @test while porting to gcc a bug, changing the input parameter popped up
+ */
+TEST(update_array_will_result_in_unchanged_paramter)
+{
+	const char* const original_text = "[1,2,3]";
+	const json::value original = json::parse(original_text);
+	CHECK_EQUAL(json::parse("[4,5,6]"), update(original, json::parse("[5,0,3,[4,5,6]]")));
+	CHECK_EQUAL(tools::as_string(original), original_text);
+	CHECK_EQUAL(original, json::parse(original_text));
 }
 
 TEST(simple_delta)

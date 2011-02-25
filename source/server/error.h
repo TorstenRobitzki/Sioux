@@ -47,7 +47,7 @@ namespace server {
             boost::asio::buffer(buffer_),
             boost::bind(
                 &error_response::handle_written, 
-                shared_from_this(),
+                this->shared_from_this(),
                 boost::asio::placeholders::error,
                 boost::asio::placeholders::bytes_transferred),
             *this);

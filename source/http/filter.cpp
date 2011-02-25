@@ -6,6 +6,7 @@
 #include "http/parser.h"
 #include "tools/split.h"
 #include <functional>
+#include <cstring>
 
 namespace http {
     namespace {

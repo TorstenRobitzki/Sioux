@@ -1,4 +1,4 @@
-// Copyright (c) Torrox GmbH & Co KG. All rights reserved.
+	// Copyright (c) Torrox GmbH & Co KG. All rights reserved.
 // Please note that the content of this file is confidential or protected by law.
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
@@ -58,9 +58,13 @@ namespace test
     struct read
     {
         explicit read(const std::string& s);
+        explicit read(const char* s);
 
         template <class Iter>
         read(Iter begin, Iter end) : data(begin, end) {}
+
+        read(const char* begin, const char* end) : data(begin, end) {}
+        read(char* begin, char* end) : data(begin, end) {}
 
         std::string data;
     };

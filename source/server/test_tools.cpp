@@ -12,6 +12,7 @@
 #include <limits>
 #include <iterator>
 #include <sstream>
+#include <algorithm>
 
 #ifdef max
 #   undef max
@@ -120,10 +121,10 @@ namespace {
     void print_buffer_part(const std::vector<char>& buffer, std::vector<char>::const_iterator error_pos, std::ostream& out)
     {
         std::size_t start_pos = error_pos - buffer.begin();
-        start_pos -= std::min(start_pos, 32u);
+        start_pos -= std::min(start_pos, std::size_t(32u));
         start_pos -= start_pos % 16;
 
-        std::size_t size = std::min(64u, buffer.size() - start_pos);
+        std::size_t size = std::min(std::size_t(64u), static_cast<std::size_t>(buffer.size() - start_pos));
 
         out << "offset: " << std::hex << start_pos << '\n';
         tools::hex_dump(out, buffer.begin() + start_pos, buffer.begin() + start_pos + size);

@@ -19,7 +19,7 @@ namespace {
         for ( unsigned remaining = S-1; remaining; )
         {
             const std::pair<char*, std::size_t> mem         = header.read_buffer();
-            const std::size_t                   copy_size   = std::min(mem.second, remaining);
+            const std::size_t                   copy_size   = std::min(static_cast<unsigned>(mem.second), remaining);
 
             std::copy(&text[S-1-remaining], &text[S-1-remaining+copy_size], mem.first);
             remaining -= copy_size;
@@ -34,7 +34,7 @@ namespace {
     template <unsigned S>
     http::request_header feed_to_request(const char(&text)[S])
     {
-        server::request_header  request;
+    	http::request_header  request;
         feed_to_request(text, request);
 
         return request;

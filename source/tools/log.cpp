@@ -154,7 +154,7 @@ namespace {
         void remove_output(std::streambuf* output)
         {
             boost::mutex::scoped_lock lock(mutex_);
-            output_list_t::const_iterator pos = outputs_.begin();
+            output_list_t::iterator pos = outputs_.begin();
 
             for (; pos != outputs_.end() && !(*pos)->is_this_yours(output); ++pos )
                 ;
@@ -197,7 +197,7 @@ namespace {
 
         void write_message(const std::string& msg)
         {
-            for ( output_list_t::const_iterator i = outputs_.begin(); i != outputs_.end(); )
+            for ( output_list_t::iterator i = outputs_.begin(); i != outputs_.end(); )
             {
                 bool remove = true;
                 try

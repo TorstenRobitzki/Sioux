@@ -9,7 +9,6 @@
 #include <iosfwd>
 
 /**
- * @file tools\log.h
  * Logging facility, that keeps a list of log lines, a list of outputs for that lines and a list  
  * that associates a log context with a log level. The list of log lines simply decouples the 
  * logging of a line from the actual writing of that line, so that the logging thread won't block,

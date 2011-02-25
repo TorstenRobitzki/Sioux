@@ -61,6 +61,11 @@ namespace test
     {
     }
 
+    read::read(const char* s)
+    	: data(s)
+    {
+    }
+
     delay::delay(const boost::posix_time::time_duration& v)
         : delay_value(v)
     {

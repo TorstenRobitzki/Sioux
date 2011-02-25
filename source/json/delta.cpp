@@ -11,6 +11,7 @@
 
 namespace json {
 
+
     namespace {
         enum update_operation_code
         {
@@ -65,7 +66,7 @@ namespace json {
 
         value update_impl(const array& data, const array& update_operations)
         {
-            array result(data);
+            array result(data.copy());
 
             for ( std::size_t index = 0; index < update_operations.length(); )
             {
@@ -237,7 +238,7 @@ namespace json {
 
         struct vertex
         {
-            // the total length of the modifed array
+            // the total length of the modified array
             int                             length;
             // all elements before this index are equal in the modified array and in the target array
             int                             index;
@@ -253,7 +254,8 @@ namespace json {
             bool operator<(const vertex& rhs) const
             {
                 return length < rhs.length
-                    || length == rhs.length && index < rhs.index;
+                    || length == rhs.length && index < rhs.index
+                    || length == rhs.length && index && rhs.index && total_costs < rhs.total_costs;
             }
         };
 
@@ -270,7 +272,7 @@ namespace json {
             {
                 if ( v.total_costs < pos->total_costs )
                 {
-                    *pos = v;
+                    pos = vlist.insert(v).first;
                     clist.insert(pos);
                 }
             }
@@ -281,6 +283,7 @@ namespace json {
             }
         }
 
+        /// @todo implement hystereses
         std::size_t hysterese(const array& /*a*/, const array& /*b*/, int /*a_index*/, int /*b_index*/)
         {
             return 0;
@@ -327,23 +330,25 @@ namespace json {
                       .add(number(index+1))
                       .add(new_elements);
             }
-            if ( prev_op == insert_at_operation() )
+            else if ( prev_op == insert_at_operation() )
             {
                 // combine a previous insert with this update to a range update
                 array new_elements(last_update.at(2));
                 new_elements.add(b);
 
+                assert(index > 0);
+
                 result.add(update_range_operation())
-                      .add(number(index))
+                      .add(number(index-1))
                       .add(number(index+1))
                       .add(new_elements);
             }
             else if ( prev_op == delete_at_operation() )
             {
-                // combine a previous delete with this update to a range update
+            	// combine a previous delete with this update to a range update
                 result.add(update_range_operation())
-                      .add(number(index-1))
-                      .add(number(index+1))
+                      .add(number(index))
+                      .add(number(index+2))
                       .add(array(b));
             }
             else if ( prev_op == delete_range_operation() )
@@ -407,11 +412,11 @@ namespace json {
             const array last_update = ptr->operation;
 
             // a combination of a delete/range delete with an insert to an range update is 
-            // not implemented, because an update should be considert too
+            // not implemented, because an update should be considered too
 
             if ( prev_op == update_at_operation() )
             {
-                array new_elements(last_update.at(2));
+            	array new_elements(last_update.at(2));
                 new_elements.add(b);
 
                 result.add(update_range_operation())
@@ -432,7 +437,7 @@ namespace json {
             }
             else if ( prev_op == update_range_operation() )
             {
-                array new_elements(last_update.at(3));
+                array new_elements(last_update.at(3).upcast<array>().copy());
                 new_elements.add(b);
 
                 // or combine a range update with this insert to an range update
@@ -488,7 +493,7 @@ namespace json {
             }
             else if ( prev_op == update_range_operation() )
             {
-                // we can extende a range update and thus delete this element too
+                // we can extend a range update and thus delete this element too
                 result.add(update_range_operation())
                       .add(last_update.at(1))
                       .add(increment(last_update.at(2)))
@@ -527,10 +532,10 @@ namespace json {
             if ( index == int(b.length()) && index == int(current_state->length) )
                 return true;
 
-            // try updateing an element from a with an element from b
+            // try updating an element from a with an element from b
             if ( index != int(b.length()) && index != int(current_state->length) )
             {
-                const vertex new_change = change_element(current_state, index, a.at(index-inserts_so_far), b.at(index), 
+            	const vertex new_change = change_element(current_state, index, a.at(index-inserts_so_far), b.at(index),
                     last_op, hysterese(a,b,index-inserts_so_far+1,index+1));
 
                 if ( new_change.costs <= max_size )
@@ -544,7 +549,7 @@ namespace json {
                     last_op, hysterese(a,b,index-inserts_so_far,index+1));
 
                 if ( new_insert.costs <= max_size )
-                    add_open(new_insert, vertices, open_list);
+                	add_open(new_insert, vertices, open_list);
             }
 
             // delete an element from a at index
@@ -558,7 +563,7 @@ namespace json {
             }
 
             return false;
-        };
+        }
 
         std::pair<bool, value> delta(const array& a, const array& b, std::size_t max_size)
         {
@@ -586,8 +591,9 @@ namespace json {
                     open_list.erase(next);
 
                     if ( expand_vertex(current, a, b, vertices, open_list, max_size) )
-                        return std::make_pair(true, assemble_result(current, vertices));
-                }
+                    	return std::make_pair(true, assemble_result(current, vertices));
+
+				}
             }
 
             return std::make_pair(false, b);
@@ -626,7 +632,7 @@ namespace json {
 
                     std::pair<bool, value> edit_op = delta(a.at(*pa), b_element, max_size - result.size());
 
-                    // use edit, if posible and shorter
+                    // use edit, if possible and shorter
                     if ( edit_op.first && edit_op.second.size() < b_element.size() )
                     {
                         result.add(edit_at_operation())
@@ -647,8 +653,8 @@ namespace json {
             }
 
             return result.size() <= max_size
-                ? std::make_pair(true, result)
-                : std::make_pair(false, b);
+                ? std::make_pair(true, value(result))
+                : std::make_pair(false, value(b));
         }
 
         template <class T>

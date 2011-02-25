@@ -587,13 +587,13 @@ namespace json
 
     ///////////////
     // class number
-    number::number(int value)
-        : value(new number_impl(value))
+    number::number(int val)
+        : value(new number_impl(val))
     {
     }
 
-    number::number(double value)
-        : value(new number_impl(value))
+    number::number(double val)
+        : value(new number_impl(val))
     {
     }
 
@@ -1022,7 +1022,7 @@ namespace json
                 unicode_marker_parse,
             start_true_parsing = 500,
             start_false_parsing = 600,
-            start_null_parsing = 700,
+            start_null_parsing = 700
         };
 
         int main_state(int state)

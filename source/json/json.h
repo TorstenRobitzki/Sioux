@@ -14,6 +14,7 @@
 #include <stack>
 #include <stdexcept>
 
+/** @namespace json */
 namespace json
 {
     class parser;
@@ -51,12 +52,18 @@ namespace json
         void visit(const null&) {}
     };
 
+    /**
+     * @brief thrown in case, a value is casted to a static type that is not satisfied by the runtime type
+     */
     class invalid_cast : public std::runtime_error
     {
     public:
         explicit invalid_cast(const std::string& msg);
     };
 
+    /**
+     * @brief abstract json value. Serves as base class and for a place holder for every other concrete json value.
+     */
     class value
     {
     public:

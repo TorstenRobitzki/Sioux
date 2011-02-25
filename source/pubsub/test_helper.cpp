@@ -16,7 +16,7 @@ namespace test {
             if ( pos == container.end() )
                 throw std::runtime_error("can't find key");
 
-            const Con::mapped_type result = pos->second;
+            const typename Con::mapped_type result = pos->second;
             container.erase(pos);
 
             return result;
@@ -137,7 +137,7 @@ namespace test {
 
     /////////////////
     // class adapter
-    bool adapter::authorization_requested(const boost::shared_ptr<::pubsub::subscriber>& user, const node_name& name) const
+    bool adapter::authorization_requested(const boost::shared_ptr< ::pubsub::subscriber>& user, const node_name& name) const
     {
         boost::mutex::scoped_lock lock(mutex_);
         const authorization_request_list::const_iterator pos = authorization_request_.find(std::make_pair(user, name));
@@ -145,7 +145,7 @@ namespace test {
         return pos != authorization_request_.end();
     }
 
-    void adapter::answer_authorization_request(const boost::shared_ptr<::pubsub::subscriber>& user, const node_name& name, bool is_authorized)
+    void adapter::answer_authorization_request(const boost::shared_ptr< ::pubsub::subscriber>& user, const node_name& name, bool is_authorized)
     {
         boost::mutex::scoped_lock lock(mutex_);
 
@@ -160,7 +160,7 @@ namespace test {
         }
     }
 
-    void adapter::skip_authorization_request(const boost::shared_ptr<::pubsub::subscriber>& user, const node_name& name)
+    void adapter::skip_authorization_request(const boost::shared_ptr< ::pubsub::subscriber>& user, const node_name& name)
     {
         boost::mutex::scoped_lock lock(mutex_);
 
@@ -235,17 +235,17 @@ namespace test {
         }
     }
 
-    bool adapter::invalid_node_subscription_reported(const node_name& node, const boost::shared_ptr<::pubsub::subscriber>& user)
+    bool adapter::invalid_node_subscription_reported(const node_name& node, const boost::shared_ptr< ::pubsub::subscriber>& user)
     {
         return search_and_remove(invalid_node_subscription_reports_, boost::make_tuple(node, user));
     }
 
-    bool adapter::unauthorized_subscription_reported(const node_name& node, const boost::shared_ptr<::pubsub::subscriber>& user)
+    bool adapter::unauthorized_subscription_reported(const node_name& node, const boost::shared_ptr< ::pubsub::subscriber>& user)
     {
         return search_and_remove(unauthorized_subscription_reports_, boost::make_tuple(node, user));
     }
 
-    bool adapter::initialization_failed_reported(const node_name& node, const boost::shared_ptr<::pubsub::subscriber>& user)
+    bool adapter::initialization_failed_reported(const node_name& node, const boost::shared_ptr< ::pubsub::subscriber>& user)
     {
         return search_and_remove(initialization_failed_reports_, boost::make_tuple(node, user));
     }
@@ -290,7 +290,7 @@ namespace test {
         }
     }
 
-    void adapter::authorize(const boost::shared_ptr<::pubsub::subscriber>& user, const node_name& name, const boost::shared_ptr<authorization_call_back>& cb)
+    void adapter::authorize(const boost::shared_ptr< ::pubsub::subscriber>& user, const node_name& name, const boost::shared_ptr<authorization_call_back>& cb)
     {
         boost::mutex::scoped_lock lock(mutex_);
         const authorization_request_list::key_type key(user, name);
@@ -306,17 +306,17 @@ namespace test {
         }
     }
 
-    void adapter::invalid_node_subscription(const node_name& node, const boost::shared_ptr<::pubsub::subscriber>& user)
+    void adapter::invalid_node_subscription(const node_name& node, const boost::shared_ptr< ::pubsub::subscriber>& user)
     {
         invalid_node_subscription_reports_.insert(boost::make_tuple(node, user));
     }
 
-    void adapter::unauthorized_subscription(const node_name& node, const boost::shared_ptr<::pubsub::subscriber>& user)
+    void adapter::unauthorized_subscription(const node_name& node, const boost::shared_ptr< ::pubsub::subscriber>& user)
     {
         unauthorized_subscription_reports_.insert(boost::make_tuple(node, user));
     }
 
-    void adapter::initialization_failed(const node_name& node, const boost::shared_ptr<::pubsub::subscriber>& user)
+    void adapter::initialization_failed(const node_name& node, const boost::shared_ptr< ::pubsub::subscriber>& user)
     {
         initialization_failed_reports_.insert(boost::make_tuple(node, user));
     }

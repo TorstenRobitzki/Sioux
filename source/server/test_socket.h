@@ -354,7 +354,7 @@ socket<Iterator, Trait>::socket(boost::asio::io_service&         io_service,
 
 template <class Iterator, class Trait>
 socket<Iterator, Trait>::socket(boost::asio::io_service& io_service)
- : pimpl_(new impl(io_service, typename Trait::connect_error_t::connect_mode()))
+ : pimpl_(new impl(io_service, Trait::connect_error_t::connect_mode()))
 {
 }
 
@@ -876,7 +876,7 @@ void socket<Iterator, Trait>::impl::async_read_some(
         {
             read_timer_.expires_from_now(plan.second);
             read_timer_.async_wait(
-                delayed_planned_read(handler, buffers, shared_from_this(), plan.first));
+                delayed_planned_read(handler, buffers, this->shared_from_this(), plan.first));
         }
         else
         {
@@ -889,7 +889,7 @@ void socket<Iterator, Trait>::impl::async_read_some(
     {
         read_timer_.expires_from_now(read_delay_);
         read_timer_.async_wait(
-            delayed_read(handler, buffers, shared_from_this()));
+            delayed_read(handler, buffers, this->shared_from_this()));
     }
     else
     {
@@ -967,7 +967,7 @@ void socket<Iterator, Trait>::impl::async_write_some(
         {
             write_timer_.expires_from_now(item.second);
             write_timer_.async_wait(
-                delayed_planned_write(handler, buffers, shared_from_this(), item.first));
+                delayed_planned_write(handler, buffers, this->shared_from_this(), item.first));
         }
         else
         {
@@ -985,7 +985,7 @@ void socket<Iterator, Trait>::impl::async_write_some(
     {
         write_timer_.expires_from_now(write_delay_);
         write_timer_.async_wait(
-            delayed_write(handler, buffers, shared_from_this()));
+            delayed_write(handler, buffers, this->shared_from_this()));
     }
     else
     {

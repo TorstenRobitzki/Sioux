@@ -23,7 +23,7 @@ namespace {
             io.poll_one();
     }
 
-    test::subscriber& test_user(const boost::shared_ptr<::pubsub::subscriber>& u)
+    test::subscriber& test_user(const boost::shared_ptr< ::pubsub::subscriber>& u)
     {
         assert(u.get());
         return dynamic_cast<test::subscriber&>(*u.get());
@@ -31,7 +31,7 @@ namespace {
 
     /// checks that just validation was requested for the given name, not authorization was requested for the 
     /// given user and no initlization was requested. The given user was not notified.
-    bool only_validation_requested(const test::adapter& adapter, const node_name& name, const boost::shared_ptr<::pubsub::subscriber>& user)
+    bool only_validation_requested(const test::adapter& adapter, const node_name& name, const boost::shared_ptr< ::pubsub::subscriber>& user)
     {
         return adapter.validation_requested(name)
             && !adapter.authorization_requested(user, name)
@@ -39,7 +39,7 @@ namespace {
             && test_user(user).not_on_udate_called();
     }
 
-    bool only_authorization_requested(const test::adapter& adapter, const node_name& name, const boost::shared_ptr<::pubsub::subscriber>& user)
+    bool only_authorization_requested(const test::adapter& adapter, const node_name& name, const boost::shared_ptr< ::pubsub::subscriber>& user)
     {
         return !adapter.validation_requested(name)
             && adapter.authorization_requested(user, name)
@@ -47,7 +47,7 @@ namespace {
             && test_user(user).not_on_udate_called();
     }
 
-    bool only_initialization_requested(const test::adapter& adapter, const node_name& name, const boost::shared_ptr<::pubsub::subscriber>& user)
+    bool only_initialization_requested(const test::adapter& adapter, const node_name& name, const boost::shared_ptr< ::pubsub::subscriber>& user)
     {
         return !adapter.validation_requested(name)
             && !adapter.authorization_requested(user, name)
@@ -66,7 +66,7 @@ TEST(subscribe_test)
     test::adapter                           adapter;
     pubsub::root                            root(queue, adapter, configuration());
 
-    boost::shared_ptr<::pubsub::subscriber> subscriber(new test::subscriber);
+    boost::shared_ptr< ::pubsub::subscriber> subscriber(new test::subscriber);
 
     root.subscribe(subscriber, random_node_name);
     poll_queue(queue);
@@ -100,7 +100,7 @@ TEST(synchronous_subscribe_test)
     test::adapter                           adapter;
     pubsub::root                            root(queue, adapter, configuration());
 
-    boost::shared_ptr<::pubsub::subscriber> subscriber(new test::subscriber);
+    boost::shared_ptr< ::pubsub::subscriber> subscriber(new test::subscriber);
 
     adapter.answer_validation_request(random_node_name, true);
     adapter.answer_authorization_request(subscriber, random_node_name, true);
@@ -124,7 +124,7 @@ TEST(subscribe_node_that_doesn_t_require_authorization)
     test::adapter                           adapter;
     pubsub::root                            root(queue, adapter, configurator().authorization_not_required());
 
-    boost::shared_ptr<::pubsub::subscriber> subscriber(new test::subscriber);
+    boost::shared_ptr< ::pubsub::subscriber> subscriber(new test::subscriber);
 
     root.subscribe(subscriber, random_node_name);
     poll_queue(queue);
@@ -154,7 +154,7 @@ TEST(subscribe_node_and_validation_failed)
     test::adapter                           adapter;
     pubsub::root                            root(queue, adapter, configuration());
 
-    boost::shared_ptr<::pubsub::subscriber> subscriber(new test::subscriber);
+    boost::shared_ptr< ::pubsub::subscriber> subscriber(new test::subscriber);
 
     root.subscribe(subscriber, random_node_name);
     poll_queue(queue);
@@ -180,7 +180,7 @@ TEST(subscribe_node_and_validation_skipped)
     test::adapter                           adapter;
     pubsub::root                            root(queue, adapter, configuration());
 
-    boost::shared_ptr<::pubsub::subscriber> subscriber(new test::subscriber);
+    boost::shared_ptr< ::pubsub::subscriber> subscriber(new test::subscriber);
 
     root.subscribe(subscriber, random_node_name);
     poll_queue(queue);
@@ -206,7 +206,7 @@ TEST(subscribe_node_and_synchronous_validation_skipped)
     test::adapter                           adapter;
     pubsub::root                            root(queue, adapter, configuration());
 
-    boost::shared_ptr<::pubsub::subscriber> subscriber(new test::subscriber);
+    boost::shared_ptr< ::pubsub::subscriber> subscriber(new test::subscriber);
     adapter.skip_validation_request(random_node_name);
 
     root.subscribe(subscriber, random_node_name);
@@ -228,7 +228,7 @@ TEST(subscribe_node_and_synchronous_validation_failed)
     test::adapter                           adapter;
     pubsub::root                            root(queue, adapter, configuration());
 
-    boost::shared_ptr<::pubsub::subscriber> subscriber(new test::subscriber);
+    boost::shared_ptr< ::pubsub::subscriber> subscriber(new test::subscriber);
     adapter.answer_validation_request(random_node_name, false);
 
     root.subscribe(subscriber, random_node_name);
@@ -250,7 +250,7 @@ TEST(subscribe_node_and_authorization_failed)
     test::adapter                           adapter;
     pubsub::root                            root(queue, adapter, configuration());
 
-    boost::shared_ptr<::pubsub::subscriber> subscriber(new test::subscriber);
+    boost::shared_ptr< ::pubsub::subscriber> subscriber(new test::subscriber);
     adapter.answer_validation_request(random_node_name, true);
 
     root.subscribe(subscriber, random_node_name);
@@ -274,7 +274,7 @@ TEST(subscribe_node_and_authorization_skipped)
     test::adapter                           adapter;
     pubsub::root                            root(queue, adapter, configuration());
 
-    boost::shared_ptr<::pubsub::subscriber> subscriber(new test::subscriber);
+    boost::shared_ptr< ::pubsub::subscriber> subscriber(new test::subscriber);
     adapter.answer_validation_request(random_node_name, true);
 
     root.subscribe(subscriber, random_node_name);
@@ -298,7 +298,7 @@ TEST(subscribe_node_and_synchronous_authorization_failed)
     test::adapter                           adapter;
     pubsub::root                            root(queue, adapter, configuration());
 
-    boost::shared_ptr<::pubsub::subscriber> subscriber(new test::subscriber);
+    boost::shared_ptr< ::pubsub::subscriber> subscriber(new test::subscriber);
     adapter.answer_validation_request(random_node_name, true);
     adapter.answer_authorization_request(subscriber, random_node_name, false);
 
@@ -320,7 +320,7 @@ TEST(subscribe_node_and_synchronous_authorization_skipped)
     test::adapter                           adapter;
     pubsub::root                            root(queue, adapter, configuration());
 
-    boost::shared_ptr<::pubsub::subscriber> subscriber(new test::subscriber);
+    boost::shared_ptr< ::pubsub::subscriber> subscriber(new test::subscriber);
     adapter.answer_validation_request(random_node_name, true);
     adapter.skip_authorization_request(subscriber, random_node_name);
 
@@ -342,7 +342,7 @@ TEST(subscribe_node_and_initialization_skipped)
     test::adapter                           adapter;
     pubsub::root                            root(queue, adapter, configuration());
 
-    boost::shared_ptr<::pubsub::subscriber> subscriber(new test::subscriber);
+    boost::shared_ptr< ::pubsub::subscriber> subscriber(new test::subscriber);
     adapter.answer_validation_request(random_node_name, true);
     adapter.answer_authorization_request(subscriber, random_node_name, true);
 
@@ -367,7 +367,7 @@ TEST(subscribe_node_and_synchronous_initialization_skipped)
     test::adapter                           adapter;
     pubsub::root                            root(queue, adapter, configuration());
 
-    boost::shared_ptr<::pubsub::subscriber> subscriber(new test::subscriber);
+    boost::shared_ptr< ::pubsub::subscriber> subscriber(new test::subscriber);
     adapter.answer_validation_request(random_node_name, true);
     adapter.answer_authorization_request(subscriber, random_node_name, true);
     adapter.skip_initialization_request(random_node_name);

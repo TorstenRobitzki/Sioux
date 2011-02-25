@@ -13,6 +13,7 @@ namespace pubsub {
     {
     }
 
+   
     key_domain::key_domain(const std::string& name)
         : domain_name_(name)
     {

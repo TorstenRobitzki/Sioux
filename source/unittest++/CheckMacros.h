@@ -6,6 +6,7 @@
 #include "MemoryOutStream.h"
 #include "TestDetails.h"
 #include "CurrentTest.h"
+#include <exception>
 
 #ifdef CHECK
     #error UnitTest++ redefines CHECK
@@ -38,6 +39,10 @@
             if (!UnitTest::Check(value)) \
                 UnitTest::CurrentTest::Results()->OnTestFailure(UnitTest::TestDetails(*UnitTest::CurrentTest::Details(), __LINE__), #value); \
         } \
+        catch (const std::exception& e) { \
+            UnitTest::CurrentTest::Results()->OnTestFailure(UnitTest::TestDetails(*UnitTest::CurrentTest::Details(), __LINE__), \
+                    ("Unhandled exception in CHECK(" #value "); \nerror-text: " + std::string(e.what())).c_str()); \
+        } \
         catch (...) { \
             UnitTest::CurrentTest::Results()->OnTestFailure(UnitTest::TestDetails(*UnitTest::CurrentTest::Details(), __LINE__), \
                     "Unhandled exception in CHECK(" #value ")"); \
@@ -49,6 +54,10 @@
     { \
         try { \
             UnitTest::CheckEqual(*UnitTest::CurrentTest::Results(), expected, actual, UnitTest::TestDetails(*UnitTest::CurrentTest::Details(), __LINE__)); \
+        } \
+        catch (const std::exception& e) { \
+            UnitTest::CurrentTest::Results()->OnTestFailure(UnitTest::TestDetails(*UnitTest::CurrentTest::Details(), __LINE__), \
+                    ("Unhandled exception in CHECK_EQUAL(" #expected ", " #actual "); \nerror-text: " + std::string(e.what())).c_str()); \
         } \
         catch (...) { \
             UnitTest::CurrentTest::Results()->OnTestFailure(UnitTest::TestDetails(*UnitTest::CurrentTest::Details(), __LINE__), \
@@ -62,6 +71,10 @@
         try { \
             UnitTest::CheckClose(*UnitTest::CurrentTest::Results(), expected, actual, tolerance, UnitTest::TestDetails(*UnitTest::CurrentTest::Details(), __LINE__)); \
         } \
+        catch (const std::exception& e) { \
+            UnitTest::CurrentTest::Results()->OnTestFailure(UnitTest::TestDetails(*UnitTest::CurrentTest::Details(), __LINE__), \
+                   ("Unhandled exception in CHECK_CLOSE(" #expected ", " #actual "); \nerror-text: " + std::string(e.what())).c_str()); \
+        } \
         catch (...) { \
             UnitTest::CurrentTest::Results()->OnTestFailure(UnitTest::TestDetails(*UnitTest::CurrentTest::Details(), __LINE__), \
                     "Unhandled exception in CHECK_CLOSE(" #expected ", " #actual ")"); \
@@ -73,6 +86,10 @@
     { \
         try { \
             UnitTest::CheckArrayEqual(*UnitTest::CurrentTest::Results(), expected, actual, count, UnitTest::TestDetails(*UnitTest::CurrentTest::Details(), __LINE__)); \
+        } \
+        catch (const std::exception& e) { \
+            UnitTest::CurrentTest::Results()->OnTestFailure(UnitTest::TestDetails(*UnitTest::CurrentTest::Details(), __LINE__), \
+                    ("Unhandled exception in CHECK_ARRAY_EQUAL(" #expected ", " #actual "); \nerror-text: " + std::string(e.what())).c_str()); \
         } \
         catch (...) { \
             UnitTest::CurrentTest::Results()->OnTestFailure(UnitTest::TestDetails(*UnitTest::CurrentTest::Details(), __LINE__), \
@@ -86,6 +103,10 @@
         try { \
             UnitTest::CheckArrayClose(*UnitTest::CurrentTest::Results(), expected, actual, count, tolerance, UnitTest::TestDetails(*UnitTest::CurrentTest::Details(), __LINE__)); \
         } \
+        catch (const std::exception& e) { \
+            UnitTest::CurrentTest::Results()->OnTestFailure(UnitTest::TestDetails(*UnitTest::CurrentTest::Details(), __LINE__), \
+                    ("Unhandled exception in CHECK_ARRAY_CLOSE(" #expected ", " #actual "); \nerror-text: " + std::string(e.what())).c_str()); \
+        } \
         catch (...) { \
             UnitTest::CurrentTest::Results()->OnTestFailure(UnitTest::TestDetails(*UnitTest::CurrentTest::Details(), __LINE__), \
                     "Unhandled exception in CHECK_ARRAY_CLOSE(" #expected ", " #actual ")"); \
@@ -97,6 +118,10 @@
     { \
         try { \
             UnitTest::CheckArray2DClose(*UnitTest::CurrentTest::Results(), expected, actual, rows, columns, tolerance, UnitTest::TestDetails(*UnitTest::CurrentTest::Details(), __LINE__)); \
+        } \
+        catch (const std::exception& e) { \
+            UnitTest::CurrentTest::Results()->OnTestFailure(UnitTest::TestDetails(*UnitTest::CurrentTest::Details(), __LINE__), \
+                    ("Unhandled exception in CHECK_ARRAY_CLOSE(" #expected ", " #actual "); \nerror-text: " + std::string(e.what())).c_str()); \
         } \
         catch (...) { \
             UnitTest::CurrentTest::Results()->OnTestFailure(UnitTest::TestDetails(*UnitTest::CurrentTest::Details(), __LINE__), \

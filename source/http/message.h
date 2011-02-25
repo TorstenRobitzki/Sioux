@@ -166,7 +166,7 @@ namespace http
 
         enum {
             expect_request_line,
-            expect_header,
+            expect_header
         } parser_state_;
 
         typedef std::vector<header> header_list_t;

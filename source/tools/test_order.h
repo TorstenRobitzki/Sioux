@@ -26,14 +26,14 @@ namespace tools
      * @brief checks, that the type that Iter is pointing to implements a strict weak order
      *
      * There must be no duplicates in the range [begin, end). The complexity of the test is
-     * O(n²)
+     * O(n^2)
      */
     template <class Iter>
     bool check_weak_order(Iter begin, Iter end)
     {
         typedef typename std::iterator_traits<Iter>::value_type value_type;
         std::vector<value_type*> sorted;
-        const details::compare_pointer<value_type> compare;
+        details::compare_pointer<value_type> compare;
 
         for ( Iter i = begin; i != end; ++i )
         {
@@ -48,12 +48,12 @@ namespace tools
             return false;
 
         bool result = true;
-        for ( std::vector<value_type*>::const_iterator lhs = sorted.begin(); result && lhs != sorted.end(); ++lhs )
+        for ( typename std::vector<value_type*>::const_iterator lhs = sorted.begin(); result && lhs != sorted.end(); ++lhs )
         {
             // self test
             result = !compare(*lhs, *lhs);
 
-            for ( std::vector<value_type*>::const_iterator rhs = lhs; result && rhs != sorted.end(); ++rhs )
+            for ( typename std::vector<value_type*>::const_iterator rhs = lhs; result && rhs != sorted.end(); ++rhs )
             {
                 result = compare(*lhs, *rhs) && !compare(*rhs, *lhs);
             }

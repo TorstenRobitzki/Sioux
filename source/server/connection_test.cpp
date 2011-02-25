@@ -12,8 +12,6 @@
 using namespace server::test;
 using namespace http::test; 
 
-#if 0
-
 TEST(read_simple_header)
 {
     boost::asio::io_service     queue;
@@ -119,13 +117,13 @@ TEST(closed_by_connection_header)
     CHECK(connection.expired());
 }
 
-#endif 
-
 /**
  * @test tests that a maximum idle time is not exceeded and the connection is closed 
  */
 TEST(closed_when_idle_time_exceeded)
 {
+	using server::test::read;
+
     boost::asio::io_service     queue;
     read_plan                   reads;
     reads << read(begin(simple_get_11), end(simple_get_11))
@@ -177,7 +175,10 @@ TEST(closed_by_client_disconnected)
  */
 TEST(timeout_while_writing_to_client)
 {
-    boost::asio::io_service     queue;
+	using server::test::read;
+	using server::test::write;
+
+	boost::asio::io_service     queue;
 
     read_plan                   reads;
     reads << read(begin(simple_get_11), end(simple_get_11))
@@ -214,7 +215,9 @@ TEST(timeout_while_writing_to_client)
  */
 TEST(timeout_while_reading_from_client)
 {
-    boost::asio::io_service     queue;
+	using server::test::read;
+
+	boost::asio::io_service     queue;
     read_plan                   reads;
     reads << read(begin(simple_get_11), begin(simple_get_11) + (sizeof simple_get_11 / 2) )
           << delay(boost::posix_time::seconds(60))
@@ -238,6 +241,6 @@ TEST(timeout_while_reading_from_client)
     CHECK_EQUAL("", socket.output());
 
     // no outstanding reference to the connection object, so no read is pending on the connection to the client
+
     CHECK(connection.expired());
 }
-

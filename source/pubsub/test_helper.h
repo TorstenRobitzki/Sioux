@@ -115,7 +115,7 @@ namespace test {
          * @brief returns true, if the authorize() function was called at least once 
          *        with the given parameters.
          */
-        bool authorization_requested(const boost::shared_ptr<::pubsub::subscriber>&, const node_name&) const;
+        bool authorization_requested(const boost::shared_ptr< ::pubsub::subscriber>&, const node_name&) const;
 
         /**
          * @brief answer one authorization request with the given name
@@ -124,7 +124,7 @@ namespace test {
          * and an incomming request that fits to the node_name will be answered with 
          * is_valid and will not be stored.
          */
-        void answer_authorization_request(const boost::shared_ptr<::pubsub::subscriber>&, const node_name&, bool is_authorized);
+        void answer_authorization_request(const boost::shared_ptr< ::pubsub::subscriber>&, const node_name&, bool is_authorized);
 
         /**
          * @brief ignore one authorization request with the given subscriber and node by deleting 
@@ -133,7 +133,7 @@ namespace test {
          * If no such authorization request is stored up to now, the values are stored
          * and an incomming request that fits to the node_name and subscriber will not be stored.
          */
-        void skip_authorization_request(const boost::shared_ptr<::pubsub::subscriber>&, const node_name&);
+        void skip_authorization_request(const boost::shared_ptr< ::pubsub::subscriber>&, const node_name&);
 
         /**
          * @brief returns true, if at least one validation requests with the given name is stored and not jet 
@@ -184,21 +184,21 @@ namespace test {
          *
          * If such an entry exist, it will be deleted.
          */
-        bool invalid_node_subscription_reported(const node_name& node, const boost::shared_ptr<::pubsub::subscriber>&);
+        bool invalid_node_subscription_reported(const node_name& node, const boost::shared_ptr< ::pubsub::subscriber>&);
 
         /**
          * @brief returns true if unauthorized_subscription() was called with the given parameters
          *
          * If such an entry exist, it will be deleted.
          */
-        bool unauthorized_subscription_reported(const node_name& node, const boost::shared_ptr<::pubsub::subscriber>&);
+        bool unauthorized_subscription_reported(const node_name& node, const boost::shared_ptr< ::pubsub::subscriber>&);
 
         /**
          * @brief returns true if initialization_failed() was called with the given parameters
          *
          * If such an entry exist, it will be deleted.
          */
-        bool initialization_failed_reported(const node_name& node, const boost::shared_ptr<::pubsub::subscriber>& first_subscriber);
+        bool initialization_failed_reported(const node_name& node, const boost::shared_ptr< ::pubsub::subscriber>& first_subscriber);
 
         /**
          * @brief no pending unanswered or unskiped requests and no repored failures
@@ -207,24 +207,24 @@ namespace test {
 
     private:
         virtual void valid_node(const node_name& node_name, const boost::shared_ptr<validation_call_back>&);
-        virtual void authorize(const boost::shared_ptr<::pubsub::subscriber>&, const node_name& node_name, const boost::shared_ptr<authorization_call_back>&);
+        virtual void authorize(const boost::shared_ptr< ::pubsub::subscriber>&, const node_name& node_name, const boost::shared_ptr<authorization_call_back>&);
         virtual void node_init(const node_name& node_name, const boost::shared_ptr<initialization_call_back>&);
-        virtual void invalid_node_subscription(const node_name& node, const boost::shared_ptr<::pubsub::subscriber>&);
-        virtual void unauthorized_subscription(const node_name& node, const boost::shared_ptr<::pubsub::subscriber>&);
-        virtual void initialization_failed(const node_name& node, const boost::shared_ptr<::pubsub::subscriber>& first_subscriber);
+        virtual void invalid_node_subscription(const node_name& node, const boost::shared_ptr< ::pubsub::subscriber>&);
+        virtual void unauthorized_subscription(const node_name& node, const boost::shared_ptr< ::pubsub::subscriber>&);
+        virtual void initialization_failed(const node_name& node, const boost::shared_ptr< ::pubsub::subscriber>& first_subscriber);
 
-        typedef std::multimap<std::pair<const boost::shared_ptr<::pubsub::subscriber>, node_name>, boost::shared_ptr<authorization_call_back> > authorization_request_list;
-        typedef std::multimap<std::pair<const boost::shared_ptr<::pubsub::subscriber>, node_name>, bool>                                        authorization_answer_list;
-        typedef std::multiset<std::pair<const boost::shared_ptr<::pubsub::subscriber>, node_name> >                                             authorization_skip_list;
+        typedef std::multimap<std::pair<const boost::shared_ptr< ::pubsub::subscriber>, node_name>, boost::shared_ptr<authorization_call_back> > authorization_request_list;
+        typedef std::multimap<std::pair<const boost::shared_ptr< ::pubsub::subscriber>, node_name>, bool>                                        authorization_answer_list;
+        typedef std::multiset<std::pair<const boost::shared_ptr< ::pubsub::subscriber>, node_name> >                                             authorization_skip_list;
         typedef std::multimap<node_name, boost::shared_ptr<validation_call_back> >                  validation_request_list;
         typedef std::multimap<node_name, bool>                                                      validation_answer_list;
         typedef std::multiset<node_name>                                                            validation_skip_list;
         typedef std::multimap<node_name, boost::shared_ptr<initialization_call_back> >              initialization_request_list;
         typedef std::multimap<node_name, json::value>                                               initialization_answer_list;     
         typedef std::multiset<node_name>                                                            initialization_skip_list;     
-        typedef std::multiset<boost::tuple<node_name, boost::shared_ptr<::pubsub::subscriber> > >   invalid_node_subscription_reported_list;
-        typedef std::multiset<boost::tuple<node_name, boost::shared_ptr<::pubsub::subscriber> > >   unauthorized_subscription_reported_list;
-        typedef std::multiset<boost::tuple<node_name, boost::shared_ptr<::pubsub::subscriber> > >   initialization_failed_reported_list;
+        typedef std::multiset<boost::tuple<node_name, boost::shared_ptr< ::pubsub::subscriber> > >  invalid_node_subscription_reported_list;
+        typedef std::multiset<boost::tuple<node_name, boost::shared_ptr< ::pubsub::subscriber> > >  unauthorized_subscription_reported_list;
+        typedef std::multiset<boost::tuple<node_name, boost::shared_ptr< ::pubsub::subscriber> > >  initialization_failed_reported_list;
 
 
         mutable boost::mutex                        mutex_;

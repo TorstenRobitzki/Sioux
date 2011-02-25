@@ -66,6 +66,8 @@ namespace pubsub
         /**
          * @brief adds the subscriber to the given node. 
          * @param version This is the version that is currently known to the subscriber
+         * @param name the name of the node to subscribe to
+         * @param version the version of the node, the subscriber currently knows.
          */
         void subscribe(boost::shared_ptr<subscriber>&, const node_name& name, const node_version& version);
 

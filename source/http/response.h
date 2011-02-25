@@ -62,7 +62,7 @@ namespace http {
 
         error_code end_of_request();
 
-        friend message_base<response_header>;
+        friend class message_base<response_header>;
     };
 
 } // namespace http

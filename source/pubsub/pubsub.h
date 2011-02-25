@@ -8,12 +8,14 @@
 #include <boost/date_time/posix_time/posix_time_types.hpp>
 #include <boost/asio/io_service.hpp>
 
+
 namespace json {
     class value;
 }
 
+/** @namespace pubsub */
 namespace pubsub
-{
+{ 
     class node;
     class node_version;
     class node_name;
@@ -24,24 +26,24 @@ namespace pubsub
     - Hohe Knoten-Zahl bei niedriger Anzahl Subscriber (~1 Subscriber pro Knoten)
     - Sehr hohe Updaterate der Knoten
         - delay von updates
-    - Anzahl Schlüssel 2-10
+    - Anzahl Schlssel 2-10
     - Partitionierung 
-        - durch Bildung von Bereichen von Schlüsseln
-        - für die Bildung von Subscriber-Gruppen
-        - für die Partitionierung der Daten auf andere Rechner
+        - durch Bildung von Bereichen von Schlsseln
+        - fr die Bildung von Subscriber-Gruppen
+        - fr die Partitionierung der Daten auf andere Rechner
     - hierarchische Struktur
-        - Um defaults für Kind-Knoten aus Eltern-Knoten zu generieren.
+        - Um defaults fr Kind-Knoten aus Eltern-Knoten zu generieren.
         - Subscriben auf mehrere Knoten
     - Operationen:
 
     */
     /*
-    Prüfungen:
-    - Sind Schlüssel-Namen gültig?
-    - Sind Schlüssel-Werte im gültigen Bereich?
-    - Sind Schlüssel-Werte erlaubt?
-    - Sind Schlüssel vollständig?
-    - Sind Schlüssel aus der Session zu ermitteln?
+    Prfungen:
+    - Sind Schlssel-Namen gltig?
+    - Sind Schlssel-Werte im gltigen Bereich?
+    - Sind Schlssel-Werte erlaubt?
+    - Sind Schlssel vollstndig?
+    - Sind Schlssel aus der Session zu ermitteln?
     */
 
 

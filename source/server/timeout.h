@@ -8,6 +8,7 @@
 #include "server/error_code.h"
 #include <boost/asio/error.hpp>
 #include <boost/asio/deadline_timer.hpp>
+#include <boost/asio/write.hpp>
 
 namespace server 
 {
@@ -162,7 +163,7 @@ namespace server
         const boost::posix_time::time_duration& time_out)
     
     {
-        async_write_some_with_to_t<AsyncReadStream, ConstBufferSequence, WriteHandler> timeout_handler = 
+        details::async_write_some_with_to_t<AsyncReadStream, ConstBufferSequence, WriteHandler> timeout_handler = 
             {stream, buffers, handler, timer};
 
         timer.expires_from_now(time_out);

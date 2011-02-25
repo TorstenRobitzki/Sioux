@@ -78,7 +78,7 @@ enum http_method_code {
  */
 std::ostream& operator<<(std::ostream&, http_method_code);
 
-char* const reason_phrase(http_error_code);
+char const * reason_phrase(http_error_code);
 
 std::ostream& operator<<(std::ostream&, http_error_code);
 
