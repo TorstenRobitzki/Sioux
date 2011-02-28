@@ -14,6 +14,9 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/bind.hpp>
 
+// delete me if you see me
+#include <iostream>
+
 namespace pubsub {
 namespace {
     class configuration_list
@@ -84,13 +87,34 @@ namespace {
             }
         }
 
+        void update(const node_name& name, const json::value& new_value, boost::asio::io_service& queue)
+        {
+        	if ( data_.data() == new_value )
+        		return;
+
+        	data_.update(new_value, config_->max_update_size());
+
+            for ( subscriber_list::const_iterator sub = subscribers_.begin(); sub != subscribers_.end(); ++sub )
+            {
+                queue.post(
+                    boost::bind(&subscriber::on_udate, *sub, name, data_));
+            }
+        }
+
+        void unsubscribe(const node_name& name, const boost::shared_ptr<subscriber>& user)
+        {
+        	subscriber_list::iterator pos = std::find(subscribers_.begin(), subscribers_.end(), user);
+
+        	if ( pos != subscribers_.end() )
+        		subscribers_.erase(pos);
+        }
+
     private:
         typedef std::vector<boost::shared_ptr<subscriber> > subscriber_list;
     
         node                                    data_;
         subscriber_list                         subscribers_;
         boost::shared_ptr<const configuration>  config_;
-
     };
 }
 
@@ -292,7 +316,8 @@ namespace {
 
         void add_initial_authorized_and_validated_node(const node_name& node, const json::value& data, const boost::shared_ptr<subscriber>& usr, const boost::shared_ptr<const configuration>& config)
         {
-            boost::mutex::scoped_lock   lock(mutex_);
+
+        	boost::mutex::scoped_lock   lock(mutex_);
             const node_list_t::iterator pos = nodes_.find(node);
 
             if ( pos != nodes_.end() )
@@ -308,6 +333,27 @@ namespace {
             }
         }
 
+        void update_node(const node_name& node_name, const json::value& new_data)
+        {
+            boost::mutex::scoped_lock   lock(mutex_);
+            const node_list_t::iterator pos = nodes_.find(node_name);
+
+            if ( pos != nodes_.end() )
+            {
+            	pos->second->update(node_name, new_data, queue_);
+            }
+        }
+
+        void unsubscribe(const boost::shared_ptr<subscriber>& user, const node_name& node_name)
+        {
+            boost::mutex::scoped_lock   lock(mutex_);
+            const node_list_t::iterator pos = nodes_.find(node_name);
+
+            if ( pos != nodes_.end() )
+            {
+            	pos->second->unsubscribe(node_name, user);
+            }
+        }
     private:
         boost::asio::io_service&                queue_;
         adapter&                                adapter_;
@@ -338,12 +384,9 @@ namespace {
         pimpl_->subscribe(s, node_name);
     }
 
-    void root::subscribe(boost::shared_ptr<subscriber>&, const node_name& node_name, const node_version& version)
+    void root::unsubscribe(const boost::shared_ptr<subscriber>& user, const node_name& node_name)
     {
-    }
-
-    void root::unsubscribe(const boost::shared_ptr<subscriber>&, const node_name& node_name)
-    {
+    	pimpl_->unsubscribe(user, node_name);
     }
 
     void root::unsubscribe_all(const boost::shared_ptr<subscriber>&)
@@ -352,6 +395,7 @@ namespace {
 
     void root::update_node(const node_name& node_name, const json::value& new_data)
     {
+    	pimpl_->update_node(node_name, new_data);
     }
 
 }

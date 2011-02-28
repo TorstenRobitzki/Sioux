@@ -375,3 +375,73 @@ TEST(subscribe_node_and_synchronous_initialization_skipped)
     CHECK(adapter.empty());
 }
 
+/**
+ * @test updating a subscribed node must result in a notification
+ */
+TEST(notify_subscribed_node)
+{
+    boost::asio::io_service                 queue;
+    test::adapter                           adapter;
+    pubsub::root                            root(queue, adapter, configuration());
+
+    boost::shared_ptr< ::pubsub::subscriber> subscriber(new test::subscriber);
+
+    adapter.answer_validation_request(random_node_name, true);
+    adapter.answer_authorization_request(subscriber, random_node_name, true);
+    adapter.answer_initialization_request(random_node_name, json::number(42));
+    root.subscribe(subscriber, random_node_name);
+
+    tools::run(queue);
+    CHECK(test_user(subscriber).on_udate_called(random_node_name, json::number(42)));
+
+    root.update_node(random_node_name, json::number(43));
+
+    tools::run(queue);
+    CHECK(test_user(subscriber).on_udate_called(random_node_name, json::number(43)));
+
+    // updating to the very same value should be ignored
+    root.update_node(random_node_name, json::number(43));
+
+    tools::run(queue);
+    CHECK(test_user(subscriber).not_on_udate_called());
+
+    root.unsubscribe(subscriber, random_node_name);
+
+    root.update_node(random_node_name, json::number(44));
+
+    tools::run(queue);
+    CHECK(test_user(subscriber).not_on_udate_called());
+}
+
+#if 0
+/**
+ *  @test while a node is in the state of being validated, an other subscription on the same node must be held until the validation
+ *        is finished.
+ */
+TEST(second_subscription_while_validating)
+{
+    boost::asio::io_service                 queue;
+    test::adapter                           adapter;
+    pubsub::root                            root(queue, adapter, configurator().authorization_not_required());
+
+    boost::shared_ptr< ::pubsub::subscriber> first_subscriber(new test::subscriber);
+    boost::shared_ptr< ::pubsub::subscriber> second_subscriber(new test::subscriber);
+
+    root.subscribe(first_subscriber, random_node_name);
+    root.subscribe(second_subscriber, random_node_name);
+
+    tools::run(queue);
+
+    CHECK(only_validation_requested(adapter, random_node_name, first_subscriber));
+    CHECK(only_validation_requested(adapter, random_node_name, second_subscriber));
+
+    adapter.answer_validation_request(random_node_name, true);
+    adapter.answer_initialization_request(random_node_name, json::string("42"));
+
+    tools::run(queue);
+    CHECK(test_user(first_subscriber).on_udate_called(random_node_name, json::string("42")));
+    CHECK(test_user(second_subscriber).on_udate_called(random_node_name, json::string("42")));
+}
+#endif
+
+
