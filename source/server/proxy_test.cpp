@@ -14,6 +14,7 @@
 #include "server/test_traits.h"
 #include "server/test_proxy.h"
 #include "server/test_tools.h"
+#include "tools/io_service.h"
  
 using namespace server::test;
 using namespace http::test;
@@ -59,10 +60,10 @@ static std::vector<char> simulate_sized_proxy(
     boost::weak_ptr<connection_t>                       con_ref(connection);
     connection.reset();
 
-    run(queue); 
+    tools::run(queue);
 
     trait.reset_responses();
-    run(queue); 
+    tools::run(queue);
     if ( !con_ref.expired() )
         throw std::runtime_error("expected connection to be expired.");
 

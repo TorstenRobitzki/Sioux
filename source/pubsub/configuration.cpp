@@ -10,6 +10,7 @@ namespace pubsub
         : node_timeout_()
         , min_update_period_()
         , max_update_size_(70u)
+    	, authorization_required_(true)
     {
     }
 

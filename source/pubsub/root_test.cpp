@@ -2,11 +2,12 @@
 // Please note that the content of this file is confidential or protected by law.
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
-#include "unittest++/unittest++.h"
+#include "unittest++/UnitTest++.h"
 #include "pubsub/node.h"
 #include "pubsub/root.h"
 #include "pubsub/test_helper.h"
 #include "pubsub/configuration.h"
+#include "tools/io_service.h"
 #include <boost/asio/io_service.hpp>
 
 using namespace pubsub;
@@ -15,13 +16,6 @@ namespace {
     const node_name     random_node_name;
     const json::number  random_node_data(12);
     const node          random_node(node_version(), json::number(12));
-
-    // for unknown reason, a single call to poll_one() will not consume one posted action    
-    void poll_queue(boost::asio::io_service& io)
-    {
-        for ( unsigned int i = 10; i; --i)
-            io.poll_one();
-    }
 
     test::subscriber& test_user(const boost::shared_ptr< ::pubsub::subscriber>& u)
     {
@@ -69,22 +63,22 @@ TEST(subscribe_test)
     boost::shared_ptr< ::pubsub::subscriber> subscriber(new test::subscriber);
 
     root.subscribe(subscriber, random_node_name);
-    poll_queue(queue);
+    tools::run(queue);
 
     CHECK(only_validation_requested(adapter, random_node_name, subscriber));
 
     adapter.answer_validation_request(random_node_name, true);
-    poll_queue(queue);
+    tools::run(queue);
 
     CHECK(only_authorization_requested(adapter, random_node_name, subscriber));
 
     adapter.answer_authorization_request(subscriber, random_node_name, true);
-    poll_queue(queue);
+    tools::run(queue);
 
     CHECK(only_initialization_requested(adapter, random_node_name, subscriber));
 
     adapter.answer_initialization_request(random_node_name, random_node_data);
-    poll_queue(queue);
+    tools::run(queue);
 
     CHECK(adapter.empty());
     CHECK(test_user(subscriber).on_udate_called(random_node_name, random_node_data));
@@ -107,7 +101,7 @@ TEST(synchronous_subscribe_test)
     adapter.answer_initialization_request(random_node_name, random_node_data);
 
     root.subscribe(subscriber, random_node_name);
-    poll_queue(queue);
+    tools::run(queue);
 
     CHECK(adapter.empty());
     CHECK(test_user(subscriber).on_udate_called(random_node_name, random_node_data));
@@ -127,17 +121,17 @@ TEST(subscribe_node_that_doesn_t_require_authorization)
     boost::shared_ptr< ::pubsub::subscriber> subscriber(new test::subscriber);
 
     root.subscribe(subscriber, random_node_name);
-    poll_queue(queue);
+    tools::run(queue);
 
     CHECK(only_validation_requested(adapter, random_node_name, subscriber));
 
     adapter.answer_validation_request(random_node_name, true);
-    poll_queue(queue);
+    tools::run(queue);
 
     CHECK(only_initialization_requested(adapter, random_node_name, subscriber));
 
     adapter.answer_initialization_request(random_node_name, random_node_data);
-    poll_queue(queue);
+    tools::run(queue);
 
     CHECK(adapter.empty());
     CHECK(test_user(subscriber).on_udate_called(random_node_name, random_node_data));
@@ -157,12 +151,12 @@ TEST(subscribe_node_and_validation_failed)
     boost::shared_ptr< ::pubsub::subscriber> subscriber(new test::subscriber);
 
     root.subscribe(subscriber, random_node_name);
-    poll_queue(queue);
+    tools::run(queue);
 
     CHECK(only_validation_requested(adapter, random_node_name, subscriber));
 
     adapter.answer_validation_request(random_node_name, false);
-    poll_queue(queue);
+    tools::run(queue);
     
     CHECK(adapter.invalid_node_subscription_reported(random_node_name, subscriber));
     CHECK(test_user(subscriber).on_invalid_node_subscription_called(random_node_name));
@@ -183,12 +177,12 @@ TEST(subscribe_node_and_validation_skipped)
     boost::shared_ptr< ::pubsub::subscriber> subscriber(new test::subscriber);
 
     root.subscribe(subscriber, random_node_name);
-    poll_queue(queue);
+    tools::run(queue);
 
     CHECK(only_validation_requested(adapter, random_node_name, subscriber));
 
     adapter.skip_validation_request(random_node_name);
-    poll_queue(queue);
+    tools::run(queue);
     
     CHECK(adapter.invalid_node_subscription_reported(random_node_name, subscriber));
     CHECK(test_user(subscriber).on_invalid_node_subscription_called(random_node_name));
@@ -210,7 +204,7 @@ TEST(subscribe_node_and_synchronous_validation_skipped)
     adapter.skip_validation_request(random_node_name);
 
     root.subscribe(subscriber, random_node_name);
-    poll_queue(queue);
+    tools::run(queue);
 
     CHECK(adapter.invalid_node_subscription_reported(random_node_name, subscriber));
     CHECK(test_user(subscriber).on_invalid_node_subscription_called(random_node_name));
@@ -232,7 +226,7 @@ TEST(subscribe_node_and_synchronous_validation_failed)
     adapter.answer_validation_request(random_node_name, false);
 
     root.subscribe(subscriber, random_node_name);
-    poll_queue(queue);
+    tools::run(queue);
 
     CHECK(adapter.invalid_node_subscription_reported(random_node_name, subscriber));
     CHECK(test_user(subscriber).on_invalid_node_subscription_called(random_node_name));
@@ -254,10 +248,10 @@ TEST(subscribe_node_and_authorization_failed)
     adapter.answer_validation_request(random_node_name, true);
 
     root.subscribe(subscriber, random_node_name);
-    poll_queue(queue);
+    tools::run(queue);
 
     adapter.answer_authorization_request(subscriber, random_node_name, false);
-    poll_queue(queue);
+    tools::run(queue);
 
     CHECK(adapter.unauthorized_subscription_reported(random_node_name, subscriber));
     CHECK(test_user(subscriber).on_unauthorized_node_subscription_called(random_node_name));
@@ -278,10 +272,10 @@ TEST(subscribe_node_and_authorization_skipped)
     adapter.answer_validation_request(random_node_name, true);
 
     root.subscribe(subscriber, random_node_name);
-    poll_queue(queue);
+    tools::run(queue);
 
     adapter.skip_authorization_request(subscriber, random_node_name);
-    poll_queue(queue);
+    tools::run(queue);
 
     CHECK(adapter.unauthorized_subscription_reported(random_node_name, subscriber));
     CHECK(test_user(subscriber).on_unauthorized_node_subscription_called(random_node_name));
@@ -303,7 +297,7 @@ TEST(subscribe_node_and_synchronous_authorization_failed)
     adapter.answer_authorization_request(subscriber, random_node_name, false);
 
     root.subscribe(subscriber, random_node_name);
-    poll_queue(queue);
+    tools::run(queue);
 
     CHECK(adapter.unauthorized_subscription_reported(random_node_name, subscriber));
     CHECK(test_user(subscriber).on_unauthorized_node_subscription_called(random_node_name));
@@ -325,7 +319,7 @@ TEST(subscribe_node_and_synchronous_authorization_skipped)
     adapter.skip_authorization_request(subscriber, random_node_name);
 
     root.subscribe(subscriber, random_node_name);
-    poll_queue(queue);
+    tools::run(queue);
 
     CHECK(adapter.unauthorized_subscription_reported(random_node_name, subscriber));
     CHECK(test_user(subscriber).on_unauthorized_node_subscription_called(random_node_name));
@@ -334,7 +328,7 @@ TEST(subscribe_node_and_synchronous_authorization_skipped)
 }
 
 /**
- * @test
+ * @test skip a initialization request
  */
 TEST(subscribe_node_and_initialization_skipped)
 {
@@ -347,10 +341,10 @@ TEST(subscribe_node_and_initialization_skipped)
     adapter.answer_authorization_request(subscriber, random_node_name, true);
 
     root.subscribe(subscriber, random_node_name);
-    poll_queue(queue);
+    tools::run(queue);
 
     adapter.skip_initialization_request(random_node_name);
-    poll_queue(queue);
+    tools::run(queue);
 
     CHECK(adapter.initialization_failed_reported(random_node_name, subscriber));
     CHECK(test_user(subscriber).on_failed_node_subscription_called(random_node_name));
@@ -359,7 +353,7 @@ TEST(subscribe_node_and_initialization_skipped)
 }
 
 /**
- * @test
+ * @test do not answer an initialization request
  */
 TEST(subscribe_node_and_synchronous_initialization_skipped)
 {
@@ -373,10 +367,11 @@ TEST(subscribe_node_and_synchronous_initialization_skipped)
     adapter.skip_initialization_request(random_node_name);
 
     root.subscribe(subscriber, random_node_name);
-    poll_queue(queue);
+    tools::run(queue);
 
     CHECK(adapter.initialization_failed_reported(random_node_name, subscriber));
     CHECK(test_user(subscriber).on_failed_node_subscription_called(random_node_name));
     CHECK(test_user(subscriber).empty());
     CHECK(adapter.empty());
 }
+

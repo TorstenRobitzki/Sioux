@@ -7,6 +7,7 @@
 #include "server/test_tools.h"
 #include "server/timeout.h"
 #include "http/test_request_texts.h"
+#include "tools/io_service.h"
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/read.hpp>
@@ -28,7 +29,7 @@ TEST(read_timeout_test)
     const boost::posix_time::ptime t1 = boost::posix_time::microsec_clock::universal_time();
 
     sock.async_read_some(boost::asio::buffer(b), result);
-    run(queue);
+    tools::run(queue);
 
     CHECK_CLOSE(boost::posix_time::seconds(1), boost::posix_time::microsec_clock::universal_time() - t1, boost::posix_time::millisec(100));
     CHECK_EQUAL(5u, result.bytes_transferred);
@@ -46,7 +47,7 @@ TEST(write_timeout_test)
     const boost::posix_time::ptime t1 = boost::posix_time::microsec_clock::universal_time();
 
     sock.async_write_some(boost::asio::buffer(simple_get_11, 5), result);
-    run(queue);
+    tools::run(queue);
 
     CHECK_CLOSE(boost::posix_time::seconds(1), boost::posix_time::microsec_clock::universal_time() - t1, boost::posix_time::millisec(100));
     CHECK_EQUAL(5u, result.bytes_transferred);
@@ -66,7 +67,7 @@ TEST(chancel_read_write)
     sock.async_write_some(boost::asio::buffer(simple_get_11, 5), result_write);
     sock.close();
 
-    run(queue);
+    tools::run(queue);
 
     CHECK_EQUAL(0u, result_read.bytes_transferred);
     CHECK_EQUAL(0u, result_write.bytes_transferred);
@@ -88,7 +89,7 @@ TEST(async_read_some_with_to_test)
 
     server::async_read_some_with_to(sock, boost::asio::buffer(b), result, timer, boost::posix_time::milliseconds(20));
 
-    run(queue);
+    tools::run(queue);
 
     CHECK_EQUAL(0u, result.bytes_transferred);
     CHECK_EQUAL(result.error, make_error_code(server::time_out));
@@ -129,10 +130,10 @@ TEST(use_test_plan)
         second_read);
 
     sock.async_write_some(boost::asio::buffer(read_buffer), first_write);
-    run(queue);
+    tools::run(queue);
 
     sock.async_write_some(boost::asio::buffer(read_buffer), second_write);
-    run(queue);
+    tools::run(queue);
 
     const boost::posix_time::ptime          now = boost::posix_time::microsec_clock::universal_time();
     const boost::posix_time::time_duration  tolerance = boost::posix_time::millisec(5);
@@ -195,7 +196,7 @@ TEST(first_read_followed_by_delay_and_second_read)
     timer time;
 
     socket.async_read_some(boost::asio::buffer(buffer), h);
-    run(queue);
+    tools::run(queue);
 
     CHECK_CLOSE(boost::posix_time::seconds(1), time.elapsed(), boost::posix_time::millisec(100));
 }

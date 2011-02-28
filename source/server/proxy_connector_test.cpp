@@ -6,9 +6,10 @@
 #include "server/proxy_connector.h"
 #include "server/error_code.h"
 #include "server/test_resolver.h"
-#include "server/test_tools.h"
 #include "server/test_socket.h"
+#include "server/test_tools.h"
 #include "tools/iterators.h"
+#include "tools/io_service.h"
 #include <boost/bind.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/foreach.hpp>
@@ -66,7 +67,7 @@ TEST(use_established_proxy_connections)
         tools::substring(), 0, 
         boost::bind(&connect_handler<>::handle_connect, boost::ref(handler1), _1, _2));
 
-    run(queue);
+    tools::run(queue);
 
     CHECK(handler1.called);
     CHECK(handler1.connection != socket_t());
@@ -82,7 +83,7 @@ TEST(use_established_proxy_connections)
         tools::substring(), 0, 
         boost::bind(&connect_handler<>::handle_connect, boost::ref(handler2), _1, _2));
 
-    run(queue);
+    tools::run(queue);
 
     CHECK(handler1.connection != handler2.connection);
     CHECK(handler2.called);
@@ -98,7 +99,7 @@ TEST(use_established_proxy_connections)
         tools::substring(), 0, 
         boost::bind(&connect_handler<>::handle_connect, boost::ref(handler3), _1, _2));
 
-    run(queue);
+    tools::run(queue);
 
     CHECK(handler3.connection == handler3.connection);
     CHECK(handler3.called);
@@ -114,7 +115,7 @@ TEST(use_established_proxy_connections)
         tools::substring(), 0, 
         boost::bind(&connect_handler<>::handle_connect, boost::ref(handler4), _1, _2));
 
-    run(queue);
+    tools::run(queue);
 
     CHECK(handler4.connection == handler3.connection);
     CHECK(handler4.called);
@@ -130,7 +131,7 @@ TEST(use_established_proxy_connections)
         tools::substring(), 0, 
         boost::bind(&connect_handler<>::handle_connect, boost::ref(handler5), _1, _2));
 
-    run(queue);
+    tools::run(queue);
 
     CHECK(handler5.connection != handler4.connection);
     CHECK(handler5.called);
@@ -145,14 +146,14 @@ TEST(use_established_proxy_connections)
     wait(boost::posix_time::seconds(3));
 
     // this will forth the timeout handler to be executed
-    run(queue);
+    tools::run(queue);
 
     connect_handler<>               handler6;
     proxy->async_get_proxy_connection<socket_t>(
         tools::substring(), 0, 
         boost::bind(&connect_handler<>::handle_connect, boost::ref(handler6), _1, _2));
 
-    run(queue);
+    tools::run(queue);
 
     CHECK(handler5.connection != handler6.connection);
     CHECK(handler6.called);
@@ -173,7 +174,7 @@ TEST(use_established_proxy_connections)
         tools::substring(), 0, 
         boost::bind(&connect_handler<>::handle_connect, boost::ref(handler7), _1, _2));
 
-    run(queue);
+    tools::run(queue);
 
     CHECK(handler7.connection == handler6.connection);
     CHECK(handler7.called);
@@ -212,7 +213,7 @@ TEST(proxy_connection_limit)
                 tools::substring(), 0, 
                 boost::bind(&connect_handler<>::handle_connect, boost::ref(handler), _1, _2));
 
-            run(queue);
+            tools::run(queue);
             
             CHECK(handler.called);
             CHECK(handler.con_ptr != 0);
@@ -280,7 +281,7 @@ TEST(proxy_connection_limit2)
         }
     }
     
-    run(queue);
+    tools::run(queue);
 
     for ( std::vector<connect_handler<> >::const_iterator i = handler.begin(); i != handler.end(); ++i )
     {
@@ -312,7 +313,7 @@ TEST(proxy_connection_error)
         tools::substring(), 0, 
         boost::bind(&connect_handler<socket_t>::handle_connect, boost::ref(handler), _1, _2));
 
-    run(queue);
+    tools::run(queue);
 
     CHECK(handler.called);
     CHECK(handler.con_ptr == 0);
@@ -340,7 +341,7 @@ TEST(proxy_connection_timeout)
         boost::bind(&connect_handler<socket_t>::handle_connect, boost::ref(handler), _1, _2));
 
     const boost::posix_time::ptime start = boost::posix_time::microsec_clock::universal_time();
-    run(queue);
+    tools::run(queue);
     const boost::posix_time::time_duration lasting = boost::posix_time::microsec_clock::universal_time() - start;
 
     CHECK_CLOSE(boost::posix_time::seconds(5), lasting, boost::posix_time::seconds(1));
@@ -410,7 +411,7 @@ TEST(proxy_connection_stress)
         c.start();
     }
 
-    run(queue, 5);
+    tools::run(queue, 5);
 
     BOOST_FOREACH(connector_client & c, clients)
     {

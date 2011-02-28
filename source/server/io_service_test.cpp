@@ -3,7 +3,7 @@
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 #include "unittest++/unittest++.h"
-#include "server/test_tools.h"
+#include "tools/io_service.h"
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 
@@ -24,10 +24,10 @@ TEST(queue_multiple_actions)
 {
 	boost::asio::io_service	queue;
 	int counter = 0;
-	server::test::run(queue);
+	tools::run(queue);
 
 	queue.post(boost::bind(&action1, boost::ref(queue), boost::ref(counter)));
 
-	server::test::run(queue);
+	tools::run(queue);
  	CHECK_EQUAL(2, counter);
 }

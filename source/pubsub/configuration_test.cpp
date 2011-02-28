@@ -4,11 +4,22 @@
 
 #include "unittest++/unittest++.h"
 #include "pubsub/configuration.h"
+#include <boost/date_time/posix_time/posix_time.hpp> // required for i/o
 
 using namespace pubsub;
 
+/**
+ * @brief test the default and setting and getting the node timeout parameter
+ */
 TEST(configure_node_timeout)
 {
+	CHECK_EQUAL(boost::posix_time::time_duration(), configuration().node_timeout());
+
+	configuration config;
+	CHECK_EQUAL(boost::posix_time::time_duration(), config.node_timeout());
+	config.node_timeout(boost::posix_time::millisec(42));
+
+	CHECK_EQUAL(boost::posix_time::millisec(42), config.node_timeout());
 }
 
 TEST(configure_node_timeout_by_configurator)

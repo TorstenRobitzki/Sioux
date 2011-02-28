@@ -1007,7 +1007,6 @@ void socket<Iterator, Trait>::impl::async_connect(const boost::asio::ip::tcp::en
     }
     else if ( connect_error_mode_ == connect_successfully )
     {
-    	std::cout << "async_connect!!!" << std::endl;
         io_service_.post(boost::bind<void>(handler, make_error_code(boost::system::errc::success)));
         connected_ = true;
         endpoint_  = peer_endpoint;

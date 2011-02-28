@@ -11,6 +11,7 @@
 #include "http/request.h"
 #include "http/response.h"
 #include "tools/iterators.h"
+#include "tools/io_service.h"
 #include <boost/asio/buffer.hpp>
 
 using namespace server::test;
@@ -79,7 +80,7 @@ TEST(simply_receiving_a_hello)
         trait_t                         trait;
         boost::shared_ptr<connection_t> connection = server::create_connection(socket, trait);
 
-        queue.run();
+        tools::run(queue);
 
         std::vector<boost::shared_ptr<server::async_response> > resp = trait.responses();
         CHECK_EQUAL(3u, resp.size());
@@ -100,7 +101,7 @@ TEST(simply_receiving_a_hello)
             }
         }
 
-        run(queue);
+        tools::run(queue);
 
         trait.reset_responses();
 
@@ -170,7 +171,7 @@ TEST(non_fatal_error_while_responding)
 
     boost::shared_ptr<connection_t> connection = server::create_connection(socket, trait);
 
-    queue.run();
+    tools::run(queue);
 
     std::vector<boost::shared_ptr<server::async_response> > resp = trait.responses();
     trait.reset_responses();
@@ -180,7 +181,7 @@ TEST(non_fatal_error_while_responding)
     CHECK(boost::shared_ptr<server::async_response>(resp[0])->asked_to_hurry());
     simulate_incomming_data(resp[0]);
 
-    run(queue);
+    tools::run(queue);
 
     const std::string       output = socket.output();
     std::size_t             size = output.size();
@@ -208,8 +209,8 @@ TEST(non_fatal_error_while_responding)
 }
 
 /** 
- * @test this test should ensure, that when a request in the middle of the pipeline reports a fatail error 
- *       other reponses will be canceled.
+ * @test this test should ensure, that when a request in the middle of the pipeline reports a fatal error
+ *       other responses will be canceled.
  */
 TEST(fatal_error_while_responding)
 {
