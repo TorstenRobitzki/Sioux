@@ -22,7 +22,7 @@ FLAVORS = ['debug', 'release']
 COMPILER_FLAGS = "-Wall -pedantic -Wno-parentheses -c -pipe -I#{INCLUDE_FOLDER}"
 COMPILER_FLAGS_BY_FLAVORS = {
 	'debug' => '-ggdb -O0 -fno-inline',
-	'release' => ''
+	'release' => '-O3 -DNDEBUG'
 }
 
 LINK_FLAGS = '-ggdb'

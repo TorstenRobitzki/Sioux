@@ -918,12 +918,13 @@ void socket<Iterator, Trait>::impl::undelayed_async_write_some(
         write_error_occurens_ -= size;
     }
 
-    boost::asio::buffers_iterator<ConstBufferSequence> end = boost::asio::buffers_begin(buffers);
+    boost::asio::buffers_iterator<ConstBufferSequence> begin = boost::asio::buffers_begin(buffers);
     // std::advance results in a compiler error; this might be a bug in boost::asio
-    for ( std::size_t i = 0; i != size; ++i )
-        ++end;
-
-    output_.insert(output_.end(), boost::asio::buffers_begin(buffers), end);
+    // vector::insert() complains about boost::asio::buffers_begin(buffers) not implementing random_access_iterator
+    for ( std::size_t i = 0; i != size; ++i, ++begin )
+    {
+    	output_.push_back(*begin);
+    }
 
     const boost::system::error_code ec = write_error_enabled_ && write_error_occurens_ == 0 
         ? write_error_
@@ -971,13 +972,14 @@ void socket<Iterator, Trait>::impl::async_write_some(
         }
         else
         {
-            boost::asio::buffers_iterator<ConstBufferSequence> end = boost::asio::buffers_begin(buffers);
+            boost::asio::buffers_iterator<ConstBufferSequence> begin = boost::asio::buffers_begin(buffers);
 
             // std::advance results in a compiler error; this might be a bug in boost::asio
-            for ( std::size_t i = 0; i != item.first; ++i )
-                ++end;
+            for ( std::size_t i = 0; i != item.first; ++i, ++begin )
+            {
+            	output_.push_back(*begin);
+            }
 
-            output_.insert(output_.end(), boost::asio::buffers_begin(buffers), end);
             io_service_.post(boost::bind<void>(handler, make_error_code(boost::system::errc::success), item.first));
         }
     }
@@ -997,7 +999,7 @@ template <class Iterator, class Trait>
 template <typename ConnectHandler>
 void socket<Iterator, Trait>::impl::async_connect(const boost::asio::ip::tcp::endpoint& peer_endpoint, ConnectHandler handler)
 {
-    assert(!connected_);
+	assert(!connected_);
 
     if ( connect_error_mode_ == error_on_connect )
     {
@@ -1005,6 +1007,7 @@ void socket<Iterator, Trait>::impl::async_connect(const boost::asio::ip::tcp::en
     }
     else if ( connect_error_mode_ == connect_successfully )
     {
+    	std::cout << "async_connect!!!" << std::endl;
         io_service_.post(boost::bind<void>(handler, make_error_code(boost::system::errc::success)));
         connected_ = true;
         endpoint_  = peer_endpoint;

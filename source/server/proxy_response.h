@@ -9,12 +9,14 @@
 #include "server/proxy_connector.h"
 #include "server/transfer_buffer.h"
 #include "server/timeout.h"
+#include "server/error_code.h"
 #include "http/request.h"
 #include "http/response.h"
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/asio/write.hpp>
 #include <boost/asio/deadline_timer.hpp>
+#include <boost/asio/placeholders.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 
 namespace server
@@ -237,7 +239,7 @@ namespace server
         {
             fail.dismiss();
         }
-        else if ( error == server::time_out )
+        else if ( error == make_error_code(server::time_out) )
         {
             fail.set_error_code(http::http_gateway_timeout);
         }
@@ -258,7 +260,7 @@ namespace server
             if ( restart() )
                 fail.dismiss();
 
-            if ( error == server::time_out )
+            if ( error == make_error_code(server::time_out) )
                 fail.set_error_code(http::http_gateway_timeout);
 
             return;

@@ -5,6 +5,7 @@
 #include "unittest++/unittest++.h"
 #include "server/proxy_response.h"
 #include "server/connection.h"
+#include "server/proxy_connector.h"
 #include "http/request.h"
 #include "http/response.h"
 
@@ -41,11 +42,12 @@ namespace {
 
 template <std::size_t BufferSize>
 static std::vector<char> simulate_sized_proxy(
-    const boost::shared_ptr<proxy_connector>&               proxy,
+    const boost::shared_ptr<server::test::proxy_connector>&               proxy,
           server::test::socket<const char*>&                output)
 {
     typedef server::test::socket<const char*>           socket_t;
-    typedef traits<socket_t, sized_proxy_response_factory<BufferSize>::proxy_response_factory>    trait_t;
+    typedef sized_proxy_response_factory<BufferSize>    response_factory_factory_t;
+    typedef traits<socket_t, response_factory_factory_t::template proxy_response_factory>    trait_t;
     typedef server::connection<trait_t, socket_t>       connection_t;
 
     boost::asio::io_service&                            queue = proxy->get_io_service();

@@ -14,9 +14,10 @@
 namespace server {
 
     class async_response;
-    class proxy_connector;
 
 namespace test {
+
+	class proxy_connector;
 
 template <class Connection>
 struct response_factory
@@ -43,7 +44,7 @@ struct response_factory
  * The default behaviour of an incomming request is to answer with a simple "Hello" string
  */
 template <class Network = server::test::socket<const char*>, 
-          template <typename> class  ResponseFactory = response_factory>
+          template <class> class  ResponseFactory = response_factory>
 class traits : public server::connection_traits<Network, ResponseFactory<Network> >
 {
 public:

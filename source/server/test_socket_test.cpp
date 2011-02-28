@@ -101,7 +101,10 @@ TEST(async_read_some_with_to_test)
  */
 TEST(use_test_plan)
 {
-    read_plan reads;
+	using server::test::read;
+	using server::test::write;
+
+	read_plan reads;
     reads << read("hallo Welt") << delay(boost::posix_time::millisec(100)) << read("");
 
     write_plan writes;
@@ -175,7 +178,9 @@ namespace {
 
 TEST(first_read_followed_by_delay_and_second_read)
 {
-    boost::asio::io_service     queue;
+	using server::test::read;
+
+	boost::asio::io_service     queue;
     read_plan                   reads;
     reads << read(begin(simple_get_11_with_close_header), end(simple_get_11_with_close_header))
           << delay(boost::posix_time::seconds(1))

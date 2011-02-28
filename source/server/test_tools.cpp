@@ -33,7 +33,13 @@ std::size_t server::test::run(boost::asio::io_service& s)
         std::size_t now = s.run();
 
         if ( now != 0 )
+        {
             bridge_zero_loops = 2;
+        }
+        else
+        {
+            s.reset();
+        }
 
         sum += now;
     }

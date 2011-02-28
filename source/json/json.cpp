@@ -1416,7 +1416,7 @@ namespace json
             default:
                 {
                     const int missing_hexdigits = 4 - state_.top() + unicode_marker_parse;
-
+                    static_cast<void>(missing_hexdigits);
                     assert(missing_hexdigits > 0 && missing_hexdigits <= 4);
                     
                     if (!std::isxdigit(*begin))
