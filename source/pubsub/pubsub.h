@@ -49,7 +49,7 @@ namespace pubsub
 
     
     /**
-     * @brief interface for a subcriber / receiver of updates 
+     * @brief interface for a subscriber / receiver of updates
      */
     class subscriber
     {
@@ -147,7 +147,7 @@ namespace pubsub
         /**
          * @brief returns true, if the given node_name names a valid node
          */
-        virtual void valid_node(const node_name& node_name, const boost::shared_ptr<validation_call_back>&) = 0;
+        virtual void validate_node(const node_name& node_name, const boost::shared_ptr<validation_call_back>&) = 0;
 
         /**
          * @brief returns true, if the given subscriber is authorized to subscribe to the named node
@@ -182,10 +182,10 @@ namespace pubsub
         /**
          * @brief will be called, when ever the initialization of a node failed.
          *
-         * When validation and authorization was done successfully or was not nessary, but the callback passed to node_init()
+         * When validation and authorization was done successfully or was not necessary, but the callback passed to node_init()
          * was not called and no copy of the passed reference was made.
          */
-        virtual void initialization_failed(const node_name& node, const boost::shared_ptr<subscriber>& first_subscriber);
+        virtual void initialization_failed(const node_name& node);
 
         virtual ~adapter() {}
     };

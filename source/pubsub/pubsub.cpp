@@ -29,7 +29,7 @@ namespace pubsub
     {
     }
 
-    void adapter::initialization_failed(const node_name&, const boost::shared_ptr<subscriber>&)
+    void adapter::initialization_failed(const node_name&)
     {
     }
 

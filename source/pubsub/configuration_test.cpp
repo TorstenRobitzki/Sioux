@@ -2,7 +2,7 @@
 // Please note that the content of this file is confidential or protected by law.
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
-#include "unittest++/unittest++.h"
+#include "unittest++/UnitTest++.h"
 #include "pubsub/configuration.h"
 #include <boost/date_time/posix_time/posix_time.hpp> // required for i/o
 

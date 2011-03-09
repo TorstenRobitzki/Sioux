@@ -18,19 +18,30 @@ TEST_DEFAULT_LIBS = ['unittest++']
 
 INCLUDE_PATH = ['.', INCLUDE_FOLDER, File.join(SOURCE_FOLDER_PATHNAME, 'unittest++')]
 
-FLAVORS = ['debug', 'release']
+FLAVORS = ['debug', 'release', 'coverage']
 COMPILER_FLAGS = "-Wall -pedantic -Wno-parentheses -c -pipe -I#{INCLUDE_FOLDER}"
 COMPILER_FLAGS_BY_FLAVORS = {
-	'debug' => '-ggdb -O0 -fno-inline',
-	'release' => '-O3 -DNDEBUG'
+	'debug' => '-ggdb -O0',
+	'release' => '-O3 -DNDEBUG',
+	'coverage' => '-ggdb -O0 -fno-inline -fprofile-arcs -ftest-coverage',
 }
 
 LINK_FLAGS = '-ggdb'
+LINK_FLAGS_BY_FLAVORS = {
+	'debug' => '',
+	'release' => '',
+	'coverage' => '-fprofile-arcs -ftest-coverage -lgcov',
+}
 
 BOOST_LIBRARY_POST_FIX_BY_FLAVOR = {
 	'debug' => '-mt-sd',
-	'release' => '-mt-s'
+	'release' => '-mt-s',
+	'coverage' => '-mt-sd'
 }
+
+GCOV_PATTERN = ['*.gcda', '*.gcov', '*.gcno']
+
+GCOV_PATTERN.each { |p| CLEAN.include p }
 
 executables = []
 
@@ -134,7 +145,7 @@ end
 
 def build_executable executable, objects, libraries, external_libraries, flavor
 	File.delete(executable) if File.exist?(executable)
-	sh "g++ -o #{executable} #{LINK_FLAGS} #{objects.join(' ')} -L#{File.join(LIBRARY_FOLDER, flavor)} #{libraries.collect{|l| '-l' +l }.join(' ')} #{external_libraries.collect{|l| '-l' + l }.join(' ')}"
+	sh "g++ -o #{executable} #{LINK_FLAGS} #{LINK_FLAGS_BY_FLAVORS[flavor]} #{objects.join(' ')} -L#{File.join(LIBRARY_FOLDER, flavor)} #{libraries.collect{|l| '-l' +l }.join(' ')} #{external_libraries.collect{|l| '-l' + l }.join(' ')}"
 end
 
 # List of libraries in the source folder
@@ -150,6 +161,8 @@ FLAVORS.each do |flavor|
 	libraries.each do |lib| 
 		CLEAN.include File.join(OUTPUT_FOLDER, flavor, lib, '*.' + OBJECT_FILE_EXT)
 		CLEAN.include File.join(OUTPUT_FOLDER, flavor, lib, '*.' + DEPENDS_FILE_EXT)
+
+		GCOV_PATTERN.each { |p| CLEAN.include File.join(OUTPUT_FOLDER, flavor, lib, p)  }		
 	end
 	
 	CLOBBER.include File.join(LIBRARY_FOLDER, flavor, '*');

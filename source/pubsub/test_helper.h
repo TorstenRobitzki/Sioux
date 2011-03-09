@@ -198,7 +198,7 @@ namespace test {
          *
          * If such an entry exist, it will be deleted.
          */
-        bool initialization_failed_reported(const node_name& node, const boost::shared_ptr< ::pubsub::subscriber>& first_subscriber);
+        bool initialization_failed_reported(const node_name& node);
 
         /**
          * @brief no pending unanswered or unskiped requests and no repored failures
@@ -206,12 +206,12 @@ namespace test {
         bool empty() const;
 
     private:
-        virtual void valid_node(const node_name& node_name, const boost::shared_ptr<validation_call_back>&);
+        virtual void validate_node(const node_name& node_name, const boost::shared_ptr<validation_call_back>&);
         virtual void authorize(const boost::shared_ptr< ::pubsub::subscriber>&, const node_name& node_name, const boost::shared_ptr<authorization_call_back>&);
         virtual void node_init(const node_name& node_name, const boost::shared_ptr<initialization_call_back>&);
         virtual void invalid_node_subscription(const node_name& node, const boost::shared_ptr< ::pubsub::subscriber>&);
         virtual void unauthorized_subscription(const node_name& node, const boost::shared_ptr< ::pubsub::subscriber>&);
-        virtual void initialization_failed(const node_name& node, const boost::shared_ptr< ::pubsub::subscriber>& first_subscriber);
+        virtual void initialization_failed(const node_name& node);
 
         typedef std::multimap<std::pair<const boost::shared_ptr< ::pubsub::subscriber>, node_name>, boost::shared_ptr<authorization_call_back> > authorization_request_list;
         typedef std::multimap<std::pair<const boost::shared_ptr< ::pubsub::subscriber>, node_name>, bool>                                        authorization_answer_list;
@@ -224,7 +224,7 @@ namespace test {
         typedef std::multiset<node_name>                                                            initialization_skip_list;     
         typedef std::multiset<boost::tuple<node_name, boost::shared_ptr< ::pubsub::subscriber> > >  invalid_node_subscription_reported_list;
         typedef std::multiset<boost::tuple<node_name, boost::shared_ptr< ::pubsub::subscriber> > >  unauthorized_subscription_reported_list;
-        typedef std::multiset<boost::tuple<node_name, boost::shared_ptr< ::pubsub::subscriber> > >  initialization_failed_reported_list;
+        typedef std::multiset<node_name>  															initialization_failed_reported_list;
 
 
         mutable boost::mutex                        mutex_;

@@ -346,7 +346,7 @@ TEST(subscribe_node_and_initialization_skipped)
     adapter.skip_initialization_request(random_node_name);
     tools::run(queue);
 
-    CHECK(adapter.initialization_failed_reported(random_node_name, subscriber));
+    CHECK(adapter.initialization_failed_reported(random_node_name));
     CHECK(test_user(subscriber).on_failed_node_subscription_called(random_node_name));
     CHECK(test_user(subscriber).empty());
     CHECK(adapter.empty());
@@ -369,7 +369,7 @@ TEST(subscribe_node_and_synchronous_initialization_skipped)
     root.subscribe(subscriber, random_node_name);
     tools::run(queue);
 
-    CHECK(adapter.initialization_failed_reported(random_node_name, subscriber));
+    CHECK(adapter.initialization_failed_reported(random_node_name));
     CHECK(test_user(subscriber).on_failed_node_subscription_called(random_node_name));
     CHECK(test_user(subscriber).empty());
     CHECK(adapter.empty());
@@ -413,7 +413,6 @@ TEST(notify_subscribed_node)
     CHECK(test_user(subscriber).not_on_udate_called());
 }
 
-#if 0
 /**
  *  @test while a node is in the state of being validated, an other subscription on the same node must be held until the validation
  *        is finished.
@@ -442,6 +441,14 @@ TEST(second_subscription_while_validating)
     CHECK(test_user(first_subscriber).on_udate_called(random_node_name, json::string("42")));
     CHECK(test_user(second_subscriber).on_udate_called(random_node_name, json::string("42")));
 }
-#endif
+
+
+/**
+ * @test what happens, when a validation fails, while the node is subscribed
+ */
+TEST(subscribe_while_failing)
+{
+}
+
 
 

@@ -2,7 +2,7 @@
 // Please note that the content of this file is confidential or protected by law.
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
-#include "unittest++/unittest++.h"
+#include "unittest++/UnitTest++.h"
 #include "json/json.h"
 #include "tools/iterators.h"
 #include <iostream>

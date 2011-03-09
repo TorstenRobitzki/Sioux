@@ -141,17 +141,20 @@ namespace pubsub
          * The node keeps updates from the old data version to the new data version till a 
          * certain level of size for the updates is reached.
          * 
-         * If new_data is equal to data() no action is performed.
+         * If new_data is equal to data() no action is performed and the function returns false.
          *
          * @param new_data the new data of the node
          * @param keep_update_size_percent the maximum, total size of updates to keep 
          *                                 expressed as a percentage of the new_data size
+         * @return true, if the new data is different to the currently stored data.
          * @post data() will return new_data
          * @post current_version() will be incremented if data() != new_data
          */
-        void update(const json::value& new_data, unsigned keep_update_size_percent);
+        bool update(const json::value& new_data, unsigned keep_update_size_percent);
 
     private:
+        void remove_old_versions(std::size_t max_size);
+
         json::value     data_;
         node_version    version_;
         json::array     updates_;

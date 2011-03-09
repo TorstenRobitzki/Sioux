@@ -7,15 +7,13 @@
 #include "pubsub/configuration.h"
 #include "pubsub/node_group.h"
 #include "pubsub/node.h"
+#include "pubsub/subscribed_node.h"
 #include "tools/asstring.h"
 #include <vector>
 #include <map>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/bind.hpp>
-
-// delete me if you see me
-#include <iostream>
 
 namespace pubsub {
 namespace {
@@ -62,59 +60,6 @@ namespace {
         typedef std::vector<std::pair<node_group, boost::shared_ptr<const configuration> > > list_t;
         list_t                                          configurations_;
         const boost::shared_ptr<const configuration>    default_;
-    };
-
-    class subscribed_node 
-    {
-    public:
-        subscribed_node(
-            const boost::shared_ptr<subscriber>&            user, 
-            const json::value&                              data, 
-            const boost::shared_ptr<const configuration>&   config
-        )
-            : data_(node_version(), data)
-            , subscribers_(1, user)
-            , config_(config)
-        {
-        }
-
-        void update_all_subscribers(const node_name& name, boost::asio::io_service& queue) const
-        {
-            for ( subscriber_list::const_iterator sub = subscribers_.begin(); sub != subscribers_.end(); ++sub )
-            {
-                queue.post(
-                    boost::bind(&subscriber::on_udate, *sub, name, data_));
-            }
-        }
-
-        void update(const node_name& name, const json::value& new_value, boost::asio::io_service& queue)
-        {
-        	if ( data_.data() == new_value )
-        		return;
-
-        	data_.update(new_value, config_->max_update_size());
-
-            for ( subscriber_list::const_iterator sub = subscribers_.begin(); sub != subscribers_.end(); ++sub )
-            {
-                queue.post(
-                    boost::bind(&subscriber::on_udate, *sub, name, data_));
-            }
-        }
-
-        void unsubscribe(const node_name& name, const boost::shared_ptr<subscriber>& user)
-        {
-        	subscriber_list::iterator pos = std::find(subscribers_.begin(), subscribers_.end(), user);
-
-        	if ( pos != subscribers_.end() )
-        		subscribers_.erase(pos);
-        }
-
-    private:
-        typedef std::vector<boost::shared_ptr<subscriber> > subscriber_list;
-    
-        node                                    data_;
-        subscriber_list                         subscribers_;
-        boost::shared_ptr<const configuration>  config_;
     };
 }
 
@@ -227,7 +172,7 @@ namespace {
 
             void initial_value(const json::value& data)
             {
-                // finialy, an intitial, valid and authorized 
+                // Finally, an initialized, valid and authorized node
                 root_impl_.add_initial_authorized_and_validated_node(node_, data, user_, config_);
                 destructor_action_ = report_nothing;
             }
@@ -262,6 +207,8 @@ namespace {
         };
     }
 
+
+
     class root::impl
     {
     public:
@@ -286,34 +233,35 @@ namespace {
 
         void subscribe(boost::shared_ptr<subscriber>& s, const node_name& node_name)
         {
-            boost::shared_ptr<validation_call_back>     init;
-            boost::shared_ptr<authorization_call_back>  auth;
+        	boost::shared_ptr<subscribed_node>		node;
+        	boost::shared_ptr<validation_call_back>	validate;
 
-            {
+        	{
                 boost::mutex::scoped_lock   lock(mutex_);
                 const node_list_t::iterator pos = nodes_.find(node_name);
 
                 if ( pos != nodes_.end() )
                 {
+                	node = pos->second;
                 }
                 else
                 {
-                    init.reset(
-                        new validator<impl>(queue_, adapter_, node_name, s, configurations_.get_configuration(node_name), *this)
-                    );
+                	node.reset(new subscribed_node(configurations_.get_configuration(node_name)));
+                	validate = create_validator(node, node_name, s, queue_, adapter_);
+                	nodes_.insert(std::make_pair(node_name, node));
                 }
             }
 
-            if ( init.get() )
-            {
-                queue_.post(boost::bind(&adapter::valid_node, boost::ref(adapter_), node_name, init));
-            }
-            else if ( auth.get() )
-            {
-                assert(!"TODO");
-            }
+        	assert(node.get());
+        	node->add_subscriber(s, adapter_, queue_);
+
+        	if ( validate.get() )
+        	{
+        		adapter_.validate_node(node_name, validate);
+        	}
         }
 
+        /*
         void add_initial_authorized_and_validated_node(const node_name& node, const json::value& data, const boost::shared_ptr<subscriber>& usr, const boost::shared_ptr<const configuration>& config)
         {
 
@@ -332,16 +280,23 @@ namespace {
                 new_node->update_all_subscribers(node, queue_);
             }
         }
-
+*/
         void update_node(const node_name& node_name, const json::value& new_data)
         {
-            boost::mutex::scoped_lock   lock(mutex_);
-            const node_list_t::iterator pos = nodes_.find(node_name);
+        	boost::shared_ptr<subscribed_node>		node;
 
-            if ( pos != nodes_.end() )
-            {
-            	pos->second->update(node_name, new_data, queue_);
-            }
+        	{
+				boost::mutex::scoped_lock   lock(mutex_);
+				const node_list_t::iterator pos = nodes_.find(node_name);
+
+				if ( pos != nodes_.end() )
+					node = pos->second;
+        	}
+
+        	if ( node.get() )
+        	{
+        		node->change_data(node_name, new_data);
+			}
         }
 
         void unsubscribe(const boost::shared_ptr<subscriber>& user, const node_name& node_name)
@@ -351,7 +306,7 @@ namespace {
 
             if ( pos != nodes_.end() )
             {
-            	pos->second->unsubscribe(node_name, user);
+            	pos->second->remove_subscriber(user);
             }
         }
     private:

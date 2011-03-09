@@ -2,7 +2,7 @@
 // Please note that the content of this file is confidential or protected by law.
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
-#include "unittest++/unittest++.h"
+#include "unittest++/UnitTest++.h"
 #include "server/connection.h"
 #include "server/test_traits.h"
 #include "server/test_tools.h"

@@ -2,7 +2,7 @@
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 #include "http/response.h"
-#include "unittest++/unittest++.h"
+#include "unittest++/UnitTest++.h"
 #include "http/test_request_texts.h"
 
 using namespace http;

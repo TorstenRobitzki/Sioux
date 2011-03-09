@@ -245,21 +245,22 @@ namespace test {
         return search_and_remove(unauthorized_subscription_reports_, boost::make_tuple(node, user));
     }
 
-    bool adapter::initialization_failed_reported(const node_name& node, const boost::shared_ptr< ::pubsub::subscriber>& user)
+    bool adapter::initialization_failed_reported(const node_name& node)
     {
-        return search_and_remove(initialization_failed_reports_, boost::make_tuple(node, user));
+        return search_and_remove(initialization_failed_reports_, node);
     }
 
     bool adapter::empty() const
     {
         boost::mutex::scoped_lock lock(mutex_);
+
         return authorization_request_.empty() && validation_request_.empty() && initialization_request_.empty()
             && invalid_node_subscription_reports_.empty() && unauthorized_subscription_reports_.empty() && initialization_failed_reports_.empty()
             && authorization_answers_.empty() && validation_answers_.empty() && initialization_answers_.empty()
             && validations_to_skip_.empty() && authorizations_to_skip_.empty() && initializations_to_skip_.empty();
     }
 
-    void adapter::valid_node(const node_name& name, const boost::shared_ptr<validation_call_back>& cb)
+    void adapter::validate_node(const node_name& name, const boost::shared_ptr<validation_call_back>& cb)
     {
         boost::mutex::scoped_lock lock(mutex_);
 
@@ -316,9 +317,9 @@ namespace test {
         unauthorized_subscription_reports_.insert(boost::make_tuple(node, user));
     }
 
-    void adapter::initialization_failed(const node_name& node, const boost::shared_ptr< ::pubsub::subscriber>& user)
+    void adapter::initialization_failed(const node_name& node)
     {
-        initialization_failed_reports_.insert(boost::make_tuple(node, user));
+        initialization_failed_reports_.insert(node);
     }
 
 }

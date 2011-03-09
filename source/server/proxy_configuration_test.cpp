@@ -3,7 +3,7 @@
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 #include "server/proxy_connector.h"
-#include "unittest++/unittest++.h"
+#include "unittest++/UnitTest++.h"
 #include <boost/date_time/posix_time/posix_time.hpp>
 
 TEST(get_set_proxy_configs)

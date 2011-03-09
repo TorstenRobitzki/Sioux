@@ -5,7 +5,7 @@
 #include "server/transfer_buffer.h"
 #include "http/test_request_texts.h"
 #include "http/response.h"
-#include "unittest++/unittest++.h"
+#include "unittest++/UnitTest++.h"
 #include <boost/asio/buffers_iterator.hpp>
 
 using namespace http::test;

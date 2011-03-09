@@ -221,10 +221,10 @@ namespace pubsub {
         return std::make_pair(true, json::array(updates_, distance, updates_.length() - distance));
     }
 
-    void node::update(const json::value& new_data, unsigned keep_update_size_percent)
+    bool node::update(const json::value& new_data, unsigned keep_update_size_percent)
     {
         if ( new_data == data_ )
-            return;
+            return false;
 
         const std::size_t max_size = new_data.size() * keep_update_size_percent / 100;
 
@@ -240,9 +240,16 @@ namespace pubsub {
         data_ = new_data;
         ++version_;
 
-        // remove oldes versions until the max_size reached
+        remove_old_versions(max_size);
+
+        return true;
+    }
+
+    void node::remove_old_versions(std::size_t max_size)
+    {
         while ( !updates_.empty() && updates_.size() > max_size )
             updates_.erase(0, 1u);
     }
+
 } // namespace pubsub
 
