@@ -70,6 +70,8 @@ namespace pubsub
 
         const key_domain& domain() const;
 
+        const std::string& value() const;
+
         /**
          * @brief prints the key in a human readable manner onto the given stream in the form: domain:value
          */

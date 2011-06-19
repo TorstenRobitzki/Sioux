@@ -2,7 +2,7 @@
 // Please note that the content of this file is confidential or protected by law.
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
-#include "unittest++/UnitTest++.h"
+#include <boost/test/unit_test.hpp>
 #include <boost/asio.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 
@@ -33,9 +33,9 @@ namespace {
 }
 
 /** 
- * @test this test is intendet to check that io_service::run() returns when only a aync_wait is scheduled
+ * @test this test is intended to check that io_service::run() returns when only a aync_wait is scheduled
  */
-TEST(wait_lasts_time)
+BOOST_AUTO_TEST_CASE(wait_lasts_time)
 {
     boost::asio::io_service     queue;
     boost::asio::deadline_timer timer(queue);
@@ -48,7 +48,8 @@ TEST(wait_lasts_time)
 
     queue.post(s);
 
-    CHECK_EQUAL(2u, queue.run());
-    CHECK_CLOSE(boost::posix_time::seconds(1), time - now, boost::posix_time::millisec(100));
-    CHECK(called);
+    BOOST_CHECK_EQUAL(2u, queue.run());
+    BOOST_CHECK_GE(time - now, boost::posix_time::seconds(1) - boost::posix_time::millisec(100));
+    BOOST_CHECK_LE(time - now, boost::posix_time::seconds(1) + boost::posix_time::millisec(100));
+    BOOST_CHECK(called);
 }

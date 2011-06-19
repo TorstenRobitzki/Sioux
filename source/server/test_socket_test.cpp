@@ -2,7 +2,7 @@
 // Please note that the content of this file is confidential or protected by law.
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
-#include "unittest++/UnitTest++.h"
+#include <boost/test/unit_test.hpp>
 #include "server/test_socket.h"
 #include "server/test_tools.h"
 #include "server/timeout.h"
@@ -17,7 +17,7 @@
 using namespace server::test;
 using namespace http::test;
 
-TEST(read_timeout_test)
+BOOST_AUTO_TEST_CASE(read_timeout_test)
 {
     io_completed result;
 
@@ -31,12 +31,13 @@ TEST(read_timeout_test)
     sock.async_read_some(boost::asio::buffer(b), result);
     tools::run(queue);
 
-    CHECK_CLOSE(boost::posix_time::seconds(1), boost::posix_time::microsec_clock::universal_time() - t1, boost::posix_time::millisec(100));
-    CHECK_EQUAL(5u, result.bytes_transferred);
-    CHECK(!result.error);
+    BOOST_CHECK_GE(boost::posix_time::microsec_clock::universal_time() - t1, boost::posix_time::seconds(1) - boost::posix_time::millisec(100));
+    BOOST_CHECK_LE(boost::posix_time::microsec_clock::universal_time() - t1, boost::posix_time::seconds(1) + boost::posix_time::millisec(100));
+    BOOST_CHECK_EQUAL(5u, result.bytes_transferred);
+    BOOST_CHECK(!result.error);
 }
 
-TEST(write_timeout_test)
+BOOST_AUTO_TEST_CASE(write_timeout_test)
 {
     io_completed result;
 
@@ -49,12 +50,13 @@ TEST(write_timeout_test)
     sock.async_write_some(boost::asio::buffer(simple_get_11, 5), result);
     tools::run(queue);
 
-    CHECK_CLOSE(boost::posix_time::seconds(1), boost::posix_time::microsec_clock::universal_time() - t1, boost::posix_time::millisec(100));
-    CHECK_EQUAL(5u, result.bytes_transferred);
-    CHECK(!result.error);
+    BOOST_CHECK_GE(boost::posix_time::microsec_clock::universal_time() - t1, boost::posix_time::seconds(1) - boost::posix_time::millisec(100));
+    BOOST_CHECK_LE(boost::posix_time::microsec_clock::universal_time() - t1, boost::posix_time::seconds(1) + boost::posix_time::millisec(100));
+    BOOST_CHECK_EQUAL(5u, result.bytes_transferred);
+    BOOST_CHECK(!result.error);
 }
 
-TEST(chancel_read_write)
+BOOST_AUTO_TEST_CASE(chancel_read_write)
 {
     io_completed result_read;
     io_completed result_write;
@@ -69,16 +71,16 @@ TEST(chancel_read_write)
 
     tools::run(queue);
 
-    CHECK_EQUAL(0u, result_read.bytes_transferred);
-    CHECK_EQUAL(0u, result_write.bytes_transferred);
-    CHECK_EQUAL(make_error_code(boost::asio::error::operation_aborted), result_read.error);
-    CHECK_EQUAL(make_error_code(boost::asio::error::operation_aborted), result_write.error);
+    BOOST_CHECK_EQUAL(0u, result_read.bytes_transferred);
+    BOOST_CHECK_EQUAL(0u, result_write.bytes_transferred);
+    BOOST_CHECK_EQUAL(make_error_code(boost::asio::error::operation_aborted), result_read.error);
+    BOOST_CHECK_EQUAL(make_error_code(boost::asio::error::operation_aborted), result_write.error);
 }
 
 /**
  * @test reading with timeout, using the async_read_some_with_to() function
  */
-TEST(async_read_some_with_to_test)
+BOOST_AUTO_TEST_CASE(async_read_some_with_to_test)
 {
     io_completed result;
 
@@ -91,8 +93,8 @@ TEST(async_read_some_with_to_test)
 
     tools::run(queue);
 
-    CHECK_EQUAL(0u, result.bytes_transferred);
-    CHECK_EQUAL(result.error, make_error_code(server::time_out));
+    BOOST_CHECK_EQUAL(0u, result.bytes_transferred);
+    BOOST_CHECK_EQUAL(result.error, make_error_code(server::time_out));
 }
 
 /**
@@ -100,7 +102,7 @@ TEST(async_read_some_with_to_test)
  *
  * Executing 2 reads and 2 writes and then comparing the results with the expected results and timing
  */
-TEST(use_test_plan)
+BOOST_AUTO_TEST_CASE(use_test_plan)
 {
 	using server::test::read;
 	using server::test::write;
@@ -138,22 +140,26 @@ TEST(use_test_plan)
     const boost::posix_time::ptime          now = boost::posix_time::microsec_clock::universal_time();
     const boost::posix_time::time_duration  tolerance = boost::posix_time::millisec(5);
 
-    CHECK_CLOSE(start_time, first_read.when, tolerance);
-    CHECK_EQUAL(10u, first_read.bytes_transferred);
-    CHECK_EQUAL(std::string("hallo Welt"), std::string(&read_buffer[0], &read_buffer[10]));
-    CHECK(!first_read.error);
+    BOOST_CHECK_GE(first_read.when, start_time - tolerance);
+    BOOST_CHECK_LE(first_read.when, start_time + tolerance);
+    BOOST_CHECK_EQUAL(10u, first_read.bytes_transferred);
+    BOOST_CHECK_EQUAL(std::string("hallo Welt"), std::string(&read_buffer[0], &read_buffer[10]));
+    BOOST_CHECK(!first_read.error);
 
-    CHECK_CLOSE(start_time + boost::posix_time::millisec(100), second_read.when, tolerance);
-    CHECK_EQUAL(0u, second_read.bytes_transferred);
-    CHECK(!second_read.error);
+    BOOST_CHECK_GE(second_read.when, start_time + boost::posix_time::millisec(100) - tolerance);
+    BOOST_CHECK_LE(second_read.when, start_time + boost::posix_time::millisec(100) + tolerance);
+    BOOST_CHECK_EQUAL(0u, second_read.bytes_transferred);
+    BOOST_CHECK(!second_read.error);
 
-    CHECK_CLOSE(start_time + boost::posix_time::millisec(200), first_write.when, tolerance);
-    CHECK_EQUAL(20u, first_write.bytes_transferred);
-    CHECK(!first_write.error);
+    BOOST_CHECK_GE(first_write.when, start_time + boost::posix_time::millisec(200) - tolerance);
+    BOOST_CHECK_LE(first_write.when, start_time + boost::posix_time::millisec(200) + tolerance);
+    BOOST_CHECK_EQUAL(20u, first_write.bytes_transferred);
+    BOOST_CHECK(!first_write.error);
 
-    CHECK_CLOSE(start_time + boost::posix_time::millisec(200), second_write.when, tolerance);
-    CHECK_EQUAL(5u, second_write.bytes_transferred);
-    CHECK(!second_write.error);
+    BOOST_CHECK_GE(second_write.when, start_time + boost::posix_time::millisec(200) - tolerance);
+    BOOST_CHECK_LE(second_write.when, start_time + boost::posix_time::millisec(200) + tolerance);
+    BOOST_CHECK_EQUAL(5u, second_write.bytes_transferred);
+    BOOST_CHECK(!second_write.error);
 }
 
 namespace {
@@ -177,7 +183,7 @@ namespace {
     };
 }
 
-TEST(first_read_followed_by_delay_and_second_read)
+BOOST_AUTO_TEST_CASE(first_read_followed_by_delay_and_second_read)
 {
 	using server::test::read;
 
@@ -198,5 +204,6 @@ TEST(first_read_followed_by_delay_and_second_read)
     socket.async_read_some(boost::asio::buffer(buffer), h);
     tools::run(queue);
 
-    CHECK_CLOSE(boost::posix_time::seconds(1), time.elapsed(), boost::posix_time::millisec(100));
+    BOOST_CHECK_GE(time.elapsed(), boost::posix_time::seconds(1) - boost::posix_time::millisec(100));
+    BOOST_CHECK_LE(time.elapsed(), boost::posix_time::seconds(1) + boost::posix_time::millisec(100));
 }

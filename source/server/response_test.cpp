@@ -2,7 +2,7 @@
 // Please note that the content of this file is confidential or protected by law.
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
-#include "unittest++/UnitTest++.h"
+#include <boost/test/unit_test.hpp>
 #include "server/connection.h"
 #include "server/test_traits.h"
 #include "server/test_response.h"
@@ -63,7 +63,7 @@ namespace {
  *
  * For a number or responses there is simulated, that they start to send there data in different order
  */ 
-TEST(simply_receiving_a_hello)
+BOOST_AUTO_TEST_CASE(simply_receiving_a_hello)
 {
 
     typedef server::test::socket<const char*>                       socket_t;
@@ -83,7 +83,7 @@ TEST(simply_receiving_a_hello)
         tools::run(queue);
 
         std::vector<boost::shared_ptr<server::async_response> > resp = trait.responses();
-        CHECK_EQUAL(3u, resp.size());
+        BOOST_CHECK_EQUAL(3u, resp.size());
         
         const response_list_t responses(resp.begin(), resp.end());
         resp.clear();
@@ -96,7 +96,7 @@ TEST(simply_receiving_a_hello)
             // now every response that was created before, must have been asked to hurry
             for ( int r = *i; r >0; --r )
             {
-                CHECK(responses[r-1].expired()
+                BOOST_CHECK(responses[r-1].expired()
                     || boost::shared_ptr<server::async_response>(responses[r-1])->asked_to_hurry());
             }
         }
@@ -108,11 +108,11 @@ TEST(simply_receiving_a_hello)
         // all responses must have been destroyed
         for ( response_list_t::const_iterator resp = responses.begin(), end = responses.end(); resp != end; ++resp )
         {
-            CHECK_EQUAL(0, resp->use_count());
+            BOOST_CHECK_EQUAL(0, resp->use_count());
         }
 
         // and finaly, the ouput must be same for every order of response
-        CHECK_EQUAL("Hallo, wie gehts?", socket.output());
+        BOOST_CHECK_EQUAL("Hallo, wie gehts?", socket.output());
     } while ( std::next_permutation(tools::begin(index), tools::end(index)) );
 
 }
@@ -159,7 +159,7 @@ namespace {
  * @test this test should ensure, that when a request in the middle of the pipeline reports an error 
  *       other reponses will fulfill.
  */
-TEST(non_fatal_error_while_responding)
+BOOST_AUTO_TEST_CASE(non_fatal_error_while_responding)
 {
     typedef server::test::socket<const char*>           socket_t;
     typedef traits<socket_t, error_response_factory>    trait_t;
@@ -178,7 +178,7 @@ TEST(non_fatal_error_while_responding)
 
     simulate_incomming_data(resp[2]);
     simulate_incomming_data(resp[1]);
-    CHECK(boost::shared_ptr<server::async_response>(resp[0])->asked_to_hurry());
+    BOOST_CHECK(boost::shared_ptr<server::async_response>(resp[0])->asked_to_hurry());
     simulate_incomming_data(resp[0]);
 
     tools::run(queue);
@@ -193,26 +193,26 @@ TEST(non_fatal_error_while_responding)
     assert(size);
     third.parse(size);
 
-    CHECK_EQUAL(http::response_header::ok, first.state());
-    CHECK_EQUAL(http::response_header::ok, second.state());
-    CHECK_EQUAL(http::response_header::ok, third.state());
-    CHECK_EQUAL(http::http_continue, first.code());
-    CHECK_EQUAL(http::http_not_found, second.code());
-    CHECK_EQUAL(http::http_switching_protocols, third.code());
+    BOOST_CHECK_EQUAL(http::response_header::ok, first.state());
+    BOOST_CHECK_EQUAL(http::response_header::ok, second.state());
+    BOOST_CHECK_EQUAL(http::response_header::ok, third.state());
+    BOOST_CHECK_EQUAL(http::http_continue, first.code());
+    BOOST_CHECK_EQUAL(http::http_not_found, second.code());
+    BOOST_CHECK_EQUAL(http::http_switching_protocols, third.code());
 
-    CHECK_EQUAL(1, resp[0].use_count());
-    CHECK_EQUAL(1, resp[1].use_count());
-    CHECK_EQUAL(1, resp[2].use_count());
+    BOOST_CHECK_EQUAL(1, resp[0].use_count());
+    BOOST_CHECK_EQUAL(1, resp[1].use_count());
+    BOOST_CHECK_EQUAL(1, resp[2].use_count());
 
     resp.clear();
-    CHECK_EQUAL(1, connection.use_count());
+    BOOST_CHECK_EQUAL(1, connection.use_count());
 }
 
 /** 
  * @test this test should ensure, that when a request in the middle of the pipeline reports a fatal error
  *       other responses will be canceled.
  */
-TEST(fatal_error_while_responding)
+BOOST_AUTO_TEST_CASE(fatal_error_while_responding)
 {
     /// @todo implement
 }   

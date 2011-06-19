@@ -2,7 +2,7 @@
 // Please note that the content of this file is confidential or protected by law.
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
-#include "unittest++/UnitTest++.h"
+#include <boost/test/unit_test.hpp>
 #include "server/proxy_response.h"
 #include "server/connection.h"
 #include "server/proxy_connector.h"
@@ -94,7 +94,7 @@ static std::string through_proxy(const boost::shared_ptr<const http::request_hea
 /**
  * @brief check, that connection headers are removed from the original request
  */
-TEST(check_removed_headers)
+BOOST_AUTO_TEST_CASE(check_removed_headers)
 {
     const boost::shared_ptr<const http::request_header> opera(new http::request_header(get_local_root_opera));
     const boost::shared_ptr<const http::request_header> firefox(new http::request_header(get_local_root_firefox));
@@ -108,66 +108,66 @@ TEST(check_removed_headers)
         "host:127.0.0.1\r\n"
         "\r\n"));
 
-    CHECK_EQUAL(http::request_header::ok, opera->state());
-    CHECK_EQUAL(http::request_header::ok, firefox->state());
-    CHECK_EQUAL(http::request_header::ok, internet_explorer->state());
-    CHECK_EQUAL(http::request_header::ok, generic->state());
+    BOOST_CHECK_EQUAL(http::request_header::ok, opera->state());
+    BOOST_CHECK_EQUAL(http::request_header::ok, firefox->state());
+    BOOST_CHECK_EQUAL(http::request_header::ok, internet_explorer->state());
+    BOOST_CHECK_EQUAL(http::request_header::ok, generic->state());
 
-    CHECK(opera->find_header("Connection"));
-    CHECK(firefox->find_header("Connection"));
-    CHECK(firefox->find_header("Keep-Alive"));
-    CHECK(internet_explorer->find_header("Connection"));
-    CHECK(generic->find_header("bla"));
-    CHECK(generic->find_header("foo"));
-    CHECK(generic->find_header("connection"));
+    BOOST_CHECK(opera->find_header("Connection"));
+    BOOST_CHECK(firefox->find_header("Connection"));
+    BOOST_CHECK(firefox->find_header("Keep-Alive"));
+    BOOST_CHECK(internet_explorer->find_header("Connection"));
+    BOOST_CHECK(generic->find_header("bla"));
+    BOOST_CHECK(generic->find_header("foo"));
+    BOOST_CHECK(generic->find_header("connection"));
 
     // now, tunnel each of them through a proxy
     {
         std::string response_text = through_proxy(opera, cached_response_apache);
         http::request_header opera(response_text.c_str());
-        CHECK_EQUAL(http::request_header::ok, opera.state());
-        CHECK(!opera.find_header("Connection"));
+        BOOST_CHECK_EQUAL(http::request_header::ok, opera.state());
+        BOOST_CHECK(!opera.find_header("Connection"));
 
-        CHECK(opera.find_header("User-Agent"));
-        CHECK(opera.find_header("Host"));
-        CHECK(opera.find_header("Accept"));
-        CHECK(opera.find_header("Accept-Language"));
-        CHECK(opera.find_header("Accept-Charset"));
-        CHECK(opera.find_header("Accept-Encoding"));
+        BOOST_CHECK(opera.find_header("User-Agent"));
+        BOOST_CHECK(opera.find_header("Host"));
+        BOOST_CHECK(opera.find_header("Accept"));
+        BOOST_CHECK(opera.find_header("Accept-Language"));
+        BOOST_CHECK(opera.find_header("Accept-Charset"));
+        BOOST_CHECK(opera.find_header("Accept-Encoding"));
     }
 
     {
         std::string response_text = through_proxy(firefox, cached_response_apache);
         http::request_header firefox(response_text.c_str());
-        CHECK_EQUAL(http::request_header::ok, firefox.state());
-        CHECK(!firefox.find_header("Connection"));
-        CHECK(!firefox.find_header("Keep-Alive"));
+        BOOST_CHECK_EQUAL(http::request_header::ok, firefox.state());
+        BOOST_CHECK(!firefox.find_header("Connection"));
+        BOOST_CHECK(!firefox.find_header("Keep-Alive"));
 
-        CHECK(firefox.find_header("Host"));
-        CHECK(firefox.find_header("User-Agent"));
-        CHECK(firefox.find_header("Accept"));
-        CHECK(firefox.find_header("Accept-Language"));
-        CHECK(firefox.find_header("Accept-Encoding"));
-        CHECK(firefox.find_header("Accept-Charset"));
+        BOOST_CHECK(firefox.find_header("Host"));
+        BOOST_CHECK(firefox.find_header("User-Agent"));
+        BOOST_CHECK(firefox.find_header("Accept"));
+        BOOST_CHECK(firefox.find_header("Accept-Language"));
+        BOOST_CHECK(firefox.find_header("Accept-Encoding"));
+        BOOST_CHECK(firefox.find_header("Accept-Charset"));
     }
 
     {
         std::string response_text = through_proxy(internet_explorer, cached_response_apache);
         http::request_header internet_explorer(response_text.c_str());
-        CHECK_EQUAL(http::request_header::ok, internet_explorer.state());
-        CHECK(!internet_explorer.find_header("Connection"));
+        BOOST_CHECK_EQUAL(http::request_header::ok, internet_explorer.state());
+        BOOST_CHECK(!internet_explorer.find_header("Connection"));
     }
 
     {
         std::string response_text = through_proxy(generic, cached_response_apache);
         http::request_header generic(response_text.c_str());
-        CHECK_EQUAL(http::request_header::ok, generic.state());
-        CHECK(!generic.find_header("bla"));
-        CHECK(!generic.find_header("bar"));
-        CHECK(!generic.find_header("foo"));
-        CHECK(!generic.find_header("connection"));
+        BOOST_CHECK_EQUAL(http::request_header::ok, generic.state());
+        BOOST_CHECK(!generic.find_header("bla"));
+        BOOST_CHECK(!generic.find_header("bar"));
+        BOOST_CHECK(!generic.find_header("foo"));
+        BOOST_CHECK(!generic.find_header("connection"));
 
-        CHECK(generic.find_header("host"));
+        BOOST_CHECK(generic.find_header("host"));
     }
 
 }
@@ -175,7 +175,7 @@ TEST(check_removed_headers)
 /**
  * @test correct host and port are connected
  */
-TEST(correct_host_and_port_connected)
+BOOST_AUTO_TEST_CASE(correct_host_and_port_connected)
 {
     http::request_header request(
         "GET / HTTP/1.1\r\n"
@@ -185,14 +185,14 @@ TEST(correct_host_and_port_connected)
     boost::shared_ptr<proxy_connector> proxy(new proxy_connector(queue, cached_response_apache));
     simulate_proxy(proxy, request.text());
     
-    CHECK_EQUAL("127.0.0.1", proxy->connected_orgin_server().first);
-    CHECK_EQUAL(8080u, proxy->connected_orgin_server().second);
+    BOOST_CHECK_EQUAL("127.0.0.1", proxy->connected_orgin_server().first);
+    BOOST_CHECK_EQUAL(8080u, proxy->connected_orgin_server().second);
 }
 
 /**
  * @test that a valid error response will be generated, when connecting the orgin is not possible
  */
-TEST(responde_when_no_connection_to_orgin_possible)
+BOOST_AUTO_TEST_CASE(responde_when_no_connection_to_orgin_possible)
 {
     http::request_header request(
         "GET / HTTP/1.1\r\n"
@@ -203,15 +203,15 @@ TEST(responde_when_no_connection_to_orgin_possible)
     const std::string response_text = simulate_proxy(proxy, request.text());
     http::response_header response(response_text.c_str());
     
-    CHECK_EQUAL(http::message::ok, response.state());
-    CHECK_EQUAL(http::http_internal_server_error, response.code());
+    BOOST_CHECK_EQUAL(http::message::ok, response.state());
+    BOOST_CHECK_EQUAL(http::http_internal_server_error, response.code());
 
 }
 
 /**
  * @test the proxy config asynchronously responses with an error
  */
-TEST(error_while_connecting_the_orgin_server)
+BOOST_AUTO_TEST_CASE(error_while_connecting_the_orgin_server)
 {
     http::request_header request(
         "GET / HTTP/1.1\r\n"
@@ -222,14 +222,14 @@ TEST(error_while_connecting_the_orgin_server)
     const std::string response_text = simulate_proxy(proxy, request.text());
     http::response_header response(response_text.c_str());
     
-    CHECK_EQUAL(http::message::ok, response.state());
-    CHECK_EQUAL(http::http_bad_gateway, response.code());
+    BOOST_CHECK_EQUAL(http::message::ok, response.state());
+    BOOST_CHECK_EQUAL(http::http_bad_gateway, response.code());
 }
 
 /**
  * @test error while writing the request header to the proxy,
  */
-TEST(error_while_writing_header_to_orgin_server)
+BOOST_AUTO_TEST_CASE(error_while_writing_header_to_orgin_server)
 {
     http::request_header request(
         "GET / HTTP/1.1\r\n"
@@ -255,14 +255,14 @@ TEST(error_while_writing_header_to_orgin_server)
 
     http::response_header response(response_text.c_str());
     
-    CHECK_EQUAL(http::message::ok, response.state());
-    CHECK_EQUAL(http::http_bad_gateway, response.code());
+    BOOST_CHECK_EQUAL(http::message::ok, response.state());
+    BOOST_CHECK_EQUAL(http::http_bad_gateway, response.code());
 }
 
 /**
  * @test while reading the response header from the proxy, an error occured
  */
-TEST(error_while_reading_header_from_orgin_server)
+BOOST_AUTO_TEST_CASE(error_while_reading_header_from_orgin_server)
 {
     http::request_header request(
         "GET / HTTP/1.1\r\n"
@@ -282,8 +282,8 @@ TEST(error_while_reading_header_from_orgin_server)
 
     http::response_header response(response_text.c_str());
     
-    CHECK_EQUAL(http::message::ok, response.state());
-    CHECK_EQUAL(http::http_bad_gateway, response.code());
+    BOOST_CHECK_EQUAL(http::message::ok, response.state());
+    BOOST_CHECK_EQUAL(http::http_bad_gateway, response.code());
 }
 
 /**
@@ -291,7 +291,7 @@ TEST(error_while_reading_header_from_orgin_server)
  *
  * Simulate a response from the orgin server, with a connection header.
  */
-TEST(remove_connection_headers_from_orgin_response)
+BOOST_AUTO_TEST_CASE(remove_connection_headers_from_orgin_response)
 {
     http::request_header request(
         "GET / HTTP/1.1\r\n"
@@ -303,14 +303,14 @@ TEST(remove_connection_headers_from_orgin_response)
     const std::string response_text = simulate_proxy(proxy, request.text());
     http::response_header response(response_text.c_str());
     
-    CHECK_EQUAL(http::message::ok, response.state());
-    CHECK_EQUAL(http::http_not_modified, response.code());
-    CHECK(response.find_header("connection") == 0);
-    CHECK(response.find_header("Keep-Alive") == 0);
+    BOOST_CHECK_EQUAL(http::message::ok, response.state());
+    BOOST_CHECK_EQUAL(http::http_not_modified, response.code());
+    BOOST_CHECK(response.find_header("connection") == 0);
+    BOOST_CHECK(response.find_header("Keep-Alive") == 0);
 
 }
 
-TEST(big_random_chunked_body)
+BOOST_AUTO_TEST_CASE(big_random_chunked_body)
 {
     const char response_text[] =
         "HTTP/1.1 200 OK\r\n"
@@ -334,8 +334,8 @@ TEST(big_random_chunked_body)
 
         const std::vector<char> client_received = simulate_sized_proxy<1024>(proxy, client_connection);
 
-        CHECK_EQUAL(proxy_response.size(), client_received.size());
-        CHECK(compare_buffers(proxy_response, client_received, std::cerr));
+        BOOST_CHECK_EQUAL(proxy_response.size(), client_received.size());
+        BOOST_CHECK(compare_buffers(proxy_response, client_received, std::cerr));
     }
 
     // test with a proxy buffer of 200 bytes
@@ -349,8 +349,8 @@ TEST(big_random_chunked_body)
 
         const std::vector<char> client_received = simulate_sized_proxy<200>(proxy, client_connection);
 
-        CHECK_EQUAL(proxy_response.size(), client_received.size());
-        CHECK(compare_buffers(proxy_response, client_received, std::cerr));
+        BOOST_CHECK_EQUAL(proxy_response.size(), client_received.size());
+        BOOST_CHECK(compare_buffers(proxy_response, client_received, std::cerr));
     }
 
     // test with a proxy buffer of 20 kbytes
@@ -364,12 +364,12 @@ TEST(big_random_chunked_body)
 
         const std::vector<char> client_received = simulate_sized_proxy<20*1024>(proxy, client_connection);
 
-        CHECK_EQUAL(proxy_response.size(), client_received.size());
-        CHECK(compare_buffers(proxy_response, client_received, std::cerr));
+        BOOST_CHECK_EQUAL(proxy_response.size(), client_received.size());
+        BOOST_CHECK(compare_buffers(proxy_response, client_received, std::cerr));
     }
 }
 
-TEST(content_length_proxy_request)
+BOOST_AUTO_TEST_CASE(content_length_proxy_request)
 {    
     const char response_text[] =
         "HTTP/1.1 200 OK\r\n"
@@ -391,11 +391,11 @@ TEST(content_length_proxy_request)
 
     const std::vector<char> client_received = simulate_sized_proxy<1024>(proxy, client_connection);
 
-    CHECK_EQUAL(proxy_response.size(), client_received.size());
-    CHECK(compare_buffers(proxy_response, client_received, std::cerr));
+    BOOST_CHECK_EQUAL(proxy_response.size(), client_received.size());
+    BOOST_CHECK(compare_buffers(proxy_response, client_received, std::cerr));
 }
 
-TEST(close_connection_length_proxy_request)
+BOOST_AUTO_TEST_CASE(close_connection_length_proxy_request)
 {    
     const char response_text[] =
         "HTTP/1.1 200 OK\r\n\r\n";
@@ -416,11 +416,11 @@ TEST(close_connection_length_proxy_request)
 
     const std::vector<char> client_received = simulate_sized_proxy<1024>(proxy, client_connection);
 
-    CHECK_EQUAL(proxy_response.size(), client_received.size());
-    CHECK(compare_buffers(proxy_response, client_received, std::cerr));
+    BOOST_CHECK_EQUAL(proxy_response.size(), client_received.size());
+    BOOST_CHECK(compare_buffers(proxy_response, client_received, std::cerr));
 }
 
-TEST(request_an_other_connection_when_the_first_was_falty)
+BOOST_AUTO_TEST_CASE(request_an_other_connection_when_the_first_was_falty)
 {
     boost::asio::io_service         queue;
     proxy_connector::socket_list_t  orgin_connections;
@@ -438,14 +438,14 @@ TEST(request_an_other_connection_when_the_first_was_falty)
 
     boost::shared_ptr<proxy_connector> connector(new proxy_connector(orgin_connections));
 
-    CHECK_EQUAL(chunked_response_example,
+    BOOST_CHECK_EQUAL(chunked_response_example,
         simulate_proxy(connector, tools::substring(begin(simple_get_11), end(simple_get_11))));
 } 
 
 /**
  * @test test that a small delay doesn't cause a timeout
  */
-TEST(delayed_reading_from_orgin)
+BOOST_AUTO_TEST_CASE(delayed_reading_from_orgin)
 {
     boost::asio::io_service             queue;
     server::test::socket<const char*>   sock(queue, begin(chunked_response_example), end(chunked_response_example), 5, boost::posix_time::microsec(30));
@@ -455,11 +455,11 @@ TEST(delayed_reading_from_orgin)
     http::response_header   response(
         simulate_proxy(connector, tools::substring(begin(simple_get_11), end(simple_get_11))).c_str());
 
-    CHECK_EQUAL(http::message::ok, response.state());
-    CHECK_EQUAL(http::http_ok, response.code());
+    BOOST_CHECK_EQUAL(http::message::ok, response.state());
+    BOOST_CHECK_EQUAL(http::http_ok, response.code());
 }
 
-TEST(timeout_while_reading_from_orgin)
+BOOST_AUTO_TEST_CASE(timeout_while_reading_from_orgin)
 {
     boost::asio::io_service             queue;
     proxy_connector::socket_list_t      sockets;
@@ -479,12 +479,12 @@ TEST(timeout_while_reading_from_orgin)
     http::response_header   response(
         simulate_proxy(connector, tools::substring(begin(simple_get_11), end(simple_get_11))).c_str());
 
-    CHECK_EQUAL(http::message::ok, response.state());
-    CHECK_EQUAL(http::http_gateway_timeout, response.code());
+    BOOST_CHECK_EQUAL(http::message::ok, response.state());
+    BOOST_CHECK_EQUAL(http::http_gateway_timeout, response.code());
 }
 
 
-TEST(timeout_while_writing_to_orgin)
+BOOST_AUTO_TEST_CASE(timeout_while_writing_to_orgin)
 {
     boost::asio::io_service             queue;
     proxy_connector::socket_list_t      sockets;
@@ -504,6 +504,6 @@ TEST(timeout_while_writing_to_orgin)
     http::response_header   response(
         simulate_proxy(connector, tools::substring(begin(simple_get_11), end(simple_get_11))).c_str());
 
-    CHECK_EQUAL(http::message::ok, response.state());
-    CHECK_EQUAL(http::http_gateway_timeout, response.code());
+    BOOST_CHECK_EQUAL(http::message::ok, response.state());
+    BOOST_CHECK_EQUAL(http::http_gateway_timeout, response.code());
 }

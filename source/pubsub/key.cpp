@@ -72,6 +72,11 @@ namespace pubsub {
         return domain_;
     }
 
+    const std::string& key::value() const
+    {
+    	return value_;
+    }
+
     void key::print(std::ostream& out) const
     {
         out << domain_ << ":" << value_;

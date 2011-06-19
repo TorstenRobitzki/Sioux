@@ -2,7 +2,9 @@
 // Please note that the content of this file is confidential or protected by law.
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
-#include "unittest++/UnitTest++.h"
+#define BOOST_TEST_MAIN
+
+#include <boost/test/unit_test.hpp>
 #include "server/connection.h"
 #include "server/test_traits.h"
 #include "server/test_tools.h"
@@ -12,7 +14,7 @@
 using namespace server::test;
 using namespace http::test; 
 
-TEST(read_simple_header)
+BOOST_AUTO_TEST_CASE(read_simple_header)
 {
     boost::asio::io_service     queue;
     traits<>::connection_type   socket(queue, begin(simple_get_11), end(simple_get_11), 5);
@@ -22,10 +24,10 @@ TEST(read_simple_header)
 
     queue.run(); 
 
-    CHECK_EQUAL(1u, trait.requests().size());
+    BOOST_CHECK_EQUAL(1u, trait.requests().size());
 }
 
-TEST(read_multiple_header)
+BOOST_AUTO_TEST_CASE(read_multiple_header)
 {
     boost::asio::io_service     queue;
     traits<>::connection_type   socket(queue, begin(simple_get_11), end(simple_get_11), 400, 2000);
@@ -35,10 +37,10 @@ TEST(read_multiple_header)
 
     queue.run();
 
-    CHECK_EQUAL(2000u, traits.requests().size());
+    BOOST_CHECK_EQUAL(2000u, traits.requests().size());
 }
 
-TEST(read_big_buffer)
+BOOST_AUTO_TEST_CASE(read_big_buffer)
 {
     std::vector<char>   input;
     for ( unsigned i = 0; i != 1000; ++i )
@@ -53,10 +55,10 @@ TEST(read_big_buffer)
 
     queue.run();
 
-    CHECK_EQUAL(1000u, traits.requests().size());
+    BOOST_CHECK_EQUAL(1000u, traits.requests().size());
 }
 
-TEST(read_buffer_overflow)
+BOOST_AUTO_TEST_CASE(read_buffer_overflow)
 {
     const char header[] = "Accept-Encoding: gzip\r\n";
 
@@ -73,54 +75,54 @@ TEST(read_buffer_overflow)
 
     queue.run();
 
-    CHECK_EQUAL(1u, traits.requests().size());
-    CHECK_EQUAL(http::request_header::buffer_full, traits.requests().front()->state());
+    BOOST_CHECK_EQUAL(1u, traits.requests().size());
+    BOOST_CHECK_EQUAL(http::request_header::buffer_full, traits.requests().front()->state());
 }
 
 /**
  * @brief sender closed connection, if request was ok, a response should have been send
  */
-TEST(close_after_sender_closed)
+BOOST_AUTO_TEST_CASE(close_after_sender_closed)
 {
     boost::asio::io_service     queue;
     traits<>::connection_type   socket(queue, begin(simple_get_11), end(simple_get_11), 0);
     traits<>                    trait;
 
     boost::weak_ptr<server::connection<traits<>, traits<>::connection_type> > connection(server::create_connection(socket, trait));
-    CHECK(!connection.expired());
+    BOOST_CHECK(!connection.expired());
 
     queue.run();
 
     trait.reset_responses();
-    CHECK_EQUAL("Hello", socket.output());
-    CHECK(connection.expired());
+    BOOST_CHECK_EQUAL("Hello", socket.output());
+    BOOST_CHECK(connection.expired());
 }
 
 /**
  * @test client requests a close via connection header
  */
-TEST(closed_by_connection_header)
+BOOST_AUTO_TEST_CASE(closed_by_connection_header)
 {
     boost::asio::io_service     queue;
     traits<>::connection_type   socket(queue, begin(simple_get_11_with_close_header), end(simple_get_11_with_close_header), 0);
     traits<>                    trait;
 
     boost::weak_ptr<server::connection<traits<>, traits<>::connection_type> > connection(server::create_connection(socket, trait));
-    CHECK(!connection.expired());
+    BOOST_CHECK(!connection.expired());
 
     queue.run();
 
     trait.reset_responses();
-    CHECK_EQUAL("Hello", socket.output());
+    BOOST_CHECK_EQUAL("Hello", socket.output());
 
     // no outstanding reference to the connection object, so no read is pending on the connection to the client
-    CHECK(connection.expired());
+    BOOST_CHECK(connection.expired());
 }
 
 /**
  * @test tests that a maximum idle time is not exceeded and the connection is closed 
  */
-TEST(closed_when_idle_time_exceeded)
+BOOST_AUTO_TEST_CASE(closed_when_idle_time_exceeded)
 {
 	using server::test::read;
 
@@ -135,45 +137,46 @@ TEST(closed_when_idle_time_exceeded)
     traits<>                    trait;
 
     boost::weak_ptr<server::connection<traits<>, traits<>::connection_type> > connection(server::create_connection(socket, trait));
-    CHECK(!connection.expired());
+    BOOST_CHECK(!connection.expired());
 
     timer time;
     queue.run();
 
     // 30sec is the default idle time
     server::connection_config config;
-    CHECK_CLOSE(config.keep_alive_timeout(), time.elapsed(), boost::posix_time::seconds(1));
+    BOOST_CHECK_GE(time.elapsed(), config.keep_alive_timeout() - boost::posix_time::seconds(1));
+    BOOST_CHECK_LE(time.elapsed(), config.keep_alive_timeout() + boost::posix_time::seconds(1));
 
     trait.reset_responses();
-    CHECK_EQUAL("Hello", socket.output());
+    BOOST_CHECK_EQUAL("Hello", socket.output());
 
     // no outstanding reference to the connection object, so no read is pending on the connection to the client
-    CHECK(connection.expired());
+    BOOST_CHECK(connection.expired());
 }
 
 /**
  * @test the connection should be forced to be closed, when the connection is closed by the client
  */
-TEST(closed_by_client_disconnected)
+BOOST_AUTO_TEST_CASE(closed_by_client_disconnected)
 {
     boost::asio::io_service     queue;
     traits<>::connection_type   socket(queue, begin(simple_get_11), begin(simple_get_11) + (sizeof simple_get_11 / 2), 0);
     traits<>                    trait;
 
     boost::weak_ptr<server::connection<traits<>, traits<>::connection_type> > connection(server::create_connection(socket, trait));
-    CHECK(!connection.expired());
+    BOOST_CHECK(!connection.expired());
 
     queue.run();
 
     trait.reset_responses();
-    CHECK_EQUAL("", socket.output());
-    CHECK(connection.expired());
+    BOOST_CHECK_EQUAL("", socket.output());
+    BOOST_CHECK(connection.expired());
 }
 
 /**
  * @test handle timeout while writing to a client 
  */
-TEST(timeout_while_writing_to_client)
+BOOST_AUTO_TEST_CASE(timeout_while_writing_to_client)
 {
 	using server::test::read;
 	using server::test::write;
@@ -192,20 +195,21 @@ TEST(timeout_while_writing_to_client)
     traits<>                    trait;
 
     boost::weak_ptr<server::connection<traits<>, traits<>::connection_type> > connection(server::create_connection(socket, trait));
-    CHECK(!connection.expired());
+    BOOST_CHECK(!connection.expired());
 
     timer time;
     queue.run();
 
     // 3sec is the default timeout
     server::connection_config config;
-    CHECK_CLOSE(config.timeout(), time.elapsed(), boost::posix_time::seconds(1));
+    BOOST_CHECK_GE(time.elapsed(), config.timeout() - boost::posix_time::seconds(1));
+    BOOST_CHECK_LE(time.elapsed(), config.timeout() + boost::posix_time::seconds(1));
 
     trait.reset_responses();
-    CHECK_EQUAL("He", socket.output());
+    BOOST_CHECK_EQUAL("He", socket.output());
 
     // no outstanding reference to the connection object, so no read is pending on the connection to the client
-    CHECK(connection.expired());
+    BOOST_CHECK(connection.expired());
 }
 
 /**
@@ -213,7 +217,7 @@ TEST(timeout_while_writing_to_client)
  *
  * The client starts sending a request header, but stops in the middle of the request to send further data.
  */
-TEST(timeout_while_reading_from_client)
+BOOST_AUTO_TEST_CASE(timeout_while_reading_from_client)
 {
 	using server::test::read;
 
@@ -228,19 +232,20 @@ TEST(timeout_while_reading_from_client)
     traits<>                    trait;
 
     boost::weak_ptr<server::connection<traits<>, traits<>::connection_type> > connection(server::create_connection(socket, trait));
-    CHECK(!connection.expired());
+    BOOST_CHECK(!connection.expired());
 
     timer time;
     queue.run();
 
     // 3sec is the default timeout
     server::connection_config config;
-    CHECK_CLOSE(config.timeout(), time.elapsed(), boost::posix_time::seconds(1));
+    BOOST_CHECK_GE(time.elapsed(), config.timeout() - boost::posix_time::seconds(1));
+    BOOST_CHECK_LE(time.elapsed(), config.timeout() + boost::posix_time::seconds(1));
 
     trait.reset_responses();
-    CHECK_EQUAL("", socket.output());
+    BOOST_CHECK_EQUAL("", socket.output());
 
     // no outstanding reference to the connection object, so no read is pending on the connection to the client
 
-    CHECK(connection.expired());
+    BOOST_CHECK(connection.expired());
 }

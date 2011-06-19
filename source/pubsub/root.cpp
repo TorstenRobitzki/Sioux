@@ -17,7 +17,8 @@
 
 namespace pubsub {
 namespace {
-    class configuration_list
+
+	class configuration_list
     {
     public:
         explicit configuration_list(const configuration& default_configuration)
@@ -63,153 +64,7 @@ namespace {
     };
 }
 
-    namespace {
-        template <class Root>
-        class validator
-            : public boost::enable_shared_from_this<validator<Root> >
-            , public validation_call_back
-            , public initialization_call_back
-            , public authorization_call_back
-        {
-        public:
-            validator(boost::asio::io_service& io_queue, adapter& a, const node_name& node, const boost::shared_ptr<subscriber>& usr, const boost::shared_ptr<const configuration>& config, Root& root)
-                : adapter_(a)
-                , answered_(false)
-                , node_(node)
-                , user_(usr)
-                , config_(config)
-                , queue_(io_queue)
-                , destructor_action_(report_invalid_node)
-                , root_impl_(root)
-            {
-            }
-
-            virtual ~validator()
-            {
-                try {
-                    switch ( destructor_action_ )
-                    {
-                    case report_invalid_node:
-                        not_valid();
-                        break;
-                    case report_unauthorized_subscription:
-                        not_authorized();
-                        break;
-                    case report_initialization_failed:
-                        not_initialized();
-                        break;
-                    case report_nothing:
-                    	break;
-                    }
-                }
-                catch (...)
-                {
-                }
-            }
-        private:
-            void post_initilization_request()
-            {
-                queue_.post(
-                    boost::bind(
-                        &adapter::node_init, 
-                        boost::ref(adapter_), 
-                        boost::cref(node_), 
-                        this->shared_from_this()));
-
-                destructor_action_ = report_initialization_failed;
-            }
-
-            void is_valid() 
-            {
-                if ( config_->authorization_required() )
-                {
-                    queue_.post(
-                        boost::bind(
-                            &adapter::authorize, 
-                            boost::ref(adapter_), 
-                            boost::cref(user_),
-                            boost::cref(node_), 
-                            this->shared_from_this()));
-
-                    destructor_action_ = report_unauthorized_subscription;
-                }
-                else
-                {
-                    post_initilization_request();
-                }
-            }
-
-            void not_valid() 
-            {
-                user_->on_invalid_node_subscription(node_);
-                queue_.post(
-                    boost::bind(
-                        &adapter::invalid_node_subscription,
-                        &adapter_,
-                        node_,
-                        user_));
-
-                destructor_action_ = report_nothing;
-            }
-
-            void is_authorized()
-            {
-                post_initilization_request();
-            }
-
-            void not_authorized()
-            {
-                user_->on_unauthorized_node_subscription(node_);
-                queue_.post(
-                    boost::bind(
-                        &adapter::unauthorized_subscription,
-                        &adapter_,
-                        node_,
-                        user_));
-
-                destructor_action_ = report_nothing;
-            }
-
-            void initial_value(const json::value& data)
-            {
-                // Finally, an initialized, valid and authorized node
-                root_impl_.add_initial_authorized_and_validated_node(node_, data, user_, config_);
-                destructor_action_ = report_nothing;
-            }
-
-            void not_initialized()
-            {
-                user_->on_failed_node_subscription(node_);
-
-                queue_.post(
-                    boost::bind(
-                    &adapter::initialization_failed,    
-                    &adapter_,
-                    node_,
-                    user_));
-            }
-
-            adapter&                                        adapter_;
-            bool                                            answered_;
-            const node_name                                 node_;
-            const boost::shared_ptr<subscriber>             user_;
-            const boost::shared_ptr<const configuration>    config_;
-            boost::asio::io_service&                        queue_;
-
-            enum {
-                report_invalid_node,
-                report_unauthorized_subscription,
-                report_initialization_failed,
-                report_nothing
-            }                                               destructor_action_;
-
-            Root&                                           root_impl_;
-        };
-    }
-
-
-
-    class root::impl
+	class root::impl
     {
     public:
         impl(boost::asio::io_service& io_queue, adapter& adapter, const configuration& default_configuration)
@@ -233,20 +88,26 @@ namespace {
 
         void subscribe(boost::shared_ptr<subscriber>& s, const node_name& node_name)
         {
-        	boost::shared_ptr<subscribed_node>		node;
-        	boost::shared_ptr<validation_call_back>	validate;
+        	boost::shared_ptr<subscribed_node>			node;
+        	boost::shared_ptr<validation_call_back>		validate;
+        	boost::shared_ptr<authorization_call_back>	authorizer;
 
         	{
                 boost::mutex::scoped_lock   lock(mutex_);
                 const node_list_t::iterator pos = nodes_.find(node_name);
 
+                const boost::shared_ptr<const configuration> config = configurations_.get_configuration(node_name);
+
                 if ( pos != nodes_.end() )
                 {
                 	node = pos->second;
+
+                	if ( config->authorization_required() )
+                		authorizer = create_authorizer(node, node_name, s, queue_, adapter_);
                 }
                 else
                 {
-                	node.reset(new subscribed_node(configurations_.get_configuration(node_name)));
+                	node.reset(new subscribed_node(config));
                 	validate = create_validator(node, node_name, s, queue_, adapter_);
                 	nodes_.insert(std::make_pair(node_name, node));
                 }
@@ -259,28 +120,12 @@ namespace {
         	{
         		adapter_.validate_node(node_name, validate);
         	}
+        	else if ( authorizer.get() )
+        	{
+        		adapter_.authorize(s, node_name, authorizer);
+        	}
         }
 
-        /*
-        void add_initial_authorized_and_validated_node(const node_name& node, const json::value& data, const boost::shared_ptr<subscriber>& usr, const boost::shared_ptr<const configuration>& config)
-        {
-
-        	boost::mutex::scoped_lock   lock(mutex_);
-            const node_list_t::iterator pos = nodes_.find(node);
-
-            if ( pos != nodes_.end() )
-            {                
-
-            }
-            else
-            {
-                boost::shared_ptr<subscribed_node> new_node(new subscribed_node(usr, data, config));
-                nodes_.insert(std::make_pair(node, new_node));
-
-                new_node->update_all_subscribers(node, queue_);
-            }
-        }
-*/
         void update_node(const node_name& node_name, const json::value& new_data)
         {
         	boost::shared_ptr<subscribed_node>		node;

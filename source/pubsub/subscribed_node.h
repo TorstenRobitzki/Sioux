@@ -19,6 +19,7 @@ namespace boost {
 namespace pubsub
 {
 	class validation_call_back;
+	class authorization_call_back;
 	class subscriber;
 	class configuration;
 	class adapter;
@@ -124,6 +125,16 @@ namespace pubsub
 	 * @relates subscribed_node
 	 */
 	boost::shared_ptr<validation_call_back> create_validator(
+			boost::shared_ptr<subscribed_node>& 	node,
+			const node_name& 						node_name,
+			const boost::shared_ptr<subscriber>&	user,
+			boost::asio::io_service&				queue,
+			adapter& 								adapter);
+
+	/**
+	 * @brief creates an initial authorizer
+	 */
+	boost::shared_ptr<authorization_call_back> create_authorizer(
 			boost::shared_ptr<subscribed_node>& 	node,
 			const node_name& 						node_name,
 			const boost::shared_ptr<subscriber>&	user,

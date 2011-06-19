@@ -2,4 +2,4 @@
 # Please note that the content of this file is confidential or protected by law.
 # Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
-test 'tools_test', :libraries => ['tools', 'unittest++'], :extern_libs => ['boost_thread'], :sources =>  FileList['./source/tools/*_test.cpp'] 
+test 'tools_test', :libraries => ['tools'], :extern_libs => ['boost_thread', 'boost_test_exec_monitor'], :sources =>  FileList['./source/tools/*_test.cpp'] 

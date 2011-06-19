@@ -2,7 +2,7 @@
 // Please note that the content of this file is confidential or protected by law.
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
-#include "unittest++/UnitTest++.h"
+#include <boost/test/unit_test.hpp>
 #include "tools/io_service.h"
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
@@ -20,7 +20,7 @@ namespace {
 	}
 }
 
-TEST(queue_multiple_actions)
+BOOST_AUTO_TEST_CASE(queue_multiple_actions)
 {
 	boost::asio::io_service	queue;
 	int counter = 0;
@@ -29,5 +29,5 @@ TEST(queue_multiple_actions)
 	queue.post(boost::bind(&action1, boost::ref(queue), boost::ref(counter)));
 
 	tools::run(queue);
- 	CHECK_EQUAL(2, counter);
+ 	BOOST_CHECK_EQUAL(2, counter);
 }

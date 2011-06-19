@@ -87,6 +87,18 @@ namespace pubsub {
 			{
 			}
 
+    		user_authorizer(
+    				boost::shared_ptr<subscribed_node>&		node,
+					const boost::shared_ptr<subscriber>& 	user,
+					const node_name& 						node_name,
+					boost::asio::io_service&				queue,
+					adapter& 								adapter	)
+    			: validation_step_data(node, node_name, queue, adapter)
+    			, user_(user)
+    			, commited_(false)
+    		{
+    		}
+
     		~user_authorizer()
 			{
 				if ( !commited_ )
@@ -348,6 +360,14 @@ namespace pubsub {
 		return boost::shared_ptr<validation_call_back>(new details::node_validator(node, node_name, user, queue, adapter));
 	}
 
+	boost::shared_ptr<authorization_call_back> create_authorizer(
+			boost::shared_ptr<subscribed_node>& 	node,
+			const node_name& 						node_name,
+			const boost::shared_ptr<subscriber>&	user,
+			boost::asio::io_service&				queue,
+			adapter& 								adapter)
+	{
+		return boost::shared_ptr<authorization_call_back>(new details::user_authorizer(node, user, node_name, queue, adapter));
+	}
 }
-
 

@@ -2,10 +2,12 @@
 // Please note that the content of this file is confidential or protected by law.
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
-#include "unittest++/UnitTest++.h"
+#define BOOST_TEST_MAIN
+
+#include <boost/test/unit_test.hpp>
 #include "tools/dynamic_type.h"
 
-TEST(dynamic_type)
+BOOST_AUTO_TEST_CASE(dynamic_type)
 {
     struct A { virtual ~A() {} };
     struct B : A {};
@@ -19,19 +21,19 @@ TEST(dynamic_type)
     const A& ab = B();
     A an_a;
 
-    CHECK(a == ac);
-    CHECK(!(a < ac));
-    CHECK(!(ac < a));
-    CHECK(a.type() != b.type());
-    CHECK(a == tools::dynamic_type(typeid(A)));
-    CHECK(a == tools::dynamic_type(typeid(an_a)));
-    CHECK(a != tools::dynamic_type(typeid(ab)));
+    BOOST_CHECK(a == ac);
+    BOOST_CHECK(!(a < ac));
+    BOOST_CHECK(!(ac < a));
+    BOOST_CHECK(a.type() != b.type());
+    BOOST_CHECK(a == tools::dynamic_type(typeid(A)));
+    BOOST_CHECK(a == tools::dynamic_type(typeid(an_a)));
+    BOOST_CHECK(a != tools::dynamic_type(typeid(ab)));
 
-    CHECK(a != b);
-    CHECK(a < b || b < a);
-    CHECK(a != i);
-    CHECK(a < i || i < a);
-    CHECK(i != b);
-    CHECK(i < b || b < i);
-    CHECK(i.type() != b.type());
+    BOOST_CHECK(a != b);
+    BOOST_CHECK(a < b || b < a);
+    BOOST_CHECK(a != i);
+    BOOST_CHECK(a < i || i < a);
+    BOOST_CHECK(i != b);
+    BOOST_CHECK(i < b || b < i);
+    BOOST_CHECK(i.type() != b.type());
 }
