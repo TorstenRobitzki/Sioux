@@ -12,11 +12,12 @@ SOURCE_FOLDER_PATHNAME = Pathname.new SOURCE_FOLDER
 OUTPUT_FOLDER = File.expand_path 'obj'
 EXE_FOLDER = File.expand_path 'bin'
 LIBRARY_FOLDER = File.expand_path 'lib'
+DOCUMENTATION_FOLDER = File.expand_path 'documentation'
+
 OBJECT_FILE_EXT = 'o'
 DEPENDS_FILE_EXT = 'd'
-TEST_DEFAULT_LIBS = ['unittest++']
 
-INCLUDE_PATH = ['.', INCLUDE_FOLDER, File.join(SOURCE_FOLDER_PATHNAME, 'unittest++')]
+INCLUDE_PATH = ['.', INCLUDE_FOLDER]
 
 FLAVORS = ['debug', 'release', 'coverage']
 COMPILER_FLAGS = "-Wall -pedantic -Wno-parentheses -c -pipe -I#{INCLUDE_FOLDER}"
@@ -43,7 +44,10 @@ GCOV_PATTERN = ['*.gcda', '*.gcov', '*.gcno']
 
 GCOV_PATTERN.each { |p| CLEAN.include p }
 
+DEVICE_NULL = '/dev/null'
+
 executables = []
+ALL_TEST_NAMES = []
 
 def library_name_from_path path
 	Pathname.new(path).basename.to_s
@@ -216,7 +220,9 @@ library_tasks = libraries.collect do |library_name|
 	end
 end
 
+
 def test test_name, *dependencies
+    ALL_TEST_NAMES << test_name
 	params = {:libraries => [], :extern_libs => [], :sources => [] }
 	dependencies.each {|p| params.merge! p }
 	sources    = params.delete(:sources)
@@ -276,7 +282,24 @@ task :tests, [:flavor] => :build_tests
 
 desc 'lists the available tests'
 task :list_tests do
-	
+	puts ALL_TEST_NAMES.join("\n")
+end
+
+desc 'build html documentation'
+task :docu do
+	sh "doxygen #{ File.expand_path( File.join( SOURCE_FOLDER, 'doxybuild' ) ) } 1> #{ DEVICE_NULL }"
+end
+
+desc 'show all flavors and there meaning'
+task :show_flavors do
+	print <<STOP
+    'debug'     With asserts anabled, without optimization
+                and with debug symbols.
+    'release'   With full optimization enabled, without debug
+                symbols, without asserts.
+    'coverage'  Like 'debug', but with instrumentation for
+                coverage analysis.
+STOP
 end
 
 task :default => [:exes, :libs] 

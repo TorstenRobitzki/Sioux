@@ -10,7 +10,7 @@
 /*!
  * @test different users with different actions on the very same root
  */
-BOOST_AUTO_TEST_CASE(pubsub_stress_test)
+BOOST_AUTO_TEST_CASE( pubsub_stress_test )
 {
 	/*
 	using namespace pubsub;
@@ -28,3 +28,4 @@ BOOST_AUTO_TEST_CASE(pubsub_stress_test)
 		new_user->start();
 	}*/
 }
+
