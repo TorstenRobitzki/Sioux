@@ -1,0 +1,2 @@
+@INCLUDE = ./source/Doxyfile
+OUTPUT_DIRECTORY       = ./documentation/doxygen
