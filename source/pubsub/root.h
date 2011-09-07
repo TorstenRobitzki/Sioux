@@ -61,7 +61,7 @@ namespace pubsub
         /**
          * @brief adds the subscriber to the given node
          */
-        void subscribe(boost::shared_ptr<subscriber>&, const node_name& node_name);
+        void subscribe(const boost::shared_ptr<subscriber>&, const node_name& node_name);
 
         /**
          * @brief stops the subscription of the subscriber to the named node.

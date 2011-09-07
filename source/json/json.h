@@ -201,6 +201,9 @@ namespace json
         const value& at(const string& key) const;
     };
 
+    /**
+     * @brief array of references to values
+     */
     class array : public value
     {
     public:
@@ -274,20 +277,47 @@ namespace json
         explicit array(impl*);
     };
 
+    /**
+     * @brief forms a new array, beginning with the elements of lhs followed by the elements from rhs
+     *
+     * The resulting array keeps references to the very same element of lhs and rhs.
+     * @relates array
+     */
     array operator+(const array& lhs, const array& rhs);
 
+    /**
+     * @brief class representing the java script value 'true'
+     *
+     * The only useful property of true_val is to compare true with every
+     * other instance of true_val and to be not equal to every other implementation
+     * of value.
+     */
     class true_val : public value
     {
     public:
         true_val();
     };
 
+    /**
+     * @brief class representing the java script value 'false'
+     *
+     * The only useful property of false_val is to compare true with every
+     * other instance of false_val and to be not equal to every other implementation
+     * of value.
+     */
     class false_val :  public value
     {
     public:
         false_val();
     };
 
+    /**
+     * @brief class representing the java script value 'null'
+     *
+     * The only useful property of null is to compare true with every
+     * other instance of null and to be not equal to every other implementation
+     * of value.
+     */
     class null : public value
     {
     public:
@@ -295,7 +325,7 @@ namespace json
     };
 
     /** 
-     * @brief an error is occured, while parsing a json text
+     * @brief an error is occurred, while parsing a json text
      */
     class parse_error : public std::runtime_error
     {
@@ -326,6 +356,7 @@ namespace json
          * For a JSON number, there is no way to detect that the text is fully parsed,
          * so if it's valid, that a number is to be parsed, flush() have to be called, 
          * when no more data is expected.
+         *
          * @exception parse_error if the parsed text up to now isn't a valid json text
          */
         void flush();

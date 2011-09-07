@@ -111,7 +111,7 @@ namespace server
          * @brief function to indicate that responses to later requests are now ready to send data
          *
          * This function calls implement_hurry() once. Every subsequent calls to hurry() will have no
-         * effect. This function is intendet to unblock long polling http connections
+         * effect. This function is intended to unblock long polling http connections
          */
         void hurry();
 

@@ -28,7 +28,7 @@ namespace server
     class async_response;
 
 	/**
-	 * @brief representation of physical connection from a client to this server
+	 * @brief representation of a http connection over a physical connection from a client to this server
 	 *
 	 * It's the responsibility of the connection object to parse incomming requests 
 	 * and to coordinate outgoing responses.
@@ -45,7 +45,7 @@ namespace server
      * a boost::posix_time::time_duration, that gives the maximum time, a read or write can
      * last until the connection is closed.
 	 */
-    template <class Trait, class Connection = typename Trait::connection_type>
+    template <class Trait, class Connection = typename Trait::network_stream_type>
     class connection : public boost::enable_shared_from_this<connection<Trait, Connection> >
 	{
 	public:
@@ -86,10 +86,26 @@ namespace server
             async_response&             sender);
 
         /**
+         * @brief reads a part of the body of a message, decodes the body and passes a portion of it to the passed handler.
+         *
+         * If the read handler is called with a bytes_read_and_decoded of 0, the complete body is read.
+		 * The body is free from any encoding. The handler must have following signature:
+		 * void handler(
+  	  	 *		const boost::system::error_code& error, // Result of operation.
+  	  	 *		const char* buffer,						// buffer, containing the read and decoded body
+  	  	 * 		std::size_t bytes_read_and_decoded      // Number of bytes received.
+  	  	 * 		);
+  	  	 *
+  	  	 * @pre last received header signaled, that a body is expected
+         */
+        template< typename ReadHandler >
+        void async_read_some_body( ReadHandler handler );
+
+        /**
          * @brief to be called by an async_response to signal, that no more writes will be done
          *
-         * Usualy this function will be called by a async_response implementations d'tor. This
-         * have to be called exactly once by async_response that called response_started() before.
+         * Usually this function will be called by a async_response implementations d'tor. This
+         * have to be called exactly once by an async_response that called response_started() before.
          *
          * It must be harmless to call this function, even when response_not_possible() was called before,
          * or otherwise the async_response implementations have to keep track if an error occured.
@@ -102,7 +118,7 @@ namespace server
          * Same as response_completed(), but with an error code. The connection will do the nessary 
          * response to the client (if possible).
          *
-         * In case of an http_internal_server_error error code, all running requests are canceled and the underlying 
+         * In case of a http_internal_server_error error code, all running requests are canceled and the underlying
          * connection will be closed.
          */
         void response_not_possible(async_response& sender, http::http_error_code );
@@ -314,6 +330,13 @@ namespace server
         }
     }
 
+    template < class Trait, class Connection >
+    template< typename ReadHandler >
+    void connection<Trait, Connection>::async_read_some_body( ReadHandler handler )
+    {
+
+    }
+
     template <class Trait, class Connection>
     void connection<Trait, Connection>::response_completed(async_response& sender)
     {
@@ -476,7 +499,8 @@ namespace server
 	template <class Trait, class Connection>
     bool connection<Trait, Connection>::handle_request_header(const boost::shared_ptr<const http::request_header>& new_request)
     {
-        boost::shared_ptr<async_response> response = trait_.create_response(this->shared_from_this(), new_request);
+        const boost::shared_ptr<async_response> response =
+        		trait_.create_response(this->shared_from_this(), new_request);
         responses_.push_back(response.get());
 
         try

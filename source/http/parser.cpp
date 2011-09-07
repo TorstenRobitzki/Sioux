@@ -23,7 +23,7 @@ void to_lower(std::string& s)
 
 void split_url(const std::string& url, std::string& scheme, std::string& authority, std::string& path, std::string& query, std::string& fragment)
 {
-	// accoding to rfc 3986
+	// according to rfc 3986
 	static boost::regex expression("^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?");
 	boost::cmatch what;	
 

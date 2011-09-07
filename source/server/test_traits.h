@@ -41,7 +41,7 @@ struct response_factory
 /**
  * @brief traits class for testing.
  *
- * The default behaviour of an incomming request is to answer with a simple "Hello" string
+ * The default behavior of an incoming request is to answer with a simple "Hello" string
  */
 template <class Network = server::test::socket<const char*>, 
           template <class> class  ResponseFactory = response_factory>

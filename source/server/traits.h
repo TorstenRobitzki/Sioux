@@ -99,13 +99,13 @@ namespace server
 
         /**
          * @brief returns a connection timeout of 3 seconds
-         * @todo lookup resonable values from the apache docum
+         * @todo lookup reasonable values from the appache documentation
          */
         boost::posix_time::time_duration timeout() const;
     };
 
     /**
-     * @brief interface to costumize different aspects of handling connections, requests and responses
+     * @brief interface to customize different aspects of handling connections, requests and responses
      */
     template <class Network,
               class ResponseFactory,
@@ -119,6 +119,11 @@ namespace server
         public Configuration
     {
     public:
+        /**
+         * the underlying network stream type
+         */
+        typedef Network network_stream_type;
+
         connection_traits() {}
 
         /**

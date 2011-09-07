@@ -81,7 +81,7 @@ namespace server {
     };
 
     /**
-     * @brief accepts incomming connection and creates connection objects from that
+     * @brief accepts incoming connection and creates connection objects from that
      */
     template <class Trait, class Connection>
     class acceptator

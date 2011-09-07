@@ -9,9 +9,12 @@
 
 namespace http
 {
-    namespace details {
-        // data is extracted to an onw baseclass, to be able to initialize it before the message_base<>
-        // base class c'tor is invoked.
+    namespace details
+    {
+        /**
+         * data is extracted to an own base class, to be able to initialize it before the message_base<>
+         * base class c'tor is invoked.
+         */
         struct request_data 
         {
             request_data();
@@ -76,9 +79,9 @@ namespace http
         http_error_code         error_code() const;
 
         /**
-         * @brief returns true, if the header indicates the pressens of a message body 
+         * @brief returns true, if the header indicates the presents of a message body
          *
-         * The pressens of a message body is indicated by the pressens of a Content-Length
+         * The presents of a message body is indicated by the presents of a Content-Length
          * or Transfer-Encoding header
          */
         bool                    body_expected() const;

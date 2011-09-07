@@ -70,6 +70,12 @@ namespace http {
     }
 
     template <class Type>
+    std::pair<const char*, std::size_t> message_base<Type>::unparsed_buffer() const
+    {
+        return std::make_pair(&buffer_[parse_ptr_], write_ptr_ - parse_ptr_);
+    }
+
+    template <class Type>
     bool message_base<Type>::parse(std::size_t size)
     {
         assert(size);

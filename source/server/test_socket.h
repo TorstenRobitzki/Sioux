@@ -124,7 +124,7 @@ public:
     socket(boost::asio::io_service& io_service, Iterator begin, Iterator end);
 
     /**
-     * @brief deleviers and receives data in chunks of random size.
+     * @brief delivers and receives data in chunks of random size.
      */
     socket(boost::asio::io_service& io_service, Iterator begin, Iterator end, 
         const boost::minstd_rand& random, std::size_t lower_bound, std::size_t upper_bound);

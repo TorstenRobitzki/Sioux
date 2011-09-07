@@ -220,6 +220,9 @@ library_tasks = libraries.collect do |library_name|
 	end
 end
 
+def run_test test_name, flavor, single_test
+    sh exe_file_name( test_name, flavor ), single_test == 'all' ? '' : "--run_test=#{single_test}"
+end
 
 def test test_name, *dependencies
     ALL_TEST_NAMES << test_name
@@ -249,12 +252,12 @@ def test test_name, *dependencies
 		end 
 	end
 	
-	task test_name.to_sym, [:flavor] do |t, args|
-		args.with_defaults(:flavor => 'debug')
+	task test_name.to_sym, [ :flavor, :single_test ] do |t, args|
+		args.with_defaults(:flavor => 'debug', :single_test => 'all' )
 		check_flavor args.flavor
 
 		tests_by_flavor[args.flavor].invoke
-		sh exe_file_name(test_name, args.flavor)
+		run_test( test_name, args.flavor, args.single_test )
 	end
 end
 
@@ -282,7 +285,18 @@ task :tests, [:flavor] => :build_tests
 
 desc 'lists the available tests'
 task :list_tests do
-	puts ALL_TEST_NAMES.join("\n")
+    puts "list of all available test:\n\n"
+	puts ALL_TEST_NAMES.collect{|t| "\t#{t}" }.join("\n")
+	
+	puts <<EOD
+
+All tests have two parameters. The first parameter is the build flavor, the second parameter is the test case to be run.
+The default for the flavor is 'debug'. The default for the test case is 'all'. Example:
+
+\trake json_test[debug,json_string_test]
+
+builds the json_test and executes just the json_string_test test case out of the json_test.
+EOD
 end
 
 desc 'build html documentation'
@@ -290,8 +304,8 @@ task :docu do
 	sh "doxygen #{ File.expand_path( File.join( SOURCE_FOLDER, 'doxybuild' ) ) } 1> #{ DEVICE_NULL }"
 end
 
-desc 'show all flavors and there meaning'
-task :show_flavors do
+desc 'lists all flavors and there meaning'
+task :list_flavors do
 	print <<STOP
     'debug'     With asserts anabled, without optimization
                 and with debug symbols.

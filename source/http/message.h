@@ -42,7 +42,7 @@ namespace http
     class message_base : public message
     {
     public:
-        enum copy_trailing_buffer_t {copy_trailing_buffer};
+        enum copy_trailing_buffer_t { copy_trailing_buffer };
 
         /**
          * @brief returns the write pointer and remaining buffer size 
@@ -55,6 +55,11 @@ namespace http
          * @brief part of the buffer, that was filled, but contains data that was received behind the header
          */
         std::pair<char*, std::size_t> unparsed_buffer();
+
+        /**
+         * @brief part of the buffer, that was filled, but contains data that was received behind the header
+         */
+        std::pair<const char*, std::size_t> unparsed_buffer() const;
 
         /**
          * @brief consumes size byte from the read_buffer()

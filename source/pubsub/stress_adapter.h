@@ -7,8 +7,8 @@
 
 #include "pubsub/pubsub.h"
 #include "pubsub/node.h"
-#include <boost/thread/mutex.hpp>
 #include <boost/asio/io_service.hpp>
+#include <boost/thread/mutex.hpp>
 #include <map>
 #include <set>
 

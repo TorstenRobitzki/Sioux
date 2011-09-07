@@ -1,3 +1,4 @@
+// Copyright (c) Torrox GmbH & Co KG. All rights reserved.
 // Please note that the content of this file is confidential or protected by law.
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
@@ -71,6 +72,22 @@ namespace test {
         "Host: 127.0.0.1\r\n"
         "Connection: Keep-Alive\r\n"
         "\r\n";
+
+    // request parameter was "http://asdasdasd"
+    const char simple_post[] =
+    	"POST / HTTP/1.1\r\n"
+    	"Host: web-sniffer.net\r\n"
+    	"Origin: http://web-sniffer.net\r\n"
+    	"User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_6_8) AppleWebKit/534.50 (KHTML, like Gecko) Version/5.1 Safari/534.50\r\n"
+    	"Content-Type: application/x-www-form-urlencoded\r\n"
+    	"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"
+    	"Referer: http://web-sniffer.net/\r\n"
+    	"Accept-Language: de-de\r\n"
+    	"Accept-Encoding: gzip, deflate\r\n"
+    	"Content-Length: 73\r\n"
+    	"Connection: keep-alive\r\n"
+    	"\r\n"
+    	"url=http%3A%2F%2Fasdasdasd&submit=Submit&http=1.1&gzip=yes&type=GET&uak=0";
 
     const char cached_response_apache[] = 
         "HTTP/1.1 304 Not Modified\r\n"

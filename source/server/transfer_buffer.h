@@ -35,12 +35,12 @@ namespace server
      * As data written to a connection is to be read from the buffer and data read from a connection is 
      * written to the buffer, functions are named solely with the buffer in mind.
      *
-     * The intended use is to have one asychron stream of reads from a orgin server, that writes data to the 
+     * The intended use is to have one asynchronous stream of reads from a orgin server, that writes data to the
      * buffer and to have one stream of writes, writing the data to the client.
      *
      * It's not save to let multiple threads access functions of one object. But it's save to read  
      * data from a buffer passed by read_buffer() from one thread and to write data to the write_buffer() 
-     * from an onther threads.
+     * from an other threads.
      */
     template <std::size_t BufferSize>
     class transfer_buffer
@@ -65,7 +65,7 @@ namespace server
          * to be called, to indicate, how much data was read.
          *
          * It's important to note, that the returned buffer, can have a size of 0. This
-         * inidicates, that the buffer is currently empty.
+         * indicates, that the buffer is currently empty.
          */
         boost::asio::const_buffers_1 read_buffer() const;
 
@@ -78,7 +78,7 @@ namespace server
         boost::asio::mutable_buffers_1 write_buffer();
 
         /**
-         * @brief returns true, if the body was completly transfered through this buffer
+         * @brief returns true, if the body was completely transfered through this buffer
          */
         bool transmission_done() const;
 
@@ -318,7 +318,7 @@ namespace server
             case chunk_data:
                 {
                     assert(current_chunk_);
-                    size_t bite = std::min(size, current_chunk_);
+                    const size_t bite = std::min(size, current_chunk_);
 
                     current_chunk_ -= bite;
                     size           -= bite-1; // additional decrement in the for loop

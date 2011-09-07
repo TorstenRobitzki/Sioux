@@ -13,7 +13,7 @@ namespace tools {
 	 * @brief runs the given io_service until it's queue is empty
 	 * @return returns the number of handlers executed
 	 */
-	std::size_t run(boost::asio::io_service& s);
+	std::size_t run( boost::asio::io_service& s );
 
 	/**
 	 * @brief runs the given io_service until it's queue is empty
@@ -21,7 +21,7 @@ namespace tools {
 	 *
 	 * The queue is run by a pool of threads in parallel.
 	 */
-	std::size_t run(boost::asio::io_service& s, unsigned pool_size);
+	std::size_t run( boost::asio::io_service& s, unsigned pool_size );
 
 }
 

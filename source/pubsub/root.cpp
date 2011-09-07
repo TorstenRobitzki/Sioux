@@ -86,7 +86,7 @@ namespace {
             configurations_.remove_configuration(node_name);
         }
 
-        void subscribe(boost::shared_ptr<subscriber>& s, const node_name& node_name)
+        void subscribe(const boost::shared_ptr<subscriber>& s, const node_name& node_name)
         {
         	boost::shared_ptr<subscribed_node>			node;
         	boost::shared_ptr<validation_call_back>		validate;
@@ -179,7 +179,7 @@ namespace {
         pimpl_->remove_configuration(node_name);
     }
 
-    void root::subscribe(boost::shared_ptr<subscriber>& s, const node_name& node_name)
+    void root::subscribe(const boost::shared_ptr<subscriber>& s, const node_name& node_name)
     {
         pimpl_->subscribe(s, node_name);
     }

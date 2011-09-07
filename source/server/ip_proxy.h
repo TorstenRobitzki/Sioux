@@ -31,6 +31,8 @@ namespace server {
         boost::shared_ptr<const proxy_configuration>    config_;
     };
 
+    //////////////////////
+    // implementation
     template <class Socket>
     ip_proxy<Socket>::ip_proxy(
         boost::asio::io_service&                               queue, 

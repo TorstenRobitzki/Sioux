@@ -249,3 +249,4 @@ BOOST_AUTO_TEST_CASE(timeout_while_reading_from_client)
 
     BOOST_CHECK(connection.expired());
 }
+
