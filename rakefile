@@ -20,7 +20,7 @@ DEPENDS_FILE_EXT = 'd'
 INCLUDE_PATH = ['.', INCLUDE_FOLDER]
 
 FLAVORS = ['debug', 'release', 'coverage']
-COMPILER_FLAGS = "-Wall -pedantic -Wno-parentheses -c -pipe -I#{INCLUDE_FOLDER}"
+COMPILER_FLAGS = "-Wall -pedantic -Wno-parentheses -Wno-sign-compare -c -pipe -I#{INCLUDE_FOLDER}"
 COMPILER_FLAGS_BY_FLAVORS = {
 	'debug' => '-ggdb -O0',
 	'release' => '-O3 -DNDEBUG',

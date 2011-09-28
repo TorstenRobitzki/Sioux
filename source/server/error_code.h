@@ -11,6 +11,7 @@ namespace server {
 
     enum error_codes 
     {
+    	no_error,
         canceled_by_error,
         limit_reached,
         time_out

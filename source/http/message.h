@@ -7,6 +7,7 @@
 
 #include "http/http.h"
 #include "http/header.h"
+#include <boost/asio/buffer.hpp>
 #include <iosfwd>
 
 namespace http 
@@ -59,17 +60,17 @@ namespace http
         /**
          * @brief part of the buffer, that was filled, but contains data that was received behind the header
          */
-        std::pair<const char*, std::size_t> unparsed_buffer() const;
+        std::pair< const char*, std::size_t > unparsed_buffer() const;
 
         /**
          * @brief consumes size byte from the read_buffer()
          *
-         * The function returns true, if parsing the request header is done, ether by
+         * The function returns true, if parsing the request header is done, either by
          * success, or by any error.
          *
          * @pre state() have to return parsing
          */
-        bool parse(std::size_t size);
+        bool parse( std::size_t size );
 
         error_code state() const;
 
@@ -136,6 +137,8 @@ namespace http
          * information.
          */
         message_base(const Type& old_header, std::size_t& remaining, copy_trailing_buffer_t);
+
+        message_base(const boost::asio::const_buffers_1& old_body, std::size_t& remaining);
 
         /**
          * @brief constructs a new request_header from a text literal. This can be quit handy, for testing.

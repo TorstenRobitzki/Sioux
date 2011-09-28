@@ -132,6 +132,13 @@ namespace test {
         "Expires: Sat, 27 Mar 2004 21:12:00 GMT\r\n"
         "\r\n";
 
+    const char chunked_response_example_body[] =
+		"<html><body><p>The file you requested is "
+		"3,400"
+		"bytes long and was last modified: "
+		"Sat, 20 Mar 2004 21:12:00 GMT"
+		".</p></body></html>";
+
     template <unsigned S>
     const char* begin(const char(&t)[S])
     {

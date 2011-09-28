@@ -41,6 +41,24 @@ namespace http {
         // the last request_header must have signaled a buffer-full error
         assert(remaining != sizeof buffer_);
     }
+
+    template <class Type>
+    message_base<Type>::message_base(const boost::asio::const_buffers_1& old_body, std::size_t& remaining)
+    	: write_ptr_(0)
+    	, parse_ptr_(0)
+    	, read_ptr_(0)
+    	, error_(parsing)
+    	, parser_state_(expect_request_line)
+    {
+    	const char* const buffer = boost::asio::buffer_cast< const char* >( old_body );
+    	const std::size_t size   = boost::asio::buffer_size( old_body );
+
+    	if ( size > sizeof buffer_ )
+    		throw std::runtime_error( "unable to store old_body" );
+
+    	std::copy( buffer, buffer + size, &buffer_[0]);
+    	remaining = size;
+    }
     
     template <class Type>
     message_base<Type>::message_base(const char* source)
@@ -260,7 +278,7 @@ namespace http {
     template <class Type>
     const typename message_base<Type>::header* message_base<Type>::find_header(const char* header_name) const
     {
-        assert(error_ == ok);
+        assert( error_ == ok );
         return find_header_impl(header_name);
     }
 

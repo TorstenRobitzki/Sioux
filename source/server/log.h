@@ -9,8 +9,13 @@
 #include <boost/asio/buffers_iterator.hpp>
 #include <ostream>
 
+#include "http/request.h"
+#include "tools/hexdump.h"
+
 namespace server
 {
+	class async_response;
+
     /**
      * @brief log events to a stream
      */
@@ -127,6 +132,24 @@ namespace server
             boost::mutex::scoped_lock lock(mutex_);
             out_ << "event_proxy_response_restarted: try: " << tries << std::endl;
         }
+
+        /*
+         * request events
+         */
+        template < class Connection >
+        void event_before_response_started( const Connection&, const http::request_header& request, const async_response& )
+        {
+            boost::mutex::scoped_lock lock(mutex_);
+            out_ << "event_before_response_started: " << request_url( request ) << std::endl;
+        }
+
+        template < class Connection >
+        void event_close_after_response( const Connection&, const http::request_header& request )
+        {
+            boost::mutex::scoped_lock lock(mutex_);
+            out_ << "event_close_after_response: " << request_url( request ) << std::endl;
+        }
+
     private:
         boost::mutex    mutex_;
         std::ostream&   out_;
@@ -151,6 +174,23 @@ namespace server
             log_ << "in \"" << function_name << "\" p1: " << p1 << " p2: " << p2 << std::endl;
         }
 
+        template < class Connection >
+        void error_request_parse_error( const Connection&, const http::request_header& request )
+        {
+            boost::mutex::scoped_lock lock(mutex_);
+            log_ << "error_request_parse_error: " << request.state() << std::endl;
+            tools::hex_dump( log_, request.text().begin(), request.text().end() );
+            log_ << std::endl;
+        }
+
+        template < class Connection >
+        void error_executing_request_handler( const Connection&, const http::request_header& request,
+        		const std::string& error_text)
+        {
+            boost::mutex::scoped_lock lock(mutex_);
+            log_ << "error_executing_request_handler: " << request_url( request ) << std::endl;
+            log_ << "error: " << error_text << std::endl;
+        }
     private:
         boost::mutex    mutex_;
         std::ostream&   log_;

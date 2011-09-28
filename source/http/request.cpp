@@ -29,7 +29,12 @@ namespace http {
     }
 
     request_header::request_header(const request_header& old_header, std::size_t& remaining, copy_trailing_buffer_t)
-        : message_base<request_header>(old_header, remaining, copy_trailing_buffer)
+        : message_base< request_header >( old_header, remaining, copy_trailing_buffer )
+    {
+    }
+
+    request_header::request_header( const boost::asio::const_buffers_1& old_body, std::size_t& remaining )
+    	: message_base< request_header >( old_body, remaining )
     {
     }
 
@@ -149,6 +154,30 @@ namespace http {
     {
         error_code_ = http_bad_request;
         return message::syntax_error;
+    }
+
+    // struct request_url_print
+    request_url_print::request_url_print( const request_header& req )
+    	: request_( req )
+    {
+    }
+
+    request_url_print request_url( const request_header& req )
+    {
+    	return request_url_print( req );
+    }
+
+    std::ostream& operator<<( std::ostream& out, const request_url_print& r )
+    {
+    	if ( r.request_.state() == message::ok )
+    	{
+			return out << r.request_.method() << " " << r.request_.uri()
+					<< "/" << r.request_.host() << ":" << r.request_.port();
+    	}
+    	else
+    	{
+    		return out << "state: " << r.request_.state();
+    	}
     }
 
 

@@ -26,7 +26,7 @@ namespace server
         std::vector<char> random_chunk(boost::minstd_rand& random, const std::vector<char>& original, std::size_t max_chunk_size);
 
         /**
-         * @brief compares two buffer and produce a helpfull message, if a difference is found
+         * @brief compares two buffer and produce a "helpful" message, if a difference is found
          */
         bool compare_buffers(const std::vector<char>& org, const std::vector<char>& comp, std::ostream& report);
 

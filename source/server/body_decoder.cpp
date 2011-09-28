@@ -21,7 +21,12 @@ namespace server
 		return current_size_;
 	}
 
-	std::pair< std::size_t, const char* > body_decoder::decode()
+    bool body_decoder::done() const
+    {
+    	return total_size_ == 0 && current_size_ == 0;
+    }
+
+    std::pair< std::size_t, const char* > body_decoder::decode()
 	{
 		const std::pair< std::size_t, const char* > result( current_size_, current_ );
 		current_size_ = 0;

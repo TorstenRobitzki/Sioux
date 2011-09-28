@@ -32,10 +32,14 @@ namespace server
          *
          * It's assumed, that the passed buffer stays valid until the whole
          * buffer is consumed by call to decode(). The function returns the
-         * number of bytes taken from the input stream. If the function returns
-         * 0, the body is completely read by the decoder.
+         * number of bytes taken from the input stream.
          */
         std::size_t feed_buffer( const char* buffer, std::size_t size );
+
+        /**
+         * @brief returns true, if the whole body was feed() and decode()'d
+         */
+        bool done() const;
 
         /**
          * @brief returns a part of the decodes body. If the first member of
@@ -43,6 +47,7 @@ namespace server
          * is decoded and more data must be feeded to the decoder.s
          */
         std::pair< std::size_t, const char* > decode();
+
 	private:
         void start_content_length_encoded( std::size_t size );
 

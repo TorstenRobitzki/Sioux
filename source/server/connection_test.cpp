@@ -14,7 +14,11 @@
 using namespace server::test;
 using namespace http::test; 
 
-BOOST_AUTO_TEST_CASE(read_simple_header)
+/**
+ * @class server::connection
+ * @test test the a simple request will be received
+ */
+BOOST_AUTO_TEST_CASE( read_simple_header )
 {
     boost::asio::io_service     queue;
     traits<>::connection_type   socket(queue, begin(simple_get_11), end(simple_get_11), 5);
@@ -27,7 +31,11 @@ BOOST_AUTO_TEST_CASE(read_simple_header)
     BOOST_CHECK_EQUAL(1u, trait.requests().size());
 }
 
-BOOST_AUTO_TEST_CASE(read_multiple_header)
+/**
+ * @class server::connection
+ * @test test that 2000 simple get request will be received
+ */
+BOOST_AUTO_TEST_CASE( read_multiple_header )
 {
     boost::asio::io_service     queue;
     traits<>::connection_type   socket(queue, begin(simple_get_11), end(simple_get_11), 400, 2000);
@@ -40,7 +48,11 @@ BOOST_AUTO_TEST_CASE(read_multiple_header)
     BOOST_CHECK_EQUAL(2000u, traits.requests().size());
 }
 
-BOOST_AUTO_TEST_CASE(read_big_buffer)
+/**
+ * @class server::connection
+ * @test simulate that the ip stack contains 1000 GET requests at once.
+ */
+BOOST_AUTO_TEST_CASE( read_big_buffer )
 {
     std::vector<char>   input;
     for ( unsigned i = 0; i != 1000; ++i )
@@ -58,25 +70,29 @@ BOOST_AUTO_TEST_CASE(read_big_buffer)
     BOOST_CHECK_EQUAL(1000u, traits.requests().size());
 }
 
-BOOST_AUTO_TEST_CASE(read_buffer_overflow)
+/**
+ * @test in case that a request is too long to be stored,
+ */
+BOOST_AUTO_TEST_CASE( read_buffer_overflow )
 {
     const char header[] = "Accept-Encoding: gzip\r\n";
 
     std::vector<char>   input(begin(request_without_end_line), end(request_without_end_line));
     for ( unsigned i = 0; i != 10000; ++i )
-        input.insert(input.end(), begin(header), end(header));
+        input.insert( input.end(), begin( header ), end(header) );
 
-    typedef traits<server::test::socket<std::vector<char>::const_iterator> > socket_t;
+    typedef traits< server::test::socket< std::vector< char >::const_iterator > > socket_t;
     boost::asio::io_service     queue;
-    socket_t::connection_type   socket(queue, input.begin(), input.end());
+    socket_t::connection_type   socket( queue, input.begin(), input.end() );
     traits<>                    traits;
 
-    server::create_connection(socket, traits);
+    server::create_connection( socket, traits );
 
     queue.run();
 
-    BOOST_CHECK_EQUAL(1u, traits.requests().size());
-    BOOST_CHECK_EQUAL(http::request_header::buffer_full, traits.requests().front()->state());
+    BOOST_REQUIRE_EQUAL( 1u, traits.requests().size() );
+    BOOST_REQUIRE( traits.requests().front().get() );
+    BOOST_CHECK_EQUAL( http::request_header::buffer_full, traits.requests().front()->state() );
 }
 
 /**

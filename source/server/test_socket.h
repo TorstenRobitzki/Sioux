@@ -81,9 +81,10 @@ public:
      * @param begin begin of the simulated input
      * @param end end of the simulated input
      * @param bite_size the size of the simulated network reads. 0 == maximum 
-     * @param delay the delay 
+     * @param delay delay between two delivered reads
      */
-    socket(boost::asio::io_service& io_service, Iterator begin, Iterator end, std::size_t bite_size, const boost::posix_time::time_duration& delay);
+    socket(boost::asio::io_service& io_service, Iterator begin, Iterator end, std::size_t bite_size,
+    		const boost::posix_time::time_duration& delay);
 
     /**
      * @brief constructs a socket, that issues a delay after every write and read.
@@ -108,7 +109,7 @@ public:
      * @param io_service the io queue
      * @param begin begin of the simulated input
      * @param end end of the simulated input
-     * @param read_error the error to deliever, after read_error_occurens bytes where read
+     * @param read_error the error to deliever, after read_error_occurens bytes where read.
      * @param read_error_occurens the number of bytes to be read, before a read error will be simulated
      * @param write_error the error to deliever, after write_error_occurens bytes where written
      * @param write_error_occurens the number of bytes to be written, before a write error will be simulated
@@ -121,10 +122,25 @@ public:
            const boost::system::error_code& write_error, 
            std::size_t                      write_error_occurens);
 
+    /**
+     * @brief delivers the content given by (begin, end] in maximum sizes
+     *
+     * @param io_service the io queue
+     * @param begin begin of the simulated input
+     * @param end end of the simulated input
+     */
     socket(boost::asio::io_service& io_service, Iterator begin, Iterator end);
 
     /**
      * @brief delivers and receives data in chunks of random size.
+	 *
+     * @param io_service the io queue
+     * @param begin begin of the simulated input
+     * @param end end of the simulated input
+     * @param random random number generator to determine the random sized chunks
+     * @param lower_bound the minimum size of a delivered chunk. If less than lower_bound is to be
+     *        delivered, the delivered size can fall below of lower_bound.
+     * @param upper_bound the maximum size of a delivered chunk.
      */
     socket(boost::asio::io_service& io_service, Iterator begin, Iterator end, 
         const boost::minstd_rand& random, std::size_t lower_bound, std::size_t upper_bound);
@@ -199,8 +215,8 @@ private:
         impl(boost::asio::io_service& io_service);
 
         impl(boost::asio::io_service&                   io_service, 
-             Iterator                                   begin, 
-             Iterator                                   end, 
+             Iterator                                   begin,
+             Iterator                                   end,
              std::size_t                                bite_size, 
              unsigned                                   times,
              const boost::posix_time::time_duration&    read_delay = boost::posix_time::time_duration(),
@@ -359,7 +375,7 @@ socket<Iterator, Trait>::socket(boost::asio::io_service& io_service)
 }
 
 template <class Iterator, class Trait>
-socket<Iterator, Trait>::socket(boost::asio::io_service& io_service, Iterator begin, Iterator end, 
+socket<Iterator, Trait>::socket(boost::asio::io_service& io_service, Iterator begin, Iterator end,
         const boost::minstd_rand& random, std::size_t lower_bound, std::size_t upper_bound)
  : pimpl_(new impl(io_service, begin, end, random, lower_bound, upper_bound))
 {
@@ -818,6 +834,10 @@ void socket<Iterator, Trait>::impl::undelayed_async_read_some(
         repost_result = random_() % 2 == 1;
     }
 
+    const boost::system::error_code ec = read_error_enabled_ && read_error_occurens_ == 0
+        ? read_error_
+        : make_error_code(boost::system::errc::success);
+
     if ( read_error_enabled_ )
     {
         size = std::min(size, read_error_occurens_);
@@ -833,10 +853,6 @@ void socket<Iterator, Trait>::impl::undelayed_async_read_some(
     {
         current_ = begin_;
     }
-
-    boost::system::error_code ec = read_error_enabled_ && read_error_occurens_ == 0 
-        ? read_error_
-        : make_error_code(boost::system::errc::success);
 
     if ( repost_result )
     {
@@ -912,6 +928,10 @@ void socket<Iterator, Trait>::impl::undelayed_async_write_some(
         repost_result = random_() % 2 == 1;
     }
 
+    const boost::system::error_code ec = write_error_enabled_ && write_error_occurens_ == 0
+        ? write_error_
+        : make_error_code(boost::system::errc::success);
+
     if ( write_error_enabled_ )
     {
         size = std::min(size, write_error_occurens_);
@@ -925,10 +945,6 @@ void socket<Iterator, Trait>::impl::undelayed_async_write_some(
     {
     	output_.push_back(*begin);
     }
-
-    const boost::system::error_code ec = write_error_enabled_ && write_error_occurens_ == 0 
-        ? write_error_
-        : make_error_code(boost::system::errc::success);
 
     if ( repost_result )
     {

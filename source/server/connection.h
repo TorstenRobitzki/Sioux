@@ -5,22 +5,26 @@
 #ifndef SOURCE_SIOUX_CONNECTION_H
 #define SOURCE_SIOUX_CONNECTION_H
 
-#include "http/request.h"
 #include "http/http.h"
-#include "server/response.h"
+#include "http/request.h"
+#include "server/body_decoder.h"
 #include "server/error_code.h"
+#include "server/response.h"
 #include "server/timeout.h"
 #include "tools/mem_tools.h"
+#include <boost/asio/buffer.hpp>
+#include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/placeholders.hpp>
 #include <boost/asio/write.hpp>
-#include <boost/asio/ip/tcp.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/enable_shared_from_this.hpp>
 #include <boost/bind.hpp>
+#include <boost/enable_shared_from_this.hpp>
+#include <boost/function.hpp>
+#include <boost/shared_ptr.hpp>
+#include <algorithm>
 #include <cassert>
 #include <deque>
 #include <map>
-#include <algorithm>
+#include <memory>
 
 /** @namespace server */
 namespace server 
@@ -86,9 +90,12 @@ namespace server
             async_response&             sender);
 
         /**
-         * @brief reads a part of the body of a message, decodes the body and passes a portion of it to the passed handler.
+         * @brief Starts reading asynchronously the body of a request.
          *
+         * The passed handler will be called until the whole body is decoded and passed to the handler or until
+         * an exception is thrown from the handler.
          * If the read handler is called with a bytes_read_and_decoded of 0, the complete body is read.
+         *
 		 * The body is free from any encoding. The handler must have following signature:
 		 * void handler(
   	  	 *		const boost::system::error_code& error, // Result of operation.
@@ -99,7 +106,7 @@ namespace server
   	  	 * @pre last received header signaled, that a body is expected
          */
         template< typename ReadHandler >
-        void async_read_some_body( ReadHandler handler );
+        void async_read_body( ReadHandler handler );
 
         /**
          * @brief to be called by an async_response to signal, that no more writes will be done
@@ -142,6 +149,10 @@ namespace server
 
         Trait& trait();
 	private:
+        // not implemented
+        connection( const connection& );
+        connection& operator=( const connection& );
+
         class blocked_write_base 
         {
         public:
@@ -197,6 +208,8 @@ namespace server
         // hurries all responses, that are in front of the given sender
         void hurry_writers(async_response& sender);
 
+        void deliver_body();
+
         Connection                              connection_;
         Trait&                                  trait_;
 
@@ -213,6 +226,14 @@ namespace server
 
         boost::asio::deadline_timer             read_timer_;
         boost::asio::deadline_timer             write_timer_;
+
+        typedef boost::function< void ( const boost::system::error_code&, const char*, std::size_t ) >
+        	body_read_cb_t;
+
+        body_decoder							body_decoder_;
+        // if not empty(), currently, a body is read
+        body_read_cb_t							body_read_call_back_;
+        std::vector< char >						body_buffer_;
  	};
 
     /**
@@ -235,6 +256,8 @@ namespace server
         , shutdown_read_(false)
         , read_timer_(connection_.get_io_service())
         , write_timer_(connection_.get_io_service())
+        , body_decoder_()
+        , body_read_call_back_()
     {
         trait_.event_connection_created(*this);
     }
@@ -242,11 +265,12 @@ namespace server
     template <class Trait, class Connection>
 	connection<Trait, Connection>::~connection()
     {
-        assert(blocked_writes_.empty());
-        assert(responses_.empty());
+        assert( blocked_writes_.empty() );
+        assert( body_read_call_back_.empty() );
+        assert( responses_.empty() );
     
         connection_.close();
-        trait_.event_connection_destroyed(*this);
+        trait_.event_connection_destroyed( *this );
     }
 
 	template <class Trait, class Connection>
@@ -265,6 +289,17 @@ namespace server
             assert(r != responses_.end());
             (*r)->hurry();
         }
+    }
+
+    template <class Trait, class Connection>
+    void connection<Trait, Connection>::deliver_body()
+    {
+    	assert( !body_read_call_back_.empty() );
+    	for ( std::pair< std::size_t, const char* > current = body_decoder_.decode(); current.first;
+    			current = body_decoder_.decode() )
+    	{
+    		body_read_call_back_( boost::system::error_code(), current.second, current.first );
+    	}
     }
 
     template <class Trait, class Connection>
@@ -332,9 +367,13 @@ namespace server
 
     template < class Trait, class Connection >
     template< typename ReadHandler >
-    void connection<Trait, Connection>::async_read_some_body( ReadHandler handler )
+    void connection<Trait, Connection>::async_read_body( ReadHandler handler )
     {
+		assert( current_request_->body_expected() );
+		assert( body_read_call_back_.empty() );
 
+		body_read_call_back_ = handler;
+		body_decoder_.start( *current_request_ );
     }
 
     template <class Trait, class Connection>
@@ -459,10 +498,20 @@ namespace server
     }
 
 	template <class Trait, class Connection>
-    void connection<Trait, Connection>::issue_header_read(const boost::posix_time::time_duration& time_out)
+    void connection<Trait, Connection>::issue_header_read( const boost::posix_time::time_duration& time_out )
     {
-        const std::pair<char*, std::size_t> buffer = current_request_->read_buffer();
-        assert(buffer.first && buffer.second);
+		std::pair<char*, std::size_t> buffer( 0, 0 );
+
+		if ( body_read_call_back_.empty() )
+		{
+			buffer = current_request_->read_buffer();
+			assert(buffer.first && buffer.second);
+		}
+		else
+		{
+			body_buffer_.resize( 1024u );
+			buffer = std::make_pair( &body_buffer_[0], body_buffer_.size() );
+		}
 
         server::async_read_some_with_to(
             connection_,
@@ -475,25 +524,88 @@ namespace server
             time_out);
     }
 
-	template <class Trait, class Connection>
-	void connection<Trait, Connection>::handle_read(const boost::system::error_code& error, std::size_t bytes_transferred)
+	template < class Trait, class Connection >
+	void connection< Trait, Connection >::handle_read(const boost::system::error_code& error, std::size_t bytes_transferred)
     {
-        if (!error && bytes_transferred != 0)
+		if ( error || bytes_transferred == 0 )
+		{
+        	if ( !body_read_call_back_.empty() )
+        	{
+        		const boost::system::error_code published_error = error ? error : make_error_code( canceled_by_error );
+        		body_read_call_back_( published_error, 0, 0 );
+        		body_read_call_back_.clear();
+        	}
+			return;
+		}
+
+        while ( bytes_transferred != 0 )
         {
-            while ( bytes_transferred != 0 && current_request_->parse(bytes_transferred) )
-            {
-                if ( !handle_request_header(current_request_) || current_request_->state() == http::request_header::buffer_full )
-                    return;
+        	// reading a body
+        	if ( !body_read_call_back_.empty() )
+        	{
+        		assert( !body_decoder_.done() );
 
-                current_request_.reset(new http::request_header(*current_request_, bytes_transferred, http::request_header::copy_trailing_buffer));
+        		const std::size_t decoded_size = body_decoder_.feed_buffer( &body_buffer_[0], bytes_transferred );
+
+        		if ( decoded_size )
+        		{
+        			bytes_transferred -= decoded_size;
+        			deliver_body();
+        		}
+
+        		if ( body_decoder_.done() )
+        		{
+        			body_read_call_back_( error, 0, 0 );
+        			body_read_call_back_.clear();
+
+        			body_buffer_.erase( body_buffer_.begin(), body_buffer_.begin() + decoded_size );
+        			// this consumes and decreases bytes_transferred
+					current_request_.reset( new http::request_header(
+							boost::asio::const_buffers_1( &body_buffer_[0], bytes_transferred ), bytes_transferred ) );
+        		}
+        	}
+        	// or reading a header
+        	else if ( current_request_->parse( bytes_transferred ) )
+        	{
+                if ( !handle_request_header( current_request_ ) )
+                {
+                	trait_.event_close_after_response( *this, *current_request_ );
+                	return;
+                }
+
+                if ( current_request_->state() != http::request_header::ok )
+                {
+                    trait_.error_request_parse_error( *this, *current_request_ );
+                	return;
+                }
+
+                // handle_request_header() can switch to body decoding mode
+                if ( body_read_call_back_.empty() )
+                {
+					// this consumes and decreases bytes_transferred
+					current_request_.reset( new http::request_header( *current_request_, bytes_transferred,
+							http::request_header::copy_trailing_buffer ) );
+                }
+                else
+                {
+                	const std::pair<char*, std::size_t> unparsed_read = current_request_->unparsed_buffer();
+                	bytes_transferred = unparsed_read.second;
+                	body_buffer_.resize( bytes_transferred );
+                	std::copy( unparsed_read.first, unparsed_read.first + unparsed_read.second, body_buffer_.begin() );
+                }
             }
-
-            const boost::posix_time::time_duration next_read_timeout = current_request_->empty() 
-                ? trait_.keep_alive_timeout()
-                : trait_.timeout();
-
-            issue_header_read(next_read_timeout);
+        	else
+        	{
+        		// reading an incomplete header, all transfered bytes where consumed
+        		bytes_transferred = 0;
+        	}
         }
+
+        const boost::posix_time::time_duration next_read_timeout = current_request_->empty() && body_read_call_back_.empty()
+            ? trait_.keep_alive_timeout()
+            : trait_.timeout();
+
+        issue_header_read( next_read_timeout );
     }
 
 	template <class Trait, class Connection>
@@ -505,13 +617,15 @@ namespace server
 
         try
         {
+        	trait_.event_before_response_started( *this, *new_request, *response );
             response->start();
         }
         catch (...)
         {
             responses_.pop_back();
 
-            /// @todo add logging
+            trait_.error_executing_request_handler( *this, *new_request, "error executing handler" );
+
             boost::shared_ptr<async_response> error_response(
                 trait_.error_response(this->shared_from_this(), http::http_internal_server_error));
 

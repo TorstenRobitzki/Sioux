@@ -19,7 +19,7 @@
 namespace server 
 {
     /**
-     * @brief acception, that will be thrown, if protocol violation are detected by a transfer_buffer
+     * @brief exception, that will be thrown, if protocol violations are detected by a transfer_buffer
      */
     class transfer_buffer_parse_error : public std::runtime_error
     {
@@ -42,7 +42,7 @@ namespace server
      * data from a buffer passed by read_buffer() from one thread and to write data to the write_buffer() 
      * from an other threads.
      */
-    template <std::size_t BufferSize>
+    template < std::size_t BufferSize >
     class transfer_buffer
     {
     public:
@@ -51,12 +51,12 @@ namespace server
         /**
          * @brief initialized this buffer for transfering a request or response body
          *
-         * It's expected, that the passed buffer keeps staying valid over the live time
+         * It's expected, that the passed buffer stays valid over the live time
          * of the transfer_buffer. If there is unparsed data in the request, this data is
          * first handed out to a reader.
          */
-        template <class Base>
-        void start(http::message_base<Base>& request);
+        template < class Base >
+        void start( http::message_base<Base>& request );
 
         /**
          * @brief returns the buffer, that can be read from the transfer_buffer
@@ -79,9 +79,17 @@ namespace server
 
         /**
          * @brief returns true, if the body was completely transfered through this buffer
+		 * @sa unparsed_buffer
          */
         bool transmission_done() const;
 
+        /**
+         * @brief returns the bytes, that was written into the transfer buffer, but not used by the transfered
+         *        body.
+         *
+         * This function should be used, after transmission_done() returned true.
+         */
+        boost::asio::const_buffers_1 unparsed_buffer() const;
 
         /**
          * @brief indicates, how much data was read from the buffer, that was passed by read_buffer()
@@ -92,6 +100,7 @@ namespace server
          * @brief indicates, how much data was written to the buffer, that was passed by write_buffer()
          */
         void data_written(std::size_t);
+
 
     private:
         transfer_buffer(const transfer_buffer&);
@@ -129,7 +138,7 @@ namespace server
         }                               chunked_state_;
 
 
-        void handle_chunked_write(std::size_t, const char* c);
+        void handle_chunked_write( std::size_t, const char* c );
     };
 
     /////////////////////////
@@ -187,25 +196,33 @@ namespace server
     boost::asio::mutable_buffers_1 transfer_buffer<BufferSize>::write_buffer()
     { 
         if ( state_ == done ) 
-            return boost::asio::buffer(&buffer_[0], 0);
+            return boost::asio::buffer( &buffer_[0], 0 );
 
         if ( start_ <= end_ )
         {
             if ( end_ == sizeof buffer_ && start_ != 0 )
             {
-                return boost::asio::buffer(&buffer_[0], std::min(start_-1, body_size_));
+                return boost::asio::buffer( &buffer_[0], std::min( start_-1, body_size_ ) );
             }
 
-            return boost::asio::buffer(&buffer_[end_], std::min(sizeof buffer_ - end_, body_size_));
+            return boost::asio::buffer( &buffer_[end_], std::min( sizeof buffer_ - end_, body_size_ ) );
         }
 
-        return boost::asio::buffer(&buffer_[end_], std::min(start_ - end_ -1, body_size_));
+        return boost::asio::buffer( &buffer_[end_], std::min( start_ - end_ -1, body_size_ ) );
     }
 
     template <std::size_t BufferSize>
     bool transfer_buffer<BufferSize>::transmission_done() const
     {
         return state_ == done && start_ == end_ && unparsed_header_data_.second == 0;
+    }
+
+    template <std::size_t BufferSize>
+    boost::asio::const_buffers_1 transfer_buffer<BufferSize>::unparsed_buffer() const
+    {
+    	assert( transmission_done() );
+
+    	return read_buffer();
     }
 
     template <std::size_t BufferSize>

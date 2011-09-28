@@ -42,13 +42,28 @@ namespace http
          * @attention after constructing a request header this way, it might be possible
          * that this header is too already complete.
          *
-         * @param old_header the header that contains data, that doesn't belongs to the previous htt-header
+         * @param old_header the header that contains data, that doesn't belongs to the previous http-header
          * @param remaining returns the unparsed bytes. If not 0, parse() can be called with this
          * information.
          *
          * @pre state() returned ok
          */
         request_header(const request_header& old_header, std::size_t& remaining, copy_trailing_buffer_t);
+
+        /**
+         * @brief constructs a new request_header with the remaining data past the
+         * last read request body
+         *
+         * @attention after constructing a request header this way, it might be possible
+         * that this header is too already complete.
+         *
+         * @param old_body the body buffer that contains data, that doesn't belongs to the previous http-body
+         * @param remaining returns the unparsed bytes. If not 0, parse() can be called with this
+         * information.
+         *
+         * @pre state() returned ok
+         */
+        request_header( const boost::asio::const_buffers_1& old_body, std::size_t& remaining );
 
         /**
          * @brief constructs a new request_header from a text literal. This can be quit handy, for testing.
@@ -96,6 +111,30 @@ namespace http
 
         friend class message_base<request_header>;
 	};
+
+    /**
+     * @brief little helper used, to print the url of a request in a human readable manner
+     */
+    struct request_url_print
+    {
+    	explicit request_url_print( const request_header& req );
+
+    	const request_header&	request_;
+    };
+
+    /**
+     * @brief little helper used, to print the url of a request in a human readable manner
+     * @relates request_url_print
+     * @relates request_url
+     */
+    request_url_print request_url( const request_header& req );
+
+    /**
+     * @brief little helper used, to print the url of a request in a human readable manner
+     * @relates request_header
+     * @relates request_url
+     */
+    std::ostream& operator<<( std::ostream& out, const request_url_print& request );
 
 } // namespace http
 

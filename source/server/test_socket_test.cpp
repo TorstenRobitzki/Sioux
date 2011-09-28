@@ -207,3 +207,28 @@ BOOST_AUTO_TEST_CASE(first_read_followed_by_delay_and_second_read)
     BOOST_CHECK_GE(time.elapsed(), boost::posix_time::seconds(1) - boost::posix_time::millisec(100));
     BOOST_CHECK_LE(time.elapsed(), boost::posix_time::seconds(1) + boost::posix_time::millisec(100));
 }
+
+/**
+ * @test a configured read error must occure after a defined size is read from the socket
+ */
+BOOST_AUTO_TEST_CASE( simulate_read_error )
+{
+	boost::asio::io_service		queue;
+    server::test::socket<const char*> sock(queue, begin(simple_get_11), end(simple_get_11),
+    		make_error_code(boost::asio::error::operation_aborted), 5u,
+    		make_error_code(boost::asio::error::operation_aborted), 0 );
+
+    io_completed first_read;
+    io_completed second_read;
+
+    char read_buffer[10] = {0};
+
+    sock.async_read_some(boost::asio::buffer(read_buffer), first_read);
+    sock.async_read_some(boost::asio::buffer(read_buffer), second_read);
+
+    tools::run(queue);
+    BOOST_CHECK( !first_read.error );
+    BOOST_CHECK_EQUAL( 5u, first_read.bytes_transferred );
+    BOOST_CHECK_EQUAL( make_error_code(boost::asio::error::operation_aborted), second_read.error );
+    BOOST_CHECK_EQUAL( 0, second_read.bytes_transferred );
+}
