@@ -6,6 +6,7 @@
 #define SIOUX_SRC_SERVER_TEST_IO_PLAN_H
 
 #include <boost/date_time/posix_time/posix_time_types.hpp>
+#include <boost/shared_ptr.hpp>
 #include <utility>
 #include <vector>
 
@@ -25,7 +26,7 @@ namespace test
          */
         read_plan();
 
-        typedef std::pair<std::string, boost::posix_time::time_duration> item;
+        typedef std::pair< std::string, boost::posix_time::time_duration > item;
 
         /**
          * @brief returns the data for the next, read to perform. The time duration is the time until the read 
@@ -51,10 +52,14 @@ namespace test
         bool empty() const;
 
     private:
-        std::vector<item>                   steps_;
-        std::vector<item>::size_type        next_;
+        struct impl;
+        boost::shared_ptr< impl >	pimpl_;
     };
 
+    /**
+     * @brief defines what read is next to be simulated
+     * @sa read_plan
+     */
     struct read
     {
         explicit read(const std::string& s);
@@ -69,6 +74,18 @@ namespace test
         std::string data;
     };
 
+    /**
+     * @brief simulates a read of zero bytes and thus a grateful disconnect
+     * @sa read_plan
+     */
+    struct disconnect_read
+    {
+    };
+
+    /**
+     * @brief simulates a delay in the delivery of data while reading from a network
+     * @sa read_plan
+     */
     struct delay
     {
         explicit delay(const boost::posix_time::time_duration&);
@@ -79,13 +96,18 @@ namespace test
      * @brief adds a read to the read_plan
      * @relates read_plan
      */
-    read_plan& operator<<(read_plan& plan, const read&);
+    read_plan operator<<(read_plan plan, const read&);
 
     /**
      * @brief adds a delay to the read_plan
      * @relates read_plan
      */
-    read_plan& operator<<(read_plan& plan, const delay&);
+    read_plan operator<<(read_plan plan, const delay&);
+
+    /**
+     * @brief adds a read of zero bytes and thus a grateful disconnect to the the given read_plan
+     */
+    read_plan operator<<( read_plan plan, const disconnect_read& );
 
     /**
      * @brief plan, that describes, how large issued writes are performed and how much 
@@ -125,10 +147,14 @@ namespace test
         bool empty() const;
 
     private:
-        std::vector<item>               plan_;
-        std::vector<item>::size_type    next_;
+        struct impl;
+        boost::shared_ptr< impl > 	pimpl_;
     };
 
+    /**
+     * @brief simulates the consumption of a given number of bytes by the network
+     * @sa write_plan
+     */
     struct write
     {
         explicit write(std::size_t s);
@@ -139,13 +165,13 @@ namespace test
      * @brief adds a write to the write_plan
      * @relates write_plan
      */
-    write_plan& operator<<(write_plan& plan, const write&);
+    write_plan operator<<(write_plan plan, const write&);
 
     /**
      * @brief adds a delay to the write_plan
      * @relates write_plan
      */
-    write_plan& operator<<(write_plan& plan, const delay&);
+    write_plan operator<<(write_plan plan, const delay&);
 
 } // test
 } // namespace server

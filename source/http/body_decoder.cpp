@@ -4,9 +4,9 @@
 
 #include <cassert>
 #include <algorithm>
-#include "server/body_decoder.h"
+#include "http/body_decoder.h"
 
-namespace server
+namespace http
 {
 	std::size_t body_decoder::feed_buffer( const char* buffer, std::size_t size )
 	{

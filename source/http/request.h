@@ -101,6 +101,12 @@ namespace http
          */
         bool                    body_expected() const;
 
+        /**
+         * @brief overload version of the function above, the parameter is not evaluated, the overload is just
+         *        provided, to be consistent with the same function in response_header.
+         */
+        bool                    body_expected(http_method_code request_method) const;
+
     private:
         bool start_line_found(const char* start, const char* end);
 

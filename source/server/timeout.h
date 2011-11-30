@@ -10,6 +10,9 @@
 #include <boost/asio/deadline_timer.hpp>
 #include <boost/asio/write.hpp>
 
+// delete me if you see me
+#include <iostream>
+
 namespace server 
 {
     /**
@@ -183,13 +186,15 @@ namespace server
         boost::asio::deadline_timer&            timer,
         const boost::posix_time::time_duration& time_out)
     {
-        details::async_write_some_with_to_t<AsyncReadStream, ConstBufferSequence, WriteHandler> timeout_handler = 
-            {stream, buffers, handler, timer};
+    	details::async_write_some_with_to_t< AsyncReadStream, ConstBufferSequence, WriteHandler > timeout_handler =
+    	{
+    		stream, buffers, handler, timer
+    	};
 
-        timer.expires_from_now(time_out);
-        timer.async_wait(timeout_handler);
+        timer.expires_from_now( time_out );
+        timer.async_wait( timeout_handler );
 
-        boost::asio::async_write(stream, buffers, timeout_handler);
+        boost::asio::async_write( stream, buffers, timeout_handler );
     }
 }
 

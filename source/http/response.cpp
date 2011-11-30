@@ -13,12 +13,18 @@ namespace http {
     }
 
     response_header::response_header(const response_header& old_header, std::size_t& remaining, copy_trailing_buffer_t)
-        : message_base<response_header>(old_header, remaining, copy_trailing_buffer)
+        : message_base< response_header >(old_header, remaining, copy_trailing_buffer)
     {
     }
 
-    response_header::response_header(const char* p)
-        : message_base<response_header>(p)
+    response_header::response_header( const boost::asio::const_buffers_1& old_body, std::size_t& remaining )
+    	: message_base< response_header >(old_body, remaining )
+    {
+
+    }
+
+    response_header::response_header( const char* p )
+        : message_base< response_header >( p )
     {
     }
 

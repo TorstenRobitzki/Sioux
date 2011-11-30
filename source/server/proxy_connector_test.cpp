@@ -52,7 +52,7 @@ namespace {
  * The proxy connector should prefer using already connected connections over establishing new
  * connections.
  */
-BOOST_AUTO_TEST_CASE(use_established_proxy_connections)
+BOOST_AUTO_TEST_CASE( use_established_proxy_connections )
 {
     const boost::asio::ip::tcp::endpoint            addr(boost::asio::ip::address::from_string("127.0.0.1"), 80);
     const server::proxy_configuration               config(

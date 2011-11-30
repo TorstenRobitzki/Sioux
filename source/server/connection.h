@@ -5,9 +5,9 @@
 #ifndef SOURCE_SIOUX_CONNECTION_H
 #define SOURCE_SIOUX_CONNECTION_H
 
+#include "http/body_decoder.h"
 #include "http/http.h"
 #include "http/request.h"
-#include "server/body_decoder.h"
 #include "server/error_code.h"
 #include "server/response.h"
 #include "server/timeout.h"
@@ -34,10 +34,10 @@ namespace server
 	/**
 	 * @brief representation of a http connection over a physical connection from a client to this server
 	 *
-	 * It's the responsibility of the connection object to parse incomming requests 
+	 * It's the responsibility of the connection object to parse incoming requests
 	 * and to coordinate outgoing responses.
      *
-     * The connection class is not responsible for http persisent connection support,
+     * The connection class is not responsible for http persistent connection support,
      * this have to be implemented within the responses.
      *
      * The given Trait class has to have a member function keep_alive_timeout(), that returns a 
@@ -71,7 +71,16 @@ namespace server
         /**
          * @brief interface for writing to the connection
          *
-         * @post a async_response implementation have to call response_completed() once after calling async_write_some() the last time
+         * Writes to the underlying connection with the configured timeout. It's important to keep in mind, that
+         * there can be several async_response that want to send and that it might take some time until it's up the
+         * sender to get it's response send.
+         *
+         * timeout() is called for the trait object that was passed to the c'tor to determine the timeout value. The
+         * timeout is only applied, the connection is realy used for sending, not when waiting for the response of
+         * request that where made earlier.
+         *
+         * @post a async_response implementation have to call response_completed() once after calling
+         *       async_write_some() the last time
          */
         template<
             typename ConstBufferSequence,
@@ -230,7 +239,7 @@ namespace server
         typedef boost::function< void ( const boost::system::error_code&, const char*, std::size_t ) >
         	body_read_cb_t;
 
-        body_decoder							body_decoder_;
+        http::body_decoder						body_decoder_;
         // if not empty(), currently, a body is read
         body_read_cb_t							body_read_call_back_;
         std::vector< char >						body_buffer_;
@@ -286,7 +295,8 @@ namespace server
         // hurry resposes that are blocking the sender
         for ( response_list::const_iterator r = responses_.begin(); *r != &sender; ++r )
         {
-            assert(r != responses_.end());
+            assert( r != responses_.end() );
+            assert( *r );
             (*r)->hurry();
         }
     }
@@ -349,7 +359,7 @@ namespace server
                 buffers,
                 handler,
                 write_timer_,
-                trait_.timeout());
+                trait_.timeout() );
 
             current_response_is_sending_ = true;
         }

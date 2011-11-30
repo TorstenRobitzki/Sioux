@@ -57,11 +57,27 @@ struct socket_behaviour
     typedef ConnectError connect_error_t;
 };
 
+
+/**
+ * @brief base class for socket, that do not depend on any template parameters
+ */
+class socket_base
+{
+public:
+	/**
+     * @brief simulates that the socket is connected to 192.168.210.1:9999 on the remote side
+     */
+    boost::asio::ip::tcp::endpoint remote_endpoint() const;
+
+protected:
+    ~socket_base() {}
+};
+
 /**
  * @brief test socket that acts like stream for sending and receiving
  */
 template <class Iterator, class Trait = socket_behaviour<> >
-class socket
+class socket : public socket_base
 { 
 public:
     /**
@@ -890,13 +906,13 @@ void socket<Iterator, Trait>::impl::async_read_some(
 
         if ( plan.second != boost::posix_time::time_duration() )
         {
-            read_timer_.expires_from_now(plan.second);
+        	read_timer_.expires_from_now(plan.second);
             read_timer_.async_wait(
                 delayed_planned_read(handler, buffers, this->shared_from_this(), plan.first));
         }
         else
         {
-            const std::size_t size = copy_read(plan.first, buffers);
+        	const std::size_t size = copy_read(plan.first, buffers);
             io_service_.post(boost::bind<void>(handler, boost::system::error_code(), size));
         }
     }

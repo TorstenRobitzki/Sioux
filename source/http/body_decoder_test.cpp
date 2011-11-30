@@ -3,7 +3,7 @@
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 #include <boost/test/unit_test.hpp>
-#include "server/body_decoder.h"
+#include "http/body_decoder.h"
 #include "http/request.h"
 #include "http/test_request_texts.h"
 
@@ -32,7 +32,7 @@ BOOST_AUTO_TEST_CASE( test_header_with_body )
 
 BOOST_AUTO_TEST_CASE( decode_length_encoded )
 {
-	server::body_decoder decoder;
+	http::body_decoder decoder;
 	BOOST_CHECK_EQUAL( http::http_ok, decoder.start( header_with_body ) );
 
 	// when feeding to the decoder, only the 5 Bytes body must be consumed
@@ -51,7 +51,7 @@ BOOST_AUTO_TEST_CASE( decode_length_encoded )
 
 BOOST_AUTO_TEST_CASE( decode_length_encoded_step_by_step )
 {
-	server::body_decoder decoder;
+	http::body_decoder decoder;
 	BOOST_CHECK_EQUAL( http::http_ok, decoder.start( header_with_body ) );
 
 	std::pair<const char*, std::size_t> buffer = header_with_body.unparsed_buffer();
@@ -90,12 +90,12 @@ BOOST_AUTO_TEST_CASE( body_decoder_with_illegal_size )
 			"\r\n"
 			"12345");
 
-	server::body_decoder decoder;
+	http::body_decoder decoder;
 	BOOST_CHECK_EQUAL( http::http_bad_request, decoder.start( header ) );
 }
 
 BOOST_AUTO_TEST_CASE( body_decoder_without_length_header )
 {
-	server::body_decoder decoder;
+	http::body_decoder decoder;
 	BOOST_CHECK_EQUAL( http::http_length_required, decoder.start( http::request_header( http::test::simple_get_11 ) ) );
 }

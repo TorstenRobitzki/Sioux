@@ -62,8 +62,8 @@ namespace server
     };
 
     /**
-     * @brief this guard is intendet to call conection::response_not_possible() without error code, in error conditions,
-     *        where it is very likly, that responing with an error message is not possible (write error for example)
+     * @brief this guard is intended to call connection::response_not_possible() without error code, in error conditions,
+     *        where it is very likely, that responding with an error message is not possible (write error for example)
      */
     template <class Connection>
     class close_connection_guard

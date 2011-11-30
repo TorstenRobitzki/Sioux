@@ -8,9 +8,12 @@
 #include "http/http.h"
 #include "server/response.h"
 #include "tools/asstring.h"
-#include <boost/enable_shared_from_this.hpp>
-#include <boost/utility.hpp>
 #include <boost/asio/buffer.hpp>
+#include <boost/asio/placeholders.hpp>
+#include <boost/bind.hpp>
+#include <boost/enable_shared_from_this.hpp>
+#include <boost/system/error_code.hpp>
+#include <boost/utility.hpp>
 
 namespace server {
 

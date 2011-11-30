@@ -37,10 +37,12 @@ namespace http {
          */
         response_header(const response_header& old_header, std::size_t& remaining, copy_trailing_buffer_t);
 
+        response_header( const boost::asio::const_buffers_1& old_body, std::size_t& remaining );
+
         /**
          * @brief constructs a new request_header from a text literal. This can be quit handy, for testing.
          */
-        explicit response_header(const char*);
+        explicit response_header( const char* );
 
         /** 
          * @brief returns the status code of the response
@@ -53,7 +55,7 @@ namespace http {
         /**
          * @brief returns true, when it's expected that a body is followed by this header
          *
-         * @param request_method the method of the request, where this is the coresponding response
+         * @param request_method the method of the request, where this is the corresponding response
          * @pre state() returned ok.
          */
         bool                    body_expected(http_method_code request_method) const;
@@ -62,7 +64,7 @@ namespace http {
 
         error_code end_of_request();
 
-        friend class message_base<response_header>;
+        friend class message_base< response_header >;
     };
 
 } // namespace http

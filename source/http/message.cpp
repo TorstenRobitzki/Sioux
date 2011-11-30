@@ -65,7 +65,7 @@ namespace http {
         : write_ptr_(0)
         , parse_ptr_(0)
         , read_ptr_(0)
-        , error_(parsing)
+        , error_( parsing )
         , parser_state_(expect_request_line)
     {
         const std::size_t max = std::min(sizeof buffer_, std::strlen(source));
@@ -94,13 +94,13 @@ namespace http {
     }
 
     template <class Type>
-    bool message_base<Type>::parse(std::size_t size)
+    bool message_base<Type>::parse( std::size_t size )
     {
-        assert(size);
-        assert(error_ == parsing);
+        assert( size );
+        assert( error_ == parsing );
         write_ptr_ += size;
 
-        assert(write_ptr_ <= sizeof buffer_);
+        assert( write_ptr_ <= sizeof buffer_ );
 
         for ( std::size_t i = read_ptr_; error_ == parsing && read_ptr_ != write_ptr_; )
         {

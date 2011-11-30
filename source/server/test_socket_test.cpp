@@ -8,6 +8,7 @@
 #include "server/timeout.h"
 #include "http/test_request_texts.h"
 #include "tools/io_service.h"
+#include "tools/asstring.h"
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/read.hpp>
@@ -112,6 +113,9 @@ BOOST_AUTO_TEST_CASE(use_test_plan)
 
     write_plan writes;
     writes << delay(boost::posix_time::millisec(200)) << write(20) << write(5);
+
+    BOOST_REQUIRE( !reads.empty() );
+    BOOST_REQUIRE( !writes.empty() );
 
     boost::asio::io_service     queue;
     server::test::socket<const char*> sock(queue, reads, writes);
@@ -232,3 +236,13 @@ BOOST_AUTO_TEST_CASE( simulate_read_error )
     BOOST_CHECK_EQUAL( make_error_code(boost::asio::error::operation_aborted), second_read.error );
     BOOST_CHECK_EQUAL( 0, second_read.bytes_transferred );
 }
+
+/**
+ * @test make sure, that remote_endpoint() returns the expected result
+ */
+BOOST_AUTO_TEST_CASE( remote_endpoint_returns_the_expected_value )
+{
+	BOOST_CHECK_EQUAL( "192.168.210.1:9999",
+			tools::as_string( server::test::socket<const char*>().remote_endpoint() ) );
+}
+

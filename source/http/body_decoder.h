@@ -2,14 +2,14 @@
 // Please note that the content of this file is confidential or protected by law.
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
-#ifndef SERVER_BODY_DECODER_H_
-#define SERVER_BODY_DECODER_H_
+#ifndef HTTP_BODY_DECODER_H_
+#define HTTP_BODY_DECODER_H_
 
 #include "http/message.h"
 #include "http/http.h"
 #include "http/parser.h"
 
-namespace server
+namespace http
 {
 	/**
 	 * @brief decodes a message body
@@ -75,4 +75,4 @@ namespace server
     }
 }
 
-#endif /* SERVER_BODY_DECODER_H_ */
+#endif /* HTTP_BODY_DECODER_H_ */
