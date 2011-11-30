@@ -49,7 +49,7 @@ BOOST_AUTO_TEST_CASE( stress_adapter_sync_validation )
 
 	tools::run(queue);
 
-	BOOST_CHECK(test_user(user).on_udate_called(valid_name, json::number(42)));
+	BOOST_CHECK(test_user(user).on_update_called(valid_name, json::number(42)));
 	BOOST_CHECK(test_user(user).empty());
 
 	nodes.subscribe(user, invalid_name);
@@ -78,11 +78,11 @@ BOOST_AUTO_TEST_CASE( stress_adapter_async_validation )
 	BOOST_CHECK(test_user(user).not_on_failed_node_subscription_called());
 	BOOST_CHECK(test_user(user).not_on_unauthorized_node_subscription_called());
 	BOOST_CHECK(test_user(user).not_on_invalid_node_subscription_called());
-	BOOST_CHECK(test_user(user).not_on_udate_called());
+	BOOST_CHECK(test_user(user).not_on_update_called());
 
 	tools::run(queue);
 
-	BOOST_CHECK(test_user(user).on_udate_called(valid_name, json::number(42)));
+	BOOST_CHECK(test_user(user).on_update_called(valid_name, json::number(42)));
 	BOOST_CHECK(test_user(user).empty());
 
 	nodes.subscribe(user, invalid_name);
@@ -112,11 +112,11 @@ BOOST_AUTO_TEST_CASE(stress_adapter_initialization)
 
 	nodes.subscribe(user, synchronous);
 	const std::size_t calls_till_sync_init = tools::run(queue);
-	BOOST_CHECK(test_user(user).on_udate_called(synchronous, json::number(42)));
+	BOOST_CHECK(test_user(user).on_update_called(synchronous, json::number(42)));
 
 	nodes.subscribe(user, asynchronous);
 	const std::size_t calls_till_async_init = tools::run(queue);
-	BOOST_CHECK(test_user(user).on_udate_called(asynchronous, json::number(43)));
+	BOOST_CHECK(test_user(user).on_update_called(asynchronous, json::number(43)));
 
 	// the asynchronous initialization must last at least one call more
 	BOOST_CHECK(calls_till_async_init > calls_till_sync_init);
@@ -153,11 +153,11 @@ BOOST_AUTO_TEST_CASE(stress_adapter_authorisation)
 
 	nodes.subscribe(user, authorised);
 	const std::size_t calls_till_sync_init = tools::run(queue);
-	BOOST_CHECK(test_user(user).on_udate_called(authorised, json::number(42)));
+	BOOST_CHECK(test_user(user).on_update_called(authorised, json::number(42)));
 
 	nodes.subscribe(user, async_authorised);
 	const std::size_t calls_till_async_init = tools::run(queue);
-	BOOST_CHECK(test_user(user).on_udate_called(async_authorised, json::number(44)));
+	BOOST_CHECK(test_user(user).on_update_called(async_authorised, json::number(44)));
 
 	BOOST_CHECK( calls_till_sync_init < calls_till_async_init );
 

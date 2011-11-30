@@ -36,12 +36,42 @@ namespace tools {
         return true;
     }
 
+    /**
+     * @brief splits a given string in two parts: first_part and second_part, where first_part + seperator +
+     * second_part yields input; with length of first_part >= 0 and length of second_part >= 0. if the seperator
+     * can not be found, the function will return false, and will leave first_part and second_part unaltered.
+     */
+    template <class Iterator, class String>
+    bool split_to_empty(Iterator begin, Iterator end, typename String::value_type seperator, String& first_part,
+    	String& second_part)
+    {
+        Iterator first = begin;
+        for ( ; first != end && *first != seperator; ++first )
+            ;
+
+        if ( first == end )
+            return false;
+
+        Iterator second = first;
+        ++second;
+
+        first_part = String(begin, first);
+        second_part = String(second, end);
+
+        return true;
+    }
+
     template <class String>
     bool split(const String& input, typename String::value_type seperator, String& first_part, String& second_part)
     {
         return split(input.begin(), input.end(), seperator, first_part, second_part);
     }
 
+    template <class String>
+    bool split_to_empty(const String& input, typename String::value_type seperator, String& first_part, String& second_part)
+    {
+        return split_to_empty(input.begin(), input.end(), seperator, first_part, second_part);
+    }
 
 } // namespace tools
 

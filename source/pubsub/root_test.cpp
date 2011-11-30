@@ -30,7 +30,7 @@ namespace {
         return adapter.validation_requested(name)
             && !adapter.authorization_requested(user, name)
             && !adapter.initialization_requested(name)
-            && test_user(user).not_on_udate_called();
+            && test_user(user).not_on_update_called();
     }
 
     bool only_authorization_requested(const test::adapter& adapter, const node_name& name, const boost::shared_ptr< ::pubsub::subscriber>& user)
@@ -38,7 +38,7 @@ namespace {
         return !adapter.validation_requested(name)
             && adapter.authorization_requested(user, name)
             && !adapter.initialization_requested(name)
-            && test_user(user).not_on_udate_called();
+            && test_user(user).not_on_update_called();
     }
 
     bool only_initialization_requested(const test::adapter& adapter, const node_name& name, const boost::shared_ptr< ::pubsub::subscriber>& user)
@@ -46,7 +46,7 @@ namespace {
         return !adapter.validation_requested(name)
             && !adapter.authorization_requested(user, name)
             && adapter.initialization_requested(name)
-            && test_user(user).not_on_udate_called();
+            && test_user(user).not_on_update_called();
     }
 }
 
@@ -81,7 +81,7 @@ BOOST_AUTO_TEST_CASE(subscribe_test)
     tools::run(queue);
 
     BOOST_CHECK(adapter.empty());
-    BOOST_CHECK(test_user(subscriber).on_udate_called(random_node_name, random_node_data));
+    BOOST_CHECK(test_user(subscriber).on_update_called(random_node_name, random_node_data));
     BOOST_CHECK(test_user(subscriber).empty());
 }
 
@@ -104,7 +104,7 @@ BOOST_AUTO_TEST_CASE(synchronous_subscribe_test)
     tools::run(queue);
 
     BOOST_CHECK(adapter.empty());
-    BOOST_CHECK(test_user(subscriber).on_udate_called(random_node_name, random_node_data));
+    BOOST_CHECK(test_user(subscriber).on_update_called(random_node_name, random_node_data));
     BOOST_CHECK(test_user(subscriber).empty());
 }
 
@@ -134,7 +134,7 @@ BOOST_AUTO_TEST_CASE(subscribe_node_that_doesn_t_require_authorization)
     tools::run(queue);
 
     BOOST_CHECK(adapter.empty());
-    BOOST_CHECK(test_user(subscriber).on_udate_called(random_node_name, random_node_data));
+    BOOST_CHECK(test_user(subscriber).on_update_called(random_node_name, random_node_data));
     BOOST_CHECK(test_user(subscriber).empty());
 }
 
@@ -392,25 +392,25 @@ BOOST_AUTO_TEST_CASE(notify_subscribed_node)
     root.subscribe(subscriber, random_node_name);
 
     tools::run(queue);
-    BOOST_CHECK(test_user(subscriber).on_udate_called(random_node_name, json::number(42)));
+    BOOST_CHECK(test_user(subscriber).on_update_called(random_node_name, json::number(42)));
 
     root.update_node(random_node_name, json::number(43));
 
     tools::run(queue);
-    BOOST_CHECK(test_user(subscriber).on_udate_called(random_node_name, json::number(43)));
+    BOOST_CHECK(test_user(subscriber).on_update_called(random_node_name, json::number(43)));
 
     // updating to the very same value should be ignored
     root.update_node(random_node_name, json::number(43));
 
     tools::run(queue);
-    BOOST_CHECK(test_user(subscriber).not_on_udate_called());
+    BOOST_CHECK(test_user(subscriber).not_on_update_called());
 
     root.unsubscribe(subscriber, random_node_name);
 
     root.update_node(random_node_name, json::number(44));
 
     tools::run(queue);
-    BOOST_CHECK(test_user(subscriber).not_on_udate_called());
+    BOOST_CHECK(test_user(subscriber).not_on_update_called());
 }
 
 /**
@@ -438,8 +438,8 @@ BOOST_AUTO_TEST_CASE(second_subscription_while_validating)
     adapter.answer_initialization_request(random_node_name, json::string("42"));
 
     tools::run(queue);
-    BOOST_CHECK(test_user(first_subscriber).on_udate_called(random_node_name, json::string("42")));
-    BOOST_CHECK(test_user(second_subscriber).on_udate_called(random_node_name, json::string("42")));
+    BOOST_CHECK(test_user(first_subscriber).on_update_called(random_node_name, json::string("42")));
+    BOOST_CHECK(test_user(second_subscriber).on_update_called(random_node_name, json::string("42")));
 }
 
 /**
@@ -490,7 +490,7 @@ BOOST_AUTO_TEST_CASE( subscribe_to_an_already_subscribed_node_will_authorize_the
 
     tools::run(queue);
 
-    BOOST_CHECK(test_user(first_subscriber).on_udate_called(random_node_name, random_node_data));
+    BOOST_CHECK(test_user(first_subscriber).on_update_called(random_node_name, random_node_data));
     BOOST_CHECK(adapter.empty());
 
     // a second subscriber
@@ -499,13 +499,13 @@ BOOST_AUTO_TEST_CASE( subscribe_to_an_already_subscribed_node_will_authorize_the
 
     tools::run(queue);
 
-    BOOST_CHECK(test_user(second_subscriber).not_on_udate_called());
+    BOOST_CHECK(test_user(second_subscriber).not_on_update_called());
     BOOST_CHECK(adapter.authorization_requested(second_subscriber, random_node_name));
 
     adapter.answer_authorization_request(second_subscriber, random_node_name, true);
     tools::run(queue);
 
-    BOOST_CHECK(test_user(second_subscriber).on_udate_called(random_node_name, random_node_data));
+    BOOST_CHECK(test_user(second_subscriber).on_update_called(random_node_name, random_node_data));
     BOOST_CHECK(adapter.empty());
 
     // a third subscriber
@@ -514,7 +514,7 @@ BOOST_AUTO_TEST_CASE( subscribe_to_an_already_subscribed_node_will_authorize_the
     root.subscribe(third_subscriber, random_node_name);
 
     tools::run(queue);
-    BOOST_CHECK(test_user(third_subscriber).not_on_udate_called());
+    BOOST_CHECK(test_user(third_subscriber).not_on_update_called());
     BOOST_CHECK(test_user(third_subscriber).on_unauthorized_node_subscription_called(random_node_name));
     BOOST_CHECK(adapter.unauthorized_subscription_reported(random_node_name, third_subscriber));
     BOOST_CHECK(adapter.empty());

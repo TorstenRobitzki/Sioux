@@ -83,7 +83,7 @@ namespace json
                 data_.swap(v);
             }
 
-            explicit string_impl(const char* s) : data_()
+            explicit string_impl( const char* s ) : data_()
             {
                 data_.push_back('\"');
                 
@@ -99,10 +99,10 @@ namespace json
                         data_.push_back('\\');
                         data_.push_back('\\');
                         break;
-                    case '/' : 
+/* @todo Until the compare bug is fixed                    case '/' :
                         data_.push_back('\\');
                         data_.push_back('/');
-                        break;
+                        break;*/
                     case '\b' : 
                         data_.push_back('\\');
                         data_.push_back('b');
@@ -131,11 +131,51 @@ namespace json
                 data_.push_back('\"');
             }
 
+            bool empty() const
+            {
+            	assert( data_.size() >= 2u );
+            	return data_.size() == 2u;
+            }
+
             bool operator<(const string_impl& rhs) const
             {
                 return less_impl(data_, rhs.data_);
             }
 
+            std::string to_std_string() const
+            {
+            	assert( data_.size() >= 2u );
+            	std::string result( data_.begin() +1, data_.end() -1 );
+
+            	for ( std::string::size_type p = 0; p != result.size(); ++p )
+            	{
+            		if ( result[ p ] == '\\' )
+            		{
+            			result.erase( p, 1u );
+            			assert( p != result.size() );
+
+            			switch ( result[ p ] )
+            			{
+                        case 'b' :
+                        	result[ p ] = '\b';
+                            break;
+                        case 'f' :
+                        	result[ p ] = '\f';
+                            break;
+                        case 'n' :
+                        	result[ p ] = '\n';
+                            break;
+                        case 'r' :
+                        	result[ p ] = '\r';
+                            break;
+                        case 't' :
+                        	result[ p ] = '\t';
+                            break;
+            			}
+            		}
+            	}
+            	return result;
+            }
         private:
             void visit(const impl_visitor& v) const 
             {
@@ -152,7 +192,8 @@ namespace json
                 const_buffer_sequence.push_back(boost::asio::buffer(data_));
             }
 
-            type_code code() const{
+            type_code code() const
+            {
                 return string_code;
             }
 
@@ -301,6 +342,24 @@ namespace json
                 return pos->second;
             }
 
+            const value* find( const string& key ) const
+            {
+                const list_t::const_iterator pos = members_.find(key);
+
+                return pos == members_.end() ? 0 : &pos->second;
+            }
+
+            value* find( const string& key )
+            {
+                const list_t::iterator pos = members_.find(key);
+
+                return pos == members_.end() ? 0 : &pos->second;
+            }
+
+            bool empty() const
+            {
+                return members_.empty();
+            }
         private:
             void visit(const impl_visitor& v) const
             {
@@ -585,6 +644,16 @@ namespace json
     {
     }
 
+    bool string::empty() const
+    {
+    	return get_impl< string_impl >().empty();
+    }
+
+    std::string string::to_std_string() const
+    {
+    	return get_impl< string_impl >().to_std_string();
+    }
+
     ///////////////
     // class number
     number::number(int val)
@@ -634,6 +703,30 @@ namespace json
     const value& object::at(const string& key) const
     {
         return get_impl<object_impl>().at(key);
+    }
+
+    value* object::find( const string& key )
+    {
+    	return get_impl< object_impl >().find( key );
+    }
+
+    const value* object::find( const string& key ) const
+    {
+    	return get_impl< object_impl >().find( key );
+    }
+
+    object object::copy() const
+    {
+        return object( new object_impl( get_impl< object_impl >() ) );
+    }
+
+    bool object::empty() const
+    {
+        return get_impl< object_impl >().empty();
+    }
+
+    object::object( impl* pimpl ) : value( pimpl )
+    {
     }
 
     ///////////////
@@ -711,6 +804,12 @@ namespace json
         get_impl<array_impl>().add(rhs.get_impl<array_impl>());
 
         return *this;
+    }
+
+    void array::for_each( visitor& v ) const
+    {
+    	for ( std::size_t i = 0, s = length(); i != s; ++i )
+    		at( i ).visit( v );
     }
 
     array operator+(const array& lhs, const array& rhs)
@@ -941,6 +1040,11 @@ namespace json
         visit(throw_invalid_cast);
 
         return static_cast<const TargetType&>(*this);
+    }
+
+    void value::swap( value& other )
+    {
+        pimpl_.swap( other.pimpl_ );
     }
 
     template string     value::upcast<string>() const;
@@ -1493,6 +1597,15 @@ namespace json
     {
         return parse(text.begin(), text.end());
     }
+
+    value parse_single_quoted( const std::string single_quoted_string )
+    {
+		std::string txt( single_quoted_string );
+		std::replace( txt.begin(), txt.end(), '\'', '\"' );
+
+		return parse( txt );
+    }
+
 
 } // namespace json
 

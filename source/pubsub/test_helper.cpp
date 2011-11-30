@@ -54,16 +54,16 @@ namespace test {
 
     /////////////////////
     // class subscriber
-    bool subscriber::on_udate_called(const node_name& n, const json::value& v)
+    bool subscriber::on_update_called(const node_name& n, const json::value& v)
     {
         boost::mutex::scoped_lock lock(mutex_);
-        return search_and_remove(on_udate_calls_, boost::make_tuple(n,v));
+        return search_and_remove(on_update_calls_, boost::make_tuple(n,v));
     }
 
-    bool subscriber::not_on_udate_called() const
+    bool subscriber::not_on_update_called() const
     {
         boost::mutex::scoped_lock lock(mutex_);
-        return on_udate_calls_.empty();
+        return on_update_calls_.empty();
     }
 
     bool subscriber::on_invalid_node_subscription_called(const node_name& node)
@@ -105,16 +105,16 @@ namespace test {
     bool subscriber::empty() const
     {
         boost::mutex::scoped_lock lock(mutex_);
-        return on_udate_calls_.empty() 
+        return on_update_calls_.empty()
             && on_invalid_node_subscription_calls_.empty()
             && on_unauthorized_node_subscription_calls_.empty()
             && on_failed_node_subscription_calls_.empty();
     }
 
-    void subscriber::on_udate(const node_name& name, const node& data)
+    void subscriber::on_update(const node_name& name, const node& data)
     {
         boost::mutex::scoped_lock lock(mutex_);
-        on_udate_calls_.insert(boost::make_tuple(name, data.data()));
+        on_update_calls_.insert(boost::make_tuple(name, data.data()));
     }
 
     void subscriber::on_invalid_node_subscription(const node_name& node)

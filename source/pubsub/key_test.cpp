@@ -19,5 +19,5 @@ BOOST_AUTO_TEST_CASE(key_domain_order_test)
     values.push_back(key_domain("12"));
     values.push_back(key_domain("foobar"));
 
-    BOOST_CHECK(tools::check_weak_order(values.begin(), values.end()));
+    BOOST_CHECK( tools::check_weak_order( values.begin(), values.end() ) );
 }

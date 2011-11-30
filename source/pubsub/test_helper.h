@@ -37,12 +37,12 @@ namespace test {
          * If such an entry exists, it will be deleted.
          * @post a second call to on_udate_called() will return false.
          */
-        bool on_udate_called(const node_name&, const json::value&);
+        bool on_update_called(const node_name&, const json::value&);
 
         /** 
          * @brief returns true, if there are no more stored calls to on_udate().
          */
-        bool not_on_udate_called() const;
+        bool not_on_update_called() const;
 
         /**
          * @brief returns true, if on_invalid_node_subscription() was called with the given node_name.
@@ -89,14 +89,14 @@ namespace test {
         bool empty() const;
     private:
         // ::pubsub::subscriber implementation
-        virtual void on_udate(const node_name& name, const node& data);
+        virtual void on_update(const node_name& name, const node& data);
         virtual void on_invalid_node_subscription(const node_name& node);
         virtual void on_unauthorized_node_subscription(const node_name& node);
         virtual void on_failed_node_subscription(const node_name& node);
 
         mutable boost::mutex mutex_;
         typedef std::multiset<boost::tuple<node_name, json::value> > on_udate_list_t;
-        on_udate_list_t     on_udate_calls_;
+        on_udate_list_t     on_update_calls_;
 
         typedef std::multiset<node_name> node_list;
         node_list           on_invalid_node_subscription_calls_;

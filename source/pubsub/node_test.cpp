@@ -3,9 +3,29 @@
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 #include <boost/test/unit_test.hpp>
+#include <utility>
 #include "pubsub/node.h"
+#include "pubsub/key.h"
 #include "json/json.h"
 #include "json/delta.h"
+
+/**
+ * @test node_name::empty() test
+ */
+BOOST_AUTO_TEST_CASE( node_name_empty_test )
+{
+    const pubsub::node_name empty_name;
+    BOOST_CHECK( empty_name.empty() );
+
+    pubsub::node_name other_name;
+    BOOST_CHECK( other_name.empty() );
+    other_name.add( pubsub::key( pubsub::key_domain( "key" ), "value" ) );
+
+    BOOST_CHECK( !other_name.empty() );
+
+    other_name = empty_name;
+    BOOST_CHECK( other_name.empty() );
+}
 
 /**
  * @test test the constructor
@@ -142,4 +162,28 @@ BOOST_AUTO_TEST_CASE(node_equal_data)
     BOOST_CHECK_EQUAL(version1, node.data());
     BOOST_CHECK_EQUAL(current_version, node.current_version());
     BOOST_CHECK_EQUAL(current_version, node.oldest_version());
+}
+
+BOOST_AUTO_TEST_CASE( node_add_keys )
+{
+	pubsub::node_name name1;
+
+	const pubsub::key k1( pubsub::key_domain( "p1" ), "v1" );
+	const pubsub::key k2( pubsub::key_domain( "p2" ), "v2" );
+
+	BOOST_CHECK_EQUAL( &name1, &name1.add( k1 ) );
+	BOOST_CHECK( std::make_pair( true, k1 ) == name1.find_key( pubsub::key_domain( "p1" ) ) );
+
+	BOOST_CHECK_EQUAL( &name1, &name1.add( k2 ) );
+	BOOST_CHECK( std::make_pair( true, k2 ) == name1.find_key( pubsub::key_domain( "p2" ) ) );
+
+	pubsub::node_name name2;
+
+	BOOST_CHECK_EQUAL( &name2, &name2.add( k2 ) );
+	BOOST_CHECK( std::make_pair( true, k2 ) == name2.find_key( pubsub::key_domain( "p2" ) ) );
+
+	BOOST_CHECK_EQUAL( &name2, &name2.add( k1 ) );
+	BOOST_CHECK( std::make_pair( true, k1 ) == name2.find_key( pubsub::key_domain( "p1" ) ) );
+
+	BOOST_CHECK_EQUAL( name1, name2 );
 }

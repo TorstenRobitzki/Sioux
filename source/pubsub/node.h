@@ -30,20 +30,44 @@ namespace pubsub
          *
          * The main purpose for this c'tor is testing.
          */
-        explicit node_name(const json::object&);
+        explicit node_name( const json::object& );
 
-        bool operator==(const node_name& rhs) const;
+        /**
+         * @brief returns true, if both names, name the very same node
+         */
+        bool operator==( const node_name& rhs ) const;
 
-        bool operator<(const node_name& rhs) const;
+        /**
+         * @brief returns false, if both names, name the very same node
+         */
+        bool operator!=( const node_name& rhs ) const;
 
-        std::pair<bool, key> find_key(const key_domain&) const;
+        bool operator<( const node_name& rhs ) const;
+
+        std::pair<bool, key> find_key( const key_domain& ) const;
+
+        /**
+         * @brief adds the given key, if no such key is already part of the name.
+         *
+         * If the key is already part of the name, the keys value is changed to the passed one.
+         * @post find_key( key.domain() ) == std::make_pair( true, key )
+         */
+        node_name& add( const key& key );
 
         /**
          * @brief prints the node_name in a human readable manner onto the given stream
          */
         void print(std::ostream&) const;
-    private:
+
         typedef std::vector<key> key_list;
+
+        const key_list& keys() const;
+
+        /**
+         * @brief returns true, if the node_name contains no keys
+         */
+        bool empty() const;
+    private:
         key_list keys_;
     };
 
@@ -104,6 +128,12 @@ namespace pubsub
      * @related node_version
      */
     node_version operator-(node_version start_version, unsigned decrement);
+
+    /**
+     * @brief calculates the version, that was increment versions older than start_version
+     * @related node_version
+     */
+    node_version operator+(node_version start_version, unsigned increment);
 
     /**
      * @brief repositiory of node data and possible updates between versions

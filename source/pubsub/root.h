@@ -38,7 +38,8 @@ namespace pubsub
          *
          * @param io_queue queue that is used to perform asynchronouse io operations
          * @param adapter user defined adapter to define aspects like authorization and validation
-         * @param default_configuration a default configuration to be used for all node that do not have a different configuration defined
+         * @param default_configuration a default configuration to be used for all node that do not have a different
+         *                              configuration defined
          */
         root(boost::asio::io_service& io_queue, adapter& adapter, const configuration& default_configuration);
 
@@ -47,8 +48,8 @@ namespace pubsub
          *
          * The new_configuration is added at the the end of the list of configurations. For every new node,
          * this list is searched for an entry where the name of the node fits with a given node_group. If an entry
-         * is found, the stored configuration is applied to the new node. If no entry is found, the default configuration 
-         * passed to the c'tor is used.
+         * is found, the stored configuration is applied to the new node. If no entry is found, the default
+         * configuration passed to the c'tor is used.
          */
         void add_configuration(const node_group& node_name, const configuration& new_config);
         
@@ -76,7 +77,7 @@ namespace pubsub
         void update_node(const node_name& node_name, const json::value& new_data);
 
     private:
-        // no copy, no assigment; not implemted
+        // no copy, no assignment; not implemented
         root(const root&);
         root& operator=(const root&);
 

@@ -65,6 +65,11 @@ namespace pubsub {
         return lhs_begin == keys_.end();
     }
 
+    bool node_name::operator!=( const node_name& rhs ) const
+	{
+    	return !( *this == rhs );
+	}
+
     bool node_name::operator<(const node_name& rhs) const
     {
         if ( keys_.size() != rhs.keys_.size() )
@@ -99,12 +104,24 @@ namespace pubsub {
     {
         std::pair<bool, key> result(false, key());
 
-        key_list::const_iterator pos = std::lower_bound(keys_.begin(), keys_.end(), key(domain, std::string()), sort_by_domain());
+        const key_list::const_iterator pos = std::lower_bound(keys_.begin(), keys_.end(), key(domain, std::string()), sort_by_domain());
 
         if ( pos != keys_.end() && !(domain < pos->domain()) )
             result = std::make_pair(true, *pos);
 
         return result;
+    }
+
+    node_name& node_name::add( const key& k )
+    {
+        const key_list::iterator pos = std::lower_bound( keys_.begin(), keys_.end(), k, sort_by_domain() );
+
+        if ( pos != keys_.end() && !( k.domain() < pos->domain() ) )
+        	*pos = k;
+        else
+        	keys_.insert( pos, k );
+
+    	return *this;
     }
 
     void node_name::print(std::ostream& out) const
@@ -119,6 +136,16 @@ namespace pubsub {
         }
 
         out << "}";
+    }
+
+    const node_name::key_list& node_name::keys() const
+    {
+    	return keys_;
+    }
+
+    bool node_name::empty() const
+    {
+        return keys_.empty();
     }
 
     std::ostream& operator<<(std::ostream& out, const node_name& name)
@@ -179,6 +206,11 @@ namespace pubsub {
         start_version -= decrement;
 
         return start_version;
+    }
+
+    node_version operator+(node_version start_version, unsigned increment)
+    {
+    	return start_version - ( -increment );
     }
 
     std::ostream& operator<<(std::ostream& out, const node_version& v)

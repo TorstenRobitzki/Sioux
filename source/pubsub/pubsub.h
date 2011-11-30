@@ -58,7 +58,7 @@ namespace pubsub
          * @brief will be call, when the subscriber is registered for notifications,
          *        and the nodes data was changed.
          */
-        virtual void on_udate(const node_name& name, const node& data) = 0;
+        virtual void on_update(const node_name& name, const node& data) = 0;
 
         /**
          * @brief will be called, when a subscription was done to an invalid node.

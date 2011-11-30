@@ -38,3 +38,38 @@ BOOST_AUTO_TEST_CASE(split_test)
     BOOST_CHECK(out5l.empty());
     BOOST_CHECK(out5r.empty());
 }
+
+BOOST_AUTO_TEST_CASE( split_to_empty_test )
+{
+	const std::string test1("..");
+	std::string out1l, out1r;
+	BOOST_CHECK( tools::split_to_empty( test1.begin(), test1.end(), '.', out1l, out1r ) );
+	BOOST_CHECK_EQUAL( "", out1l );
+	BOOST_CHECK_EQUAL( ".", out1r );
+
+    const std::string test2(":part1:part2:");
+    std::string out2l, out2r;
+    BOOST_CHECK( tools::split_to_empty(test2.begin(), test2.end(), ':', out2l, out2r) );
+    BOOST_CHECK_EQUAL( "", out2l );
+    BOOST_CHECK_EQUAL( "part1:part2:", out2r );
+
+    BOOST_CHECK( tools::split_to_empty(std::string( out2r ), ':', out2l, out2r) );
+    BOOST_CHECK_EQUAL( "part1", out2l );
+    BOOST_CHECK_EQUAL( "part2:", out2r );
+
+    BOOST_CHECK( tools::split_to_empty(std::string( out2r ), ':', out2l, out2r) );
+    BOOST_CHECK_EQUAL( "part2", out2l );
+    BOOST_CHECK_EQUAL( "", out2r );
+
+    BOOST_CHECK( !tools::split_to_empty(std::string( "abcde" ), ':', out2l, out2r) );
+
+    const std::string test3("part1::part2");
+    std::string out3l, out3r;
+    BOOST_CHECK( tools::split_to_empty(test3.begin(), test3.end(), ':', out3l, out3r) );
+    BOOST_CHECK_EQUAL( "part1", out3l );
+    BOOST_CHECK_EQUAL( ":part2", out3r );
+
+    BOOST_CHECK( tools::split_to_empty( std::string( out3r ), ':', out3l, out3r) );
+    BOOST_CHECK_EQUAL( "", out3l );
+    BOOST_CHECK_EQUAL( "part2", out3r );
+}

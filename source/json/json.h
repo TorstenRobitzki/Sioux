@@ -19,6 +19,7 @@ namespace json
 {
     class parser;
 
+    class value;
     class string;
     class number;
     class object;
@@ -27,6 +28,9 @@ namespace json
     class false_val;
     class null;
 
+    /**
+     * @brief interface to examine a value
+     */
     class visitor
     {
     public:
@@ -73,7 +77,7 @@ namespace json
         void visit(visitor&) const;
 
         /**
-         * @brief a defined, but unspecified, striked, weak order
+         * @brief a defined, but unspecified, strict, weak order
          */
         bool operator<(const value& rhs) const;
 
@@ -104,6 +108,12 @@ namespace json
          */
         template <class TargetType>
         TargetType upcast() const;
+
+        /**
+         * @brief swaps the guts of this and other
+         * @exception none
+         */
+        void swap( value& other );
     protected:
         explicit value(impl*);
         explicit value(const boost::shared_ptr<impl>& impl);
@@ -135,6 +145,9 @@ namespace json
      */
     std::ostream& operator<<(std::ostream& out, const value&);
 
+    /**
+     * @brief representation of a json string object
+     */
     class string : public value
     {
     public:
@@ -144,6 +157,18 @@ namespace json
         string();
 
         explicit string(const char*);
+
+        /**
+         * @brief returns true, if the number of stored characters is zero
+         */
+        bool empty() const;
+
+        /**
+         * @brief returns a string containing the same character sequence as the json string
+         *
+         * But instead to to_json() is the text not json encoded.
+         */
+        std::string to_std_string() const;
     };
 
     class number : public value
@@ -165,6 +190,9 @@ namespace json
         int to_int() const;
     };
 
+    /**
+     * @brief a representation of a json object ( name / value hash set )
+     */
     class object : public value
     {
     public:
@@ -192,13 +220,46 @@ namespace json
 
         /**
          * @brief returns a reference to the element with the given key
+         * @exception std::out_of_range
          */
         value& at(const string& key);
 
         /**
          * @brief returns the element with the given key
+         * @exception std::out_of_range
          */
         const value& at(const string& key) const;
+
+        /**
+         * @brief looks up the given key and returns a pointer to it
+         *
+         * The function will return 0, if no value with the given key is given.
+         */
+        value* find( const string& key );
+
+        /**
+         * @copydoc find( const string& key )
+         */
+        const value* find( const string& key ) const;
+
+        /**
+         * @brief returns a deep copy of this object.
+         *
+         * The copied object contains the same references, not a deep copies of
+         * the referenced elements, thus adding an element to the original object
+         * is not observable in the copy, but modifing an referenced element will be
+         * observable in the copy.
+         */
+        object copy() const;
+
+        /**
+         * @brief returns true, if the object contains not key value pair
+         *
+         * equal to *this == parse( "{}" )
+         */
+        bool empty() const;
+    private:
+        explicit object(impl*);
     };
 
     /**
@@ -273,6 +334,11 @@ namespace json
         void insert(std::size_t index, const value&);
 
         array& operator+=(const array& rhs);
+
+        /**
+         * @brief invokes e.visit(v) for ever element e in the array
+         */
+        void for_each( visitor& v ) const;
     private:
         explicit array(impl*);
     };
@@ -394,6 +460,14 @@ namespace json
      */
     value parse(const std::string text);
 
+    /**
+     * @brief first substitutes all occurens of the ' (single quote) with a " (double quote) and than passes the
+     *        result to parse()
+     *
+     * So for example the json object { "a":"b"; "c":1 } could be constructed out of the string literal
+     * "{'a':'b'; 'c':1}", instead of the harder to read one with escaped double quotes "\"a\":\"b\"; \"b\‚\":1".
+     */
+    value parse_single_quoted( const std::string single_quoted_string );
 
     template <class Iter>
     value parse(Iter begin, Iter end)
@@ -409,4 +483,3 @@ namespace json
 } // namespace json
 
 #endif // include guard
-

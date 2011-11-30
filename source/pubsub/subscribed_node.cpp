@@ -186,7 +186,7 @@ namespace pubsub {
 			// notify all subscribed nodes
 			for ( subscriber_list::const_iterator user = subscribers_.begin(); user != subscribers_.end(); ++user )
 			{
-				(*user)->on_udate(name, data_);
+				(*user)->on_update(name, data_);
 			}
 		}
 	}
@@ -286,7 +286,7 @@ namespace pubsub {
 		}
 		else if ( state_ == valid_and_initialized )
 		{
-			auth.user_->on_udate(auth.name_, data_);
+			auth.user_->on_update(auth.name_, data_);
 		}
 	}
 
@@ -310,7 +310,7 @@ namespace pubsub {
 
 		for ( subscriber_list::iterator subscriber = subscribers_.begin(); subscriber != subscribers_.end(); ++subscriber )
 		{
-			(*subscriber)->on_udate(name, data_);
+			(*subscriber)->on_update(name, data_);
 		}
 	}
 

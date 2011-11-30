@@ -7,7 +7,7 @@
 #include "tools/iterators.h"
 #include <iostream>
 
-BOOST_AUTO_TEST_CASE(json_string_test)
+BOOST_AUTO_TEST_CASE( json_string_test )
 {
     BOOST_CHECK_EQUAL(2u, json::string().size());
     BOOST_CHECK_EQUAL("\"\"", json::string().to_json());
@@ -25,7 +25,14 @@ BOOST_AUTO_TEST_CASE(json_string_test)
     BOOST_CHECK_EQUAL("\"\\\"\\\\\\r\"", s4.to_json());
 }
 
-BOOST_AUTO_TEST_CASE(json_number_test)
+BOOST_AUTO_TEST_CASE( json_empty_string_test )
+{
+	BOOST_CHECK( json::string().empty() );
+	BOOST_CHECK( json::string( "" ).empty() );
+	BOOST_CHECK( !json::string( "Foobar" ).empty() );
+}
+
+BOOST_AUTO_TEST_CASE( json_number_test )
 {
     json::number zweiundvierzig(42);
     BOOST_CHECK_EQUAL("42", zweiundvierzig.to_json());
@@ -40,7 +47,7 @@ BOOST_AUTO_TEST_CASE(json_number_test)
     BOOST_CHECK_EQUAL(3u, negativ.size());
 }
 
-BOOST_AUTO_TEST_CASE(json_object_test)
+BOOST_AUTO_TEST_CASE( json_object_test )
 {
     const json::object empty;
     BOOST_CHECK_EQUAL("{}", empty.to_json());
@@ -60,7 +67,48 @@ BOOST_AUTO_TEST_CASE(json_object_test)
     BOOST_CHECK_EQUAL(inner.to_json().size(), inner.size());
 }
 
-BOOST_AUTO_TEST_CASE(json_array_test)
+BOOST_AUTO_TEST_CASE( json_object_find_test )
+{
+	const json::object empty;
+	BOOST_CHECK( empty.find( json::string( "key" ) ) == 0 );
+
+	json::object obj;
+    obj.add( json::string( "Hallo" ), json::number( 123 ) );
+
+    const json::value* num = obj.find( json::string( "Hallo" ) );
+    BOOST_REQUIRE( num != 0 );
+    BOOST_CHECK_EQUAL( *num, json::number( 123 ) );
+
+    json::value* not_found = obj.find( json::string( "Halloe" ) );
+    BOOST_CHECK( not_found == 0 );
+}
+
+BOOST_AUTO_TEST_CASE( copy_object_test )
+{
+	const json::object obj = json::parse_single_quoted(
+		"{"
+		"	'Annette' : 1, "
+		"	'Todi' : 2 "
+		"}" ).upcast< json::object >();
+
+	json::object copy = obj.copy();
+	json::object same = obj;
+
+	BOOST_REQUIRE_EQUAL( copy, obj );
+	BOOST_REQUIRE_EQUAL( same, obj );
+
+	same.add( json::string( "foo" ), json::null() );
+
+	BOOST_CHECK_EQUAL( same, obj );
+	BOOST_CHECK_NE( copy, obj );
+	BOOST_CHECK_EQUAL( copy, json::parse_single_quoted(
+		"{"
+		"	'Annette' : 1, "
+		"	'Todi' : 2 "
+		"}" ).upcast< json::object >() );
+}
+
+BOOST_AUTO_TEST_CASE( json_array_test )
 {
     json::array array;
     BOOST_CHECK_EQUAL("[]", array.to_json());
@@ -80,7 +128,7 @@ BOOST_AUTO_TEST_CASE(json_array_test)
     BOOST_CHECK_EQUAL(array.to_json().size(), array.size());
 }
 
-BOOST_AUTO_TEST_CASE(json_array_copy_at_begin_test)
+BOOST_AUTO_TEST_CASE( json_array_copy_at_begin_test )
 {
     const json::array array = json::parse("[1,2,3,4,5,6,7]").upcast<json::array>();
 
@@ -91,7 +139,7 @@ BOOST_AUTO_TEST_CASE(json_array_copy_at_begin_test)
     BOOST_CHECK_EQUAL("[]", json::array(array,0).to_json());
 }
 
-BOOST_AUTO_TEST_CASE(json_array_copy_from_test)
+BOOST_AUTO_TEST_CASE( json_array_copy_from_test )
 {
     const json::array array = json::parse("[1,2,3,4,5,6,7]").upcast<json::array>();
 
@@ -105,7 +153,7 @@ BOOST_AUTO_TEST_CASE(json_array_copy_from_test)
 /**
  * @test make sure, a copy has in independent array of elements
  */
-BOOST_AUTO_TEST_CASE(json_array_copy_test)
+BOOST_AUTO_TEST_CASE( json_array_copy_test )
 {
     const json::array array = json::parse("[1,2,3,4,5,6,7]").upcast<json::array>();
     json::array copy(array.copy());
@@ -115,7 +163,7 @@ BOOST_AUTO_TEST_CASE(json_array_copy_test)
     BOOST_CHECK(array != copy);
 }
 
-BOOST_AUTO_TEST_CASE(json_array_copy_test2)
+BOOST_AUTO_TEST_CASE( json_array_copy_test2 )
 {
     const json::array array = json::parse("[1,2,3]").upcast<json::array>();
     json::array copy(array.copy());
@@ -125,7 +173,7 @@ BOOST_AUTO_TEST_CASE(json_array_copy_test2)
     BOOST_CHECK(array != copy);
 }
 
-BOOST_AUTO_TEST_CASE(json_special_test)
+BOOST_AUTO_TEST_CASE( json_special_test )
 {
     json::value null = json::null();
     BOOST_CHECK_EQUAL(json::null(), null);
@@ -197,7 +245,7 @@ static bool split_parse(const std::string& json)
     return result;
 }
 
-BOOST_AUTO_TEST_CASE(simple_parser_test)
+BOOST_AUTO_TEST_CASE( simple_parser_test )
 {
     const char test_json[] = "[[],12.1e12,21,\"Hallo\\u1234\",{\"a\":true,\"b\":false},{},null]";
 
@@ -206,7 +254,7 @@ BOOST_AUTO_TEST_CASE(simple_parser_test)
     BOOST_CHECK(split_parse(test_json));
 }
 
-BOOST_AUTO_TEST_CASE(valid_numbers_test)
+BOOST_AUTO_TEST_CASE( valid_numbers_test )
 {
     const char* valid_numbers[] = {
         "0", "-0", "12", "9989087", "-1223", "12.1", "-0.0", "-123.433", 
@@ -220,7 +268,7 @@ BOOST_AUTO_TEST_CASE(valid_numbers_test)
     }
 }
 
-BOOST_AUTO_TEST_CASE(invalid_numbers_test)
+BOOST_AUTO_TEST_CASE( invalid_numbers_test )
 {
     const char* invalid_numbers[] = {
         "a", "b", "-", "-0.", ".12", "-1223.", ".1", 
@@ -234,13 +282,13 @@ BOOST_AUTO_TEST_CASE(invalid_numbers_test)
     }
 }
 
-BOOST_AUTO_TEST_CASE(white_space_test)
+BOOST_AUTO_TEST_CASE( white_space_test )
 {
     const json::value val = json::parse(" { \"f o\" : \"b a r\" , \"b \" : [ 1 , 2 , true , false ] } ");
     BOOST_CHECK_EQUAL(json::parse("{\"f o\":\"b a r\",\"b \":[1,2,true,false]}"), val);
 }
 
-BOOST_AUTO_TEST_CASE(equality_test)
+BOOST_AUTO_TEST_CASE( equality_test )
 {
     using namespace json;
     const   number      eins(1);
@@ -305,7 +353,7 @@ BOOST_AUTO_TEST_CASE(equality_test)
     BOOST_CHECK_EQUAL(ar, ar2);
 }
 
-BOOST_AUTO_TEST_CASE(array_test)
+BOOST_AUTO_TEST_CASE( array_test )
 {
     json::array a = json::parse("[1,2,3,4,5]").upcast<json::array>();
 
@@ -330,4 +378,109 @@ BOOST_AUTO_TEST_CASE(array_test)
     a.erase(0, 1);
     a.erase(3, 1);
     BOOST_CHECK_EQUAL("[[],4,5]", a.to_json());
+}
+
+/**
+ * @test check, that array::for_each works a expected
+ */
+BOOST_AUTO_TEST_CASE( array_for_each )
+{
+    json::array a = json::parse("[{\"a\":2},[1,2,3],\"2\",3,4,5,false,true,null]").upcast<json::array>();
+
+    struct : json::visitor
+    {
+        void visit( const json::string& o )
+        {
+        	result.add( o );
+        }
+
+        void visit( const json::number& o )
+        {
+        	result.add( o );
+        }
+
+        void visit( const json::object& o )
+        {
+        	result.add( o );
+        }
+
+        void visit( const json::array& o )
+        {
+        	result.add( o );
+        }
+
+        void visit( const json::true_val& o )
+        {
+        	result.add( o );
+        }
+
+        void visit( const json::false_val& o )
+        {
+        	result.add( o );
+        }
+
+        void visit( const json::null& o )
+        {
+        	result.add( o );
+        }
+
+        json::array result;
+    } v;
+
+    a.for_each( v );
+    BOOST_CHECK_EQUAL( a, v.result );
+}
+
+/**
+ * @test conversion from std::string to json::string and back must be transparent and result in the very same text
+ */
+BOOST_AUTO_TEST_CASE( convert_json_string_to_std_string )
+{
+
+	const char * const test_texts[] = {
+		"Hallo",
+		"\\",
+		"\"\\/\b\f\n\r\t",
+		"1.2.3, adasd |{}[\\\\"
+	};
+
+	for ( char const * const * test = tools::begin( test_texts ); test != tools::end( test_texts ); ++test )
+		BOOST_CHECK_EQUAL( std::string( *test ), json::string( *test ).to_std_string() );
+}
+
+bool not_equal( const json::value& lhs, const json::value& rhs )
+{
+	return !( lhs < rhs ) && !( rhs < lhs );
+}
+
+/**
+ * @test strings that are escaped have to compare equal, if there content is equal, independent from different
+ *       escapings.
+ */
+BOOST_AUTO_TEST_CASE( json_string_compare_test )
+{
+	// without C escaping: "/" == "\/"
+	BOOST_CHECK_EQUAL( json::parse( "\"/\"" ), json::parse( "\"\\/\"" ) );
+	BOOST_CHECK( not_equal( json::parse( "\"/\"" ), json::parse( "\"\\/\"" ) ) );
+}
+
+/**
+ * @test tests the object::empty() function
+ */
+BOOST_AUTO_TEST_CASE( object_empty_test )
+{
+    json::object foo;
+    BOOST_CHECK( foo.empty() );
+
+    foo.add( json::string("a"), json::null() );
+    BOOST_CHECK( !foo.empty() );
+
+    foo.add( json::string("b"), json::number( 12 ) );
+    BOOST_CHECK( !foo.empty() );
+
+    foo.erase( json::string("a") );
+    BOOST_CHECK( !foo.empty() );
+
+    foo.erase( json::string("b") );
+    BOOST_CHECK( foo.empty() );
 }
