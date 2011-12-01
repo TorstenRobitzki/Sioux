@@ -144,16 +144,34 @@ namespace {
 			}
         }
 
-        void unsubscribe(const boost::shared_ptr<subscriber>& user, const node_name& node_name)
+        bool unsubscribe(const boost::shared_ptr<subscriber>& user, const node_name& node_name)
         {
             boost::mutex::scoped_lock   lock(mutex_);
             const node_list_t::iterator pos = nodes_.find(node_name);
 
             if ( pos != nodes_.end() )
             {
-            	pos->second->remove_subscriber(user);
+            	return pos->second->remove_subscriber(user);
             }
+
+            return false;
         }
+
+        unsigned unsubscribe_all( const boost::shared_ptr<subscriber>& user )
+        {
+            unsigned result = 0;
+
+            boost::mutex::scoped_lock   lock(mutex_);
+
+            for ( node_list_t::iterator node = nodes_.begin(), end = nodes_.end(); node != end; ++node )
+            {
+                if ( node->second->remove_subscriber( user ) )
+                    ++result;
+            }
+
+            return result;
+        }
+
     private:
         boost::asio::io_service&                queue_;
         adapter&                                adapter_;
@@ -184,13 +202,14 @@ namespace {
         pimpl_->subscribe(s, node_name);
     }
 
-    void root::unsubscribe(const boost::shared_ptr<subscriber>& user, const node_name& node_name)
+    bool root::unsubscribe(const boost::shared_ptr<subscriber>& user, const node_name& node_name)
     {
-    	pimpl_->unsubscribe(user, node_name);
+    	return pimpl_->unsubscribe(user, node_name);
     }
 
-    void root::unsubscribe_all(const boost::shared_ptr<subscriber>&)
+    unsigned root::unsubscribe_all( const boost::shared_ptr<subscriber>& user )
     {
+        return pimpl_->unsubscribe_all( user );
     }
 
     void root::update_node(const node_name& node_name, const json::value& new_data)

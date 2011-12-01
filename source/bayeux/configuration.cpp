@@ -7,23 +7,10 @@
 namespace bayeux
 {
 	configuration::configuration()
-		: max_subscriptions_( 10u )
-		, max_disconnected_time_( boost::posix_time::seconds( 60 ) )
+		: max_disconnected_time_( boost::posix_time::seconds( 60 ) )
 		, max_messages_per_client_( 10u )
 		, max_messages_size_per_client_( 10 * 1024 )
 	{
-	}
-
-	unsigned configuration::max_subscriptions() const
-	{
-		return max_subscriptions_;
-	}
-
-	configuration& configuration::max_subscriptions( unsigned new_value )
-	{
-		max_subscriptions_ = new_value;
-
-		return *this;
 	}
 
 	boost::posix_time::time_duration configuration::max_disconnected_time() const

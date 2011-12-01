@@ -111,7 +111,7 @@ namespace json
 
         /**
          * @brief swaps the guts of this and other
-         * @exception none
+         * @exception none _
          */
         void swap( value& other );
     protected:
@@ -220,7 +220,7 @@ namespace json
 
         /**
          * @brief returns a reference to the element with the given key
-         * @exception std::out_of_range
+         * @exception std::out_of_range if key is not in keys()
          */
         value& at(const string& key);
 

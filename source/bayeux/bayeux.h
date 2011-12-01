@@ -23,6 +23,7 @@ namespace http {
 	class request_header;
 }
 
+/** @namespace bayeux */
 namespace bayeux
 {
 	/*

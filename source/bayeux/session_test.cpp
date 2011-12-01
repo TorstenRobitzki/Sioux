@@ -13,11 +13,6 @@
 #include "tools/asstring.h"
 #include "tools/io_service.h"
 
-#include <vector>
-
-// delete me if you see me
-#include <iostream>
-
 namespace {
 
     boost::shared_ptr< const bayeux::configuration > config()
@@ -42,10 +37,35 @@ namespace {
             , root_( io_queue_, adapter_, pubsub::configuration() )
         {
         }
-    };
+
+        explicit test_root( const pubsub::configuration& config )
+            : io_queue_()
+            , adapter_()
+            , root_( io_queue_, adapter_, config )
+        {
+        }
+};
+
+    static void subscribe_session(
+        test_root& context, const boost::shared_ptr< pubsub::subscriber >& session, const pubsub::node_name& node )
+    {
+        context.adapter_.answer_validation_request( node, true );
+        context.adapter_.answer_authorization_request( session, node, true );
+        context.adapter_.answer_initialization_request( node, json::null() );
+
+        static_cast< bayeux::session& >( *session ).subscribe( node, 0 );
+        tools::run( context.io_queue_ );
+
+        const json::array response = static_cast< bayeux::session& >( *session ).events();
+        BOOST_REQUIRE_EQUAL( 1u, response.length() );
+
+        const json::object acknowlage = response.at( 0 ).upcast< json::object >();
+        BOOST_REQUIRE_EQUAL( acknowlage.at( json::string("successful") ), json::true_val() );
+    }
 
     const pubsub::node_name node_1( bayeux::node_name_from_channel( json::string("/a/b") ) );
     const pubsub::node_name node_2( bayeux::node_name_from_channel( json::string("/foo/bar/chu") ) );
+    const pubsub::node_name node_3( bayeux::node_name_from_channel( json::string("/1/2/3") ) );
     const pubsub::node_version v1;
     const pubsub::node_version v2 = v1 + 1;
     const pubsub::node_version v3 = v1 + 2;
@@ -157,23 +177,6 @@ BOOST_AUTO_TEST_CASE( check_for_multiple_identical_pushes_on_a_single_node )
 	const json::array second_update = session.events();
 
 	BOOST_CHECK_EQUAL( 0u, second_update.length() );
-}
-
-static void subscribe_session(
-    test_root& context, const boost::shared_ptr< pubsub::subscriber >& session, const pubsub::node_name& node )
-{
-    context.adapter_.answer_validation_request( node, true );
-    context.adapter_.answer_authorization_request( session, node, true );
-    context.adapter_.answer_initialization_request( node, json::null() );
-
-    static_cast< bayeux::session& >( *session ).subscribe( node, 0 );
-    tools::run( context.io_queue_ );
-
-    const json::array response = static_cast< bayeux::session& >( *session ).events();
-    BOOST_REQUIRE_EQUAL( 1u, response.length() );
-
-    const json::object acknowlage = response.at( 0 ).upcast< json::object >();
-    BOOST_REQUIRE_EQUAL( acknowlage.at( json::string("successful") ), json::true_val() );
 }
 
 /**
@@ -620,13 +623,136 @@ BOOST_AUTO_TEST_CASE( session_node_subscription_success_without_data )
  */
 BOOST_AUTO_TEST_CASE( session_id_in_synchronous_failed_subscription_response )
 {
+    test_root       root;
+    boost::shared_ptr< bayeux::session > session( new bayeux::session( "abcdefg", root.root_, config() ) );
+
+    json::value id = json::number( 42 );
+    session->subscribe( node_2, &id );
+    id = json::null();
+
+    root.adapter_.answer_validation_request( node_2, false );
+
+    tools::run( root.io_queue_ );
+
+    BOOST_CHECK_EQUAL(
+        session->events(),
+        json::parse_single_quoted(
+            "[{"
+            "   'channel'    : '/meta/subscribe',"
+            "   'clientId'   : 'abcdefg',"
+            "   'id'         : 42,"
+            "   'subscription': '/foo/bar/chu',"
+            "   'error'      : 'invalid subscription',"
+            "   'successful' : false"
+            "}]") );
 }
 
 /**
- * @test mixing data and error messages
+ * @test unsubscribe from a node
  */
-BOOST_AUTO_TEST_CASE( session_mixed_subscription_messages_and_data )
+BOOST_AUTO_TEST_CASE( unsubscribe_from_a_bayeux_subject )
 {
+    test_root       root;
+    const boost::shared_ptr< bayeux::session > session( new bayeux::session( "abcdefg", root.root_, config() ) );
+
+    subscribe_session( root, session, node_1 );
+
+    root.root_.update_node( node_1, data1 );
+    session->unsubscribe( node_1, 0 );
+
+    tools::run( root.io_queue_ );
+
+    BOOST_CHECK_EQUAL(
+        session->events(),
+        json::parse_single_quoted(
+            "[{"
+            "   'channel'  : '/a/b', "
+            "   'data'     : 1 "
+            "},{"
+            "   'channel'    : '/meta/unsubscribe',"
+            "   'clientId'   : 'abcdefg',"
+            "   'subscription': '/a/b',"
+            "   'successful' : true"
+            "}]") );
+}
+
+/**
+ * @test unsibscribe from a node with an id given in the request
+ */
+BOOST_AUTO_TEST_CASE( unsubscribe_from_a_bayeux_subject_with_id )
+{
+    test_root       root;
+    const boost::shared_ptr< bayeux::session > session( new bayeux::session( "abcdefg", root.root_, config() ) );
+
+    subscribe_session( root, session, node_1 );
+
+    const json::string id( "ididid" );
+    session->unsubscribe( node_1, &id );
+
+    tools::run( root.io_queue_ );
+
+    BOOST_CHECK_EQUAL(
+        session->events(),
+        json::parse_single_quoted(
+            "[{"
+            "   'channel'    : '/meta/unsubscribe',"
+            "   'clientId'   : 'abcdefg',"
+            "   'subscription': '/a/b',"
+            "   'successful' : true,"
+            "   'id'         : 'ididid'"
+            "}]") );
+}
+
+/**
+ * @test unsubscribe from a node that the session is not subscribed to
+ */
+BOOST_AUTO_TEST_CASE( unsubscribe_with_invalid_subject )
+{
+    test_root       root;
+    const boost::shared_ptr< bayeux::session > session( new bayeux::session( "abcdefg", root.root_, config() ) );
+
+    session->unsubscribe( node_1, 0 );
+
+    tools::run( root.io_queue_ );
+
+    BOOST_CHECK_EQUAL(
+        session->events(),
+        json::parse_single_quoted(
+            "[{"
+            "   'channel'    : '/meta/unsubscribe',"
+            "   'clientId'   : 'abcdefg',"
+            "   'subscription': '/a/b',"
+            "   'successful' : false,"
+            "   'error'      : 'not subscribed' "
+            "}]") );
+}
+
+/**
+ * @test unsubscribe from a node that the session is not subscribed to and with an id given in the request
+ */
+BOOST_AUTO_TEST_CASE( unsubscribe_with_invalid_subject_with_id )
+{
+    test_root       root;
+    const boost::shared_ptr< bayeux::session > session( new bayeux::session( "abcdefg", root.root_, config() ) );
+
+    {
+        const json::value id = json::parse( "{\"a\":1}" );
+        session->unsubscribe( node_1, &id );
+    }
+
+    tools::run( root.io_queue_ );
+
+    BOOST_CHECK_EQUAL(
+        session->events(),
+        json::parse_single_quoted(
+            "[{"
+            "   'channel'    : '/meta/unsubscribe',"
+            "   'clientId'   : 'abcdefg',"
+            "   'subscription': '/a/b',"
+            "   'successful' : false,"
+            "   'error'      : 'not subscribed',"
+            "   'id'         : { 'a' : 1 } "
+            "}]") );
 }
 
 /**
@@ -634,4 +760,40 @@ BOOST_AUTO_TEST_CASE( session_mixed_subscription_messages_and_data )
  */
 BOOST_AUTO_TEST_CASE( unsubscribe_before_subscription_acknowledged )
 {
+    test_root       root;
+    const boost::shared_ptr< bayeux::session > session( new bayeux::session( "abcdefg", root.root_, config() ) );
+    session->subscribe( node_1, 0 );
+    session->unsubscribe( node_1, 0 );
+
+    tools::run( root.io_queue_ );
+
+    BOOST_CHECK_EQUAL(
+        session->events(),
+        json::parse_single_quoted(
+            "[{"
+            "   'channel'    : '/meta/subscribe',"
+            "   'clientId'   : 'abcdefg',"
+            "   'subscription': '/a/b',"
+            "   'successful' : true"
+            "},{"
+            "   'channel'    : '/meta/unsubscribe',"
+            "   'clientId'   : 'abcdefg',"
+            "   'subscription': '/a/b',"
+            "   'successful' : true"
+            "}]") );
 }
+
+/**
+ * @test check that a connection is closed after a certain time out to implement long polling
+ */
+ BOOST_AUTO_TEST_CASE( session_connect_time_out )
+ {
+
+ }
+
+ /**
+  * @test if the session got closed, all subscriptions must be ended and no more references must be kept
+  */
+ BOOST_AUTO_TEST_CASE( unsubscribe_all_if_session_is_closed )
+ {
+ }

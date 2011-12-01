@@ -59,8 +59,9 @@ namespace pubsub
 
 		/**
 		 * @brief removes the given subscriber from the list of authorized or unauthorized subscribers
+		 * @return returns true, if the subscriber was removed
 		 */
-		void remove_subscriber(const boost::shared_ptr<subscriber>&);
+		bool remove_subscriber(const boost::shared_ptr<subscriber>&);
 
 		/**
 		 *  @brief marks this node as a valid node

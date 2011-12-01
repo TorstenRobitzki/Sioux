@@ -13,7 +13,8 @@
 using namespace pubsub;
 
 namespace {
-    const node_name     random_node_name(json::parse("{\"a\":2}").upcast<json::object>());
+    const node_name     random_node_name( json::parse("{\"a\":2}").upcast<json::object>() );
+    const node_name     other_node_name( json::parse("{\"b\":3}").upcast<json::object>() );
     const json::number  random_node_data(12);
     const node          random_node(node_version(), json::number(12));
 
@@ -405,7 +406,7 @@ BOOST_AUTO_TEST_CASE(notify_subscribed_node)
     tools::run(queue);
     BOOST_CHECK(test_user(subscriber).not_on_update_called());
 
-    root.unsubscribe(subscriber, random_node_name);
+    BOOST_CHECK( root.unsubscribe(subscriber, random_node_name) );
 
     root.update_node(random_node_name, json::number(44));
 
@@ -518,4 +519,108 @@ BOOST_AUTO_TEST_CASE( subscribe_to_an_already_subscribed_node_will_authorize_the
     BOOST_CHECK(test_user(third_subscriber).on_unauthorized_node_subscription_called(random_node_name));
     BOOST_CHECK(adapter.unauthorized_subscription_reported(random_node_name, third_subscriber));
     BOOST_CHECK(adapter.empty());
+}
+
+/**
+ * @test unsubscribe all subscriptions
+ */
+BOOST_AUTO_TEST_CASE( unsubscribe_all )
+{
+    boost::asio::io_service                 queue;
+    test::adapter                           adapter;
+    pubsub::root                            root(queue, adapter, configurator().authorization_not_required() );
+
+    boost::shared_ptr< ::pubsub::subscriber> subscriber(new test::subscriber);
+
+    adapter.answer_validation_request(random_node_name, true);
+    adapter.answer_validation_request(other_node_name, true);
+    adapter.answer_initialization_request(random_node_name, json::number(42));
+    adapter.answer_initialization_request(other_node_name, json::number(43));
+    root.subscribe(subscriber, random_node_name);
+    root.subscribe(subscriber, other_node_name);
+
+    tools::run(queue);
+    BOOST_CHECK(test_user(subscriber).on_update_called(random_node_name, json::number(42)));
+    BOOST_CHECK(test_user(subscriber).on_update_called(other_node_name, json::number(43)));
+
+    BOOST_CHECK_EQUAL( 2u, root.unsubscribe_all( subscriber ) );
+
+    root.update_node(random_node_name, json::number(43));
+    root.update_node(other_node_name, json::number(42));
+    tools::run(queue);
+    BOOST_CHECK(test_user(subscriber).not_on_update_called());
+    BOOST_CHECK(test_user(subscriber).not_on_update_called());
+
+    BOOST_CHECK( subscriber.unique() );
+}
+
+/**
+ * @test unsubscribe while validating a node
+ */
+BOOST_AUTO_TEST_CASE( unsubscribe_while_validating_node )
+{
+    boost::asio::io_service                 queue;
+    test::adapter                           adapter;
+    pubsub::root                            root(queue, adapter, configuration() );
+
+    boost::shared_ptr< ::pubsub::subscriber > subscriber( new test::subscriber );
+    root.subscribe(subscriber, random_node_name);
+
+    tools::run(queue);
+    BOOST_CHECK( root.unsubscribe(subscriber, random_node_name) );
+
+    BOOST_CHECK( adapter.validation_requested( random_node_name ) );
+    adapter.answer_validation_request( random_node_name, true );
+    BOOST_CHECK( adapter.empty() );
+    BOOST_CHECK( subscriber.unique() );
+    BOOST_CHECK( test_user(subscriber).empty() );
+}
+
+/**
+ * @test unsubscribe while authorizing a subscription
+ */
+BOOST_AUTO_TEST_CASE( unsubscribe_while_authorizing_a_subscription )
+{
+    boost::asio::io_service                 queue;
+    test::adapter                           adapter;
+    pubsub::root                            root(queue, adapter, configuration() );
+
+    boost::shared_ptr< ::pubsub::subscriber > subscriber( new test::subscriber );
+    root.subscribe(subscriber, random_node_name);
+    adapter.answer_validation_request( random_node_name, true );
+
+    tools::run(queue);
+
+    BOOST_CHECK( root.unsubscribe(subscriber, random_node_name) );
+
+    BOOST_CHECK( adapter.authorization_requested( subscriber, random_node_name ) );
+    adapter.answer_authorization_request( subscriber, random_node_name, true );
+    BOOST_CHECK( adapter.empty() );
+    BOOST_CHECK( subscriber.unique() );
+    BOOST_CHECK( test_user(subscriber).empty() );
+}
+
+/**
+ * @test unsubscribe while initializing a node
+ */
+BOOST_AUTO_TEST_CASE( unsubscribe_while_initializing_a_subscription )
+{
+    boost::asio::io_service                 queue;
+    test::adapter                           adapter;
+    pubsub::root                            root(queue, adapter, configuration() );
+
+    boost::shared_ptr< ::pubsub::subscriber > subscriber( new test::subscriber );
+    root.subscribe(subscriber, random_node_name);
+    adapter.answer_authorization_request( subscriber, random_node_name, true );
+    adapter.answer_validation_request( random_node_name, true );
+
+    tools::run(queue);
+
+    BOOST_CHECK( root.unsubscribe(subscriber, random_node_name) );
+
+    BOOST_CHECK( adapter.initialization_requested( random_node_name ) );
+    adapter.answer_initialization_request( random_node_name, json::null() );
+    BOOST_CHECK( adapter.empty() );
+    BOOST_CHECK( subscriber.unique() );
+    BOOST_CHECK( test_user(subscriber).empty() );
 }

@@ -23,16 +23,6 @@ namespace bayeux
 		configuration();
 
 		/**
-		 * @brief returns the maximum number of subscriptions per client.
-		 */
-		unsigned max_subscriptions() const;
-
-		/**
-		 * @brief sets a new value for the maximum number of subscriptions per client.
-		 */
-		configuration& max_subscriptions( unsigned new_value );
-
-		/**
 		 * @brief maximum time, a client can be disconnected until the client will be unsubscribed and freed
 		 */
 		boost::posix_time::time_duration max_disconnected_time() const;
@@ -72,7 +62,6 @@ namespace bayeux
 		configuration& max_messages_size_per_client( std::size_t new_limit );
 
 	private:
-		unsigned 							max_subscriptions_;
 		boost::posix_time::time_duration	max_disconnected_time_;
 		unsigned 							max_messages_per_client_;
 		std::size_t							max_messages_size_per_client_;

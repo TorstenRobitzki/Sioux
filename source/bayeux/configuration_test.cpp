@@ -7,20 +7,6 @@
 
 #include "bayeux/configuration.h"
 
-BOOST_AUTO_TEST_CASE( max_subscriptions_config_test )
-{
-	bayeux::configuration config;
-
-	BOOST_CHECK_EQUAL( &config.max_subscriptions( 5u ), &config );
-	BOOST_CHECK_EQUAL( config.max_subscriptions(), 5u );
-
-	BOOST_CHECK_EQUAL( &config.max_subscriptions( 0u ), &config );
-	BOOST_CHECK_EQUAL( config.max_subscriptions(), 0 );
-
-	BOOST_CHECK_EQUAL( &config.max_subscriptions( 444u ), &config );
-	BOOST_CHECK_EQUAL( config.max_subscriptions(), 444u );
-}
-
 BOOST_AUTO_TEST_CASE( max_disconnected_time_config_test )
 {
 	bayeux::configuration config;
@@ -66,12 +52,10 @@ BOOST_AUTO_TEST_CASE( max_messages_size_per_client_config_test )
 BOOST_AUTO_TEST_CASE( check_configuration_items_are_independent )
 {
 	bayeux::configuration config;
-	config.max_subscriptions( 12u )
-		.max_disconnected_time( boost::posix_time::minutes(1) )
+	config.max_disconnected_time( boost::posix_time::minutes(1) )
 		.max_messages_per_client( 4u )
 		.max_messages_size_per_client( 1234u );
 
-	BOOST_CHECK_EQUAL( config.max_subscriptions(), 12u );
 	BOOST_CHECK_EQUAL( config.max_disconnected_time(), boost::posix_time::minutes(1) );
 	BOOST_CHECK_EQUAL( config.max_messages_per_client(), 4u );
 	BOOST_CHECK_EQUAL( config.max_messages_size_per_client(), 1234u );

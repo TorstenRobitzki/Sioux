@@ -26,6 +26,8 @@ namespace bayeux
 	    , messages_()
 		, http_connection_()
 		, config_( config )
+	    , subscription_mutex_()
+	    , subscription_ids_()
 	{
 	}
 
@@ -89,8 +91,39 @@ namespace bayeux
         root_.subscribe( shared_from_this(), name );
     }
 
-    void session::unsubscribe( const pubsub::node_name& )
+    void session::unsubscribe( const pubsub::node_name& node, const json::value* id )
     {
+        json::value subscribe_response = json::null();
+
+        // check if there is still a subscription response is outstanding
+        {
+            boost::mutex::scoped_lock lock( subscription_mutex_ );
+
+            subscription_ids_t::iterator pos = subscription_ids_.find( node );
+
+            if ( pos != subscription_ids_.end() )
+            {
+                subscribe_response = build_subscription_success_msg( pos->second, node );
+                subscription_ids_.erase( pos );
+            }
+        }
+
+        const json::object unsubscribe_response = root_.unsubscribe( shared_from_this(), node )
+                ? build_unsubscribe_success_msg( node, id )
+                : build_unsubscribe_error_msg( node, id );
+
+        if ( subscribe_response == json::null() )
+        {
+            add_message_and_notify( unsubscribe_response );
+        }
+        else
+        {
+            json::array responses;
+            responses.add( subscribe_response );
+            responses.add( unsubscribe_response );
+
+            add_messages_and_notify( responses );
+        }
     }
 
 	void session::on_update(const pubsub::node_name& name, const pubsub::node& data)
@@ -210,6 +243,43 @@ namespace bayeux
         data.data().visit( visitor );
 
         return visitor.message;
+    }
+
+    json::object session::build_unsubscribe_error_msg( const pubsub::node_name& node, const json::value* id ) const
+    {
+        static const json::object message_prototype = json::parse_single_quoted(
+            "{"
+            "   'channel'    : '/meta/unsubscribe',"
+            "   'successful' : false,"
+            "   'error'      : 'not subscribed'"
+            "}" ).upcast< json::object >();
+
+        json::object message = message_prototype.copy();
+        message.add( subscription_tag, channel_from_node_name( node ) );
+        message.add( client_id_tag, session_id_ );
+
+        if ( id )
+            message.add( id_tag, *id );
+
+        return message;
+    }
+
+    json::object session::build_unsubscribe_success_msg( const pubsub::node_name& node, const json::value* id ) const
+    {
+        static const json::object message_prototype = json::parse_single_quoted(
+            "{"
+            "   'channel'    : '/meta/unsubscribe',"
+            "   'successful' : true"
+            "}" ).upcast< json::object >();
+
+        json::object message = message_prototype.copy();
+        message.add( subscription_tag, channel_from_node_name( node ) );
+        message.add( client_id_tag, session_id_ );
+
+        if ( id )
+            message.add( id_tag, *id );
+
+        return message;
     }
 
     void session::add_subscription_id_if_exists( const pubsub::node_name& name, json::object& message )

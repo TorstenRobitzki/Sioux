@@ -29,6 +29,12 @@ namespace pubsub
 
     /**
      * @brief root of a changeable and observable tree like data structure
+     *
+     * In some circumstances there might be race conditions, when it comes to subscribing and unsubscribing the
+     * same subscriber to / from the same node. It's important for the overall effect that this two operations are
+     * performed in the right order. If this operations are performed at the same time, the root object can not decide
+     * which effect is the intended one. So it's up to the caller to make sure that subscribe() and unsubscribe() are
+     * called in the right and intended order.
      */
     class root
     {
@@ -66,13 +72,15 @@ namespace pubsub
 
         /**
          * @brief stops the subscription of the subscriber to the named node.
+         * @return returns true, if the subscriber was subscribed to the named node.
          */
-        void unsubscribe(const boost::shared_ptr<subscriber>&, const node_name& node_name);
+        bool unsubscribe(const boost::shared_ptr<subscriber>&, const node_name& node_name);
 
         /**
          * @brief stops all subscriptions of the subscriber
+         * @return returns the number of subjects the subscriber was unsubscribed from
          */
-        void unsubscribe_all(const boost::shared_ptr<subscriber>&);
+        unsigned unsubscribe_all(const boost::shared_ptr<subscriber>&);
 
         void update_node(const node_name& node_name, const json::value& new_data);
 

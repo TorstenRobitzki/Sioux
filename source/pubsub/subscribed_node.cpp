@@ -205,12 +205,11 @@ namespace pubsub {
 		}
 	}
 
-	void subscribed_node::remove_subscriber(const boost::shared_ptr<subscriber>& user)
+	bool subscribed_node::remove_subscriber(const boost::shared_ptr<subscriber>& user)
 	{
 		boost::mutex::scoped_lock lock(mutex_);
 
-		subscribers_.erase(user);
-		unauthorized_.erase(user);
+		return subscribers_.erase(user) + unauthorized_.erase(user) != 0;
 	}
 
 	void subscribed_node::validated(const details::node_validator& last_step)

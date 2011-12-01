@@ -224,6 +224,7 @@ def run_test test_name, flavor, single_test
     sh exe_file_name( test_name, flavor ), single_test == 'all' ? '' : "--run_test=#{single_test}"
 end
 
+# builds tasks for the given test_name.
 def test test_name, *dependencies
     ALL_TEST_NAMES << test_name
 	params = {:libraries => [], :extern_libs => [], :sources => [] }
@@ -261,12 +262,12 @@ def test test_name, *dependencies
 	end
 end
 
-# include sub rake files
+# include sub rake files (this will populate ALL_TEST_NAMES)
 libraries.each do |library_name|
-	rakefile = File.join(SOURCE_FOLDER, library_name, 'rakefile')
-	if File.exist? rakefile then
-		load rakefile
-	end	 
+    rakefile = File.join(SOURCE_FOLDER, library_name, 'rakefile')
+    if File.exist? rakefile then
+        load rakefile
+    end  
 end
 
 desc 'build all executables shiped with a sioux server'
@@ -281,7 +282,7 @@ task :libs, [:flavor] do |t, args|
 end
 
 desc 'run all tests'
-task :tests, [:flavor] => :build_tests
+task :tests, [:flavor] => ALL_TEST_NAMES
 
 desc 'lists the available tests'
 task :list_tests do

@@ -100,8 +100,12 @@ namespace bayeux
 		/**
 		 * @brief unsubscribe from a node
 		 */
-        void unsubscribe( const pubsub::node_name& node );
+        void unsubscribe( const pubsub::node_name& node, const json::value* id );
 	private:
+        // no copy, no assigment
+        session( const session& );
+        session& operator=( const session& );
+
         virtual void on_update(const pubsub::node_name& name, const pubsub::node& data);
         virtual void on_invalid_node_subscription(const pubsub::node_name& node);
         virtual void on_unauthorized_node_subscription(const pubsub::node_name& node);
@@ -116,6 +120,8 @@ namespace bayeux
         json::object build_subscription_error_msg( const json::string& error_msg, const pubsub::node_name& node );
         json::object build_subscription_success_msg( const subscription_context& id, const pubsub::node_name& node ) const;
         json::object build_update_msg( const pubsub::node_name& name, const pubsub::node& data ) const;
+        json::object build_unsubscribe_error_msg( const pubsub::node_name& node, const json::value* id ) const;
+        json::object build_unsubscribe_success_msg( const pubsub::node_name& node, const json::value* id ) const;
 
         void add_subscription_id_if_exists( const pubsub::node_name& name, json::object& message );
 
@@ -129,16 +135,18 @@ namespace bayeux
         const json::string							session_id_;
         pubsub::root&                               root_;
 
+        // used to synchronize the access to the members below
         boost::mutex								mutex_;
 
         json::array                                 messages_;
         boost::shared_ptr< response_interface >     http_connection_;
         boost::shared_ptr< const configuration >	config_;
 
+        // used to synchronize the access to subscription_ids_
         boost::mutex                                subscription_mutex_;
 
         typedef std::multimap< pubsub::node_name, subscription_context > subscription_ids_t;
-        subscription_ids_t subscription_ids_;
+        subscription_ids_t                          subscription_ids_;
 	};
 }
 
