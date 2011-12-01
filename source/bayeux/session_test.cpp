@@ -281,7 +281,7 @@ namespace
             ++second_connections_detected_;
         }
 
-        void new_messages( const json::array& message )
+        void messages( const json::array& message )
         {
             messages_.push_back( message );
         }
@@ -786,14 +786,39 @@ BOOST_AUTO_TEST_CASE( unsubscribe_before_subscription_acknowledged )
 /**
  * @test check that a connection is closed after a certain time out to implement long polling
  */
- BOOST_AUTO_TEST_CASE( session_connect_time_out )
- {
+BOOST_AUTO_TEST_CASE( session_connect_time_out )
+{
+    test_root       root;
+    const boost::shared_ptr< bayeux::session > session( new bayeux::session( "abcdefg", root.root_, config() ) );
+    const boost::shared_ptr< test_interface >  interface( new test_interface );
 
- }
+    BOOST_CHECK_EQUAL( json::array(), session->wait_for_events( interface ) );
+
+    BOOST_CHECK( !interface.unique() );
+    BOOST_CHECK( interface->messages().empty() );
+
+    session->timeout();
+    BOOST_CHECK( interface.unique() );
+    BOOST_CHECK_EQUAL( json::array(), interface->new_message() );
+}
 
  /**
   * @test if the session got closed, all subscriptions must be ended and no more references must be kept
   */
- BOOST_AUTO_TEST_CASE( unsubscribe_all_if_session_is_closed )
- {
- }
+BOOST_AUTO_TEST_CASE( unsubscribe_all_if_session_is_closed )
+{
+    test_root       root;
+    const boost::shared_ptr< bayeux::session > session( new bayeux::session( "abcdefg", root.root_, config() ) );
+    const boost::shared_ptr< test_interface >  bayeux_connection( new test_interface );
+
+    subscribe_session( root, session, node_1 );
+    subscribe_session( root, session, node_2 );
+
+    BOOST_CHECK_EQUAL( json::array(), session->wait_for_events( bayeux_connection ) );
+    BOOST_CHECK( !bayeux_connection.unique() );
+    BOOST_CHECK( !session.unique() );
+
+    session->close();
+    BOOST_CHECK( bayeux_connection.unique() );
+    BOOST_CHECK( session.unique() );
+}

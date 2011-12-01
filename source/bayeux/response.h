@@ -60,7 +60,7 @@ namespace bayeux
 	private:
 		// response_interface implementation
 		void second_connection_detected();
-        void new_messages( const json::array& );
+        void messages( const json::array& );
 
         static std::string extract_channel( const json::object& request );
 		static json::string extract_client_id( const json::object& request );

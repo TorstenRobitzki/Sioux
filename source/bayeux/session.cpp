@@ -126,7 +126,33 @@ namespace bayeux
         }
     }
 
-	void session::on_update(const pubsub::node_name& name, const pubsub::node& data)
+    void session::timeout()
+    {
+        boost::shared_ptr< response_interface >  old_connection;
+
+        {
+            boost::mutex::scoped_lock lock( mutex_ );
+
+            if ( http_connection_.get() )
+            {
+                assert( messages_.empty() );
+                http_connection_.swap( old_connection );
+            }
+        }
+
+        if ( old_connection.get() )
+            old_connection->messages( json::array() );
+    }
+
+    void session::close()
+    {
+        root_.unsubscribe_all( shared_from_this() );
+
+        boost::mutex::scoped_lock lock( mutex_ );
+        http_connection_.reset();
+    }
+
+    void session::on_update(const pubsub::node_name& name, const pubsub::node& data)
     {
 	    // there is no different in receiving the initial data after a subscription,
 	    // of updated data. If there is an entry for the subject, the subscription wasn't
@@ -322,7 +348,7 @@ namespace bayeux
         }
 
         if ( old_connection.get() )
-            old_connection->new_messages( updates );
+            old_connection->messages( updates );
     }
 
     void session::add_messages_and_notify( const json::array& new_messages )
@@ -344,7 +370,7 @@ namespace bayeux
         }
 
         if ( old_connection.get() )
-            old_connection->new_messages( updates );
+            old_connection->messages( updates );
     }
 
 

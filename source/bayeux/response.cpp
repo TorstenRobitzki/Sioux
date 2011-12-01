@@ -22,7 +22,7 @@ namespace bayeux
         // and now?
     }
 
-    void response_base::new_messages( const json::array& )
+    void response_base::messages( const json::array& )
     {
 
     }

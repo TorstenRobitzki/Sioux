@@ -29,8 +29,16 @@ namespace bayeux
 	class response_interface
 	{
 	public:
+	    /**
+	     * @brief a second connection for a session has been detected
+	     */
         virtual void second_connection_detected() = 0;
-        virtual void new_messages( const json::array& ) = 0;
+
+        /**
+         * @brief will be called when new data has been received or the polling timeout has been reached
+         */
+        virtual void messages( const json::array& ) = 0;
+
         virtual ~response_interface() {}
 	};
 
@@ -101,6 +109,20 @@ namespace bayeux
 		 * @brief unsubscribe from a node
 		 */
         void unsubscribe( const pubsub::node_name& node, const json::value* id );
+
+        /**
+         * @brief releases a stored response_interface by invoking the messages function
+         */
+        void timeout();
+
+        /**
+         * @brief to be called, when the session should be closed.
+         *
+         * The function will unsubscribe from all nodes.
+         * @post do not call any function exception the d'tor after calling close()
+         */
+        void close();
+
 	private:
         // no copy, no assigment
         session( const session& );
