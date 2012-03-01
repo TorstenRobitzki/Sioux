@@ -195,9 +195,9 @@ BOOST_AUTO_TEST_CASE( json_special_test )
 
 /*
  * parse the given string in two parts, to test that the state of the parser is correctly stored
- * between to calls to parse()
+ * between two calls to parse()
  */
-static bool split_parse(const std::string& json)
+static bool split_parse( const std::string& json )
 {
     assert(!json.empty());
     const json::value expected = json::parse(json.begin(), json.end());
@@ -484,3 +484,81 @@ BOOST_AUTO_TEST_CASE( object_empty_test )
     foo.erase( json::string("b") );
     BOOST_CHECK( foo.empty() );
 }
+
+/**
+ * @test test the value::try_cast() function
+ */
+BOOST_AUTO_TEST_CASE( value_try_cast )
+{
+    const json::string str( "hallo" );
+    const json::number num( 42 );
+    const json::object obj;
+    const json::array  arr( json::string( "foo" ) );
+    const json::true_val true_;
+    const json::false_val false_;
+    const json::null   null;
+
+    const std::pair< bool, json::string > string_as_string = json::value( str ).try_cast< json::string >();
+    const std::pair< bool, json::number > string_as_number = json::value( str ).try_cast< json::number >();
+    const std::pair< bool, json::null >   string_as_null   = json::value( str ).try_cast< json::null >();
+
+    BOOST_CHECK_EQUAL( str, string_as_string.second );
+    BOOST_CHECK( string_as_string.first );
+    BOOST_CHECK( !string_as_number.first );
+    BOOST_CHECK( !string_as_null.first );
+
+    const std::pair< bool, json::number > number_as_number = json::value( num ).try_cast< json::number >();
+    const std::pair< bool, json::string > number_as_string = json::value( num ).try_cast< json::string >();
+    const std::pair< bool, json::array >  number_as_array  = json::value( num ).try_cast< json::array >();
+
+    BOOST_CHECK_EQUAL( num, number_as_number.second );
+    BOOST_CHECK( number_as_number.first );
+    BOOST_CHECK( !number_as_string.first );
+    BOOST_CHECK( !number_as_array.first );
+
+    const std::pair< bool, json::object >    object_as_object = json::value( obj ).try_cast< json::object >();
+    const std::pair< bool, json::true_val >  object_as_true   = json::value( obj ).try_cast< json::true_val >();
+    const std::pair< bool, json::false_val > object_as_false  = json::value( obj ).try_cast< json::false_val >();
+
+    BOOST_CHECK_EQUAL( obj, object_as_object.second );
+    BOOST_CHECK( object_as_object.first );
+    BOOST_CHECK( !object_as_true.first );
+    BOOST_CHECK( !object_as_false.first );
+
+    const std::pair< bool, json::array >  array_as_array  = json::value( arr ).try_cast< json::array >();
+    const std::pair< bool, json::object > array_as_object = json::value( arr ).try_cast< json::object >();
+    const std::pair< bool, json::null >   array_as_null   = json::value( arr ).try_cast< json::null >();
+
+    BOOST_CHECK_EQUAL( arr, array_as_array.second );
+    BOOST_CHECK( array_as_array.first );
+    BOOST_CHECK( !array_as_object.first );
+    BOOST_CHECK( !array_as_null.first );
+
+    const std::pair< bool, json::true_val >  true_as_true   = json::value( true_ ).try_cast< json::true_val >();
+    const std::pair< bool, json::false_val > true_as_false  = json::value( true_ ).try_cast< json::false_val >();
+    const std::pair< bool, json::string >    true_as_string = json::value( true_ ).try_cast< json::string >();
+
+    BOOST_CHECK_EQUAL( true_, true_as_true.second );
+    BOOST_CHECK( true_as_true.first );
+    BOOST_CHECK( !true_as_false.first );
+    BOOST_CHECK( !true_as_string.first );
+
+    const std::pair< bool, json::false_val > false_as_false  = json::value( false_ ).try_cast< json::false_val >();
+    const std::pair< bool, json::number >    false_as_number = json::value( false_ ).try_cast< json::number >();
+    const std::pair< bool, json::null >      false_as_null   = json::value( false_ ).try_cast< json::null >();
+
+    BOOST_CHECK_EQUAL( false_, false_as_false.second );
+    BOOST_CHECK( false_as_false.first );
+    BOOST_CHECK( !false_as_number.first );
+    BOOST_CHECK( !false_as_null.first );
+
+    const std::pair< bool, json::null >   null_as_null   = json::value( null ).try_cast< json::null >();
+    const std::pair< bool, json::number > null_as_number = json::value( null ).try_cast< json::number >();
+    const std::pair< bool, json::string > null_as_string = json::value( null ).try_cast< json::string >();
+
+    BOOST_CHECK_EQUAL( null, null_as_null.second );
+    BOOST_CHECK( null_as_null.first );
+    BOOST_CHECK( !null_as_number.first );
+    BOOST_CHECK( !null_as_string.first );
+}
+

@@ -8,6 +8,7 @@
 #include "server/connection.h"
 #include "server/test_traits.h"
 #include "server/test_tools.h"
+#include "server/test_socket.h"
 #include "http/test_request_texts.h"
 #include <boost/date_time/posix_time/posix_time.hpp>
 
@@ -21,7 +22,7 @@ using namespace http::test;
 BOOST_AUTO_TEST_CASE( read_simple_header )
 {
     boost::asio::io_service     queue;
-    traits<>::connection_type   socket(queue, begin(simple_get_11), end(simple_get_11), 5);
+    traits<>::connection_type   socket( queue, begin( simple_get_11 ), end( simple_get_11 ), 5u );
     traits<>                    trait;
 
     server::create_connection(socket, trait);
@@ -58,9 +59,9 @@ BOOST_AUTO_TEST_CASE( read_big_buffer )
     for ( unsigned i = 0; i != 1000; ++i )
         input.insert(input.end(), begin(simple_get_11), end(simple_get_11));
 
-    typedef traits<server::test::socket<std::vector<char>::const_iterator> > socket_t;
+    typedef traits< server::test::response_factory, server::test::socket<std::vector<char>::const_iterator> > socket_t;
     boost::asio::io_service     queue;
-    socket_t::connection_type   socket(queue, input.begin(), input.end());
+    socket_t::connection_type   socket( queue, input.begin(), input.end() );
     traits<>                    traits;
 
     server::create_connection(socket, traits);
@@ -81,7 +82,7 @@ BOOST_AUTO_TEST_CASE( read_buffer_overflow )
     for ( unsigned i = 0; i != 10000; ++i )
         input.insert( input.end(), begin( header ), end(header) );
 
-    typedef traits< server::test::socket< std::vector< char >::const_iterator > > socket_t;
+    typedef traits< server::test::response_factory, server::test::socket<std::vector<char>::const_iterator> > socket_t;
     boost::asio::io_service     queue;
     socket_t::connection_type   socket( queue, input.begin(), input.end() );
     traits<>                    traits;

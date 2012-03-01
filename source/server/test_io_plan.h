@@ -6,7 +6,9 @@
 #define SIOUX_SRC_SERVER_TEST_IO_PLAN_H
 
 #include <boost/date_time/posix_time/posix_time_types.hpp>
+#include <boost/function.hpp>
 #include <boost/shared_ptr.hpp>
+#include <boost/system/error_code.hpp>
 #include <utility>
 #include <vector>
 
@@ -45,6 +47,14 @@ namespace test
          * @brief adds a new item, with no data and the given delay
          */
         void delay(const boost::posix_time::time_duration& delay);
+
+        /**
+         * @brief a function object to be executed.
+         * The function will be executed when the item that next will be added will be pulled out with a call to next_read().
+         * So if a function is added with execute( f ) and than, one item is added with add( "foo" ), one item can
+         * be pulled with next_read() and will next_read() get executed, f will be executed.
+         */
+        void execute( const boost::function< void() >& f );
 
         /** 
          * @brief returns true, if the list is empty
@@ -110,6 +120,11 @@ namespace test
     read_plan operator<<( read_plan plan, const disconnect_read& );
 
     /**
+     * @brief adds the given function to be execute before the next read is simulated
+     */
+    read_plan operator<<( read_plan plan, const boost::function< void() >& );
+
+    /**
      * @brief plan, that describes, how large issued writes are performed and how much 
      * delay it to be issued between writes
      */
@@ -121,7 +136,12 @@ namespace test
          */
         write_plan();
 
-        typedef std::pair<std::size_t, boost::posix_time::time_duration> item;
+        struct item
+        {
+            std::size_t                         size;
+            boost::posix_time::time_duration    delay;
+            boost::system::error_code           error_code;
+        };
 
         /**
          * @brief returns the data for the next, write to perform. The time duration is the time until the write 
@@ -140,6 +160,11 @@ namespace test
          * @brief adds a new item, with no data and the given delay
          */
         void delay(const boost::posix_time::time_duration& delay);
+
+        /**
+         * @brief adds a new item, with the error_code field set to ec
+         */
+        void error( const boost::system::error_code& ec );
 
         /** 
          * @brief returns true, if the list is empty
@@ -172,6 +197,12 @@ namespace test
      * @relates write_plan
      */
     write_plan operator<<(write_plan plan, const delay&);
+
+    /**
+     * @brief adds a error the the write_plan
+     * @relates write_plan
+     */
+    write_plan operator<<( write_plan plan, const boost::system::error_code& ec );
 
 } // test
 } // namespace server

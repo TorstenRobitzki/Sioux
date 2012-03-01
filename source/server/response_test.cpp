@@ -26,13 +26,12 @@ namespace {
         boost::static_pointer_cast<response>(boost::shared_ptr<server::async_response>(resp))->simulate_incomming_data();
     }
 
-    template <class Connection>
     struct hello_world_response_factory
     {
         static const char*  texts[3];
         static const char** next_response;
 
-        template <class Trait>
+        template < class Trait, class Connection >
         static boost::shared_ptr<server::async_response> create_response(
             const boost::shared_ptr<Connection>&                    connection,
             const boost::shared_ptr<const http::request_header>&    header,
@@ -50,11 +49,8 @@ namespace {
         }
     };
 
-    template <class Connection>
-    const char*  hello_world_response_factory<Connection>::texts[3] = {"Hallo,", " wie ", "gehts?"};
-
-    template <class Connection>
-    const char** hello_world_response_factory<Connection>::next_response = tools::begin(texts);
+    const char*  hello_world_response_factory::texts[3] = {"Hallo,", " wie ", "gehts?"};
+    const char** hello_world_response_factory::next_response = tools::begin(texts);
 
 }
 
@@ -67,7 +63,7 @@ BOOST_AUTO_TEST_CASE(simply_receiving_a_hello)
 {
 
     typedef server::test::socket<const char*>                       socket_t;
-    typedef traits<socket_t, hello_world_response_factory>          trait_t;
+    typedef traits< hello_world_response_factory >                    trait_t;
     typedef server::connection<trait_t>                             connection_t;
     typedef std::vector<boost::weak_ptr<server::async_response> >   response_list_t;
 
@@ -111,7 +107,7 @@ BOOST_AUTO_TEST_CASE(simply_receiving_a_hello)
             BOOST_CHECK_EQUAL(0, resp->use_count());
         }
 
-        // and finaly, the ouput must be same for every order of response
+        // and finaly, the ouput must be the same for every order of response
         BOOST_CHECK_EQUAL("Hallo, wie gehts?", socket.output());
     } while ( std::next_permutation(tools::begin(index), tools::end(index)) );
 
@@ -119,12 +115,11 @@ BOOST_AUTO_TEST_CASE(simply_receiving_a_hello)
 
 namespace {
 
-    template <class Connection>
     struct error_response_factory
     {
         static int context;
 
-        template <class Trait>
+        template < class Trait, class Connection >
         static boost::shared_ptr<server::async_response> create_response(
             const boost::shared_ptr<Connection>&                    connection,
             const boost::shared_ptr<const http::request_header>&    header,
@@ -151,8 +146,7 @@ namespace {
         }
     };
 
-    template <class Connection>
-    int error_response_factory<Connection>::context = 0;
+    int error_response_factory::context = 0;
 }
 
 /** 
@@ -161,9 +155,9 @@ namespace {
  */
 BOOST_AUTO_TEST_CASE(non_fatal_error_while_responding)
 {
-    typedef server::test::socket<const char*>           socket_t;
-    typedef traits<socket_t, error_response_factory>    trait_t;
-    typedef server::connection<trait_t>                 connection_t;
+    typedef server::test::socket<>              socket_t;
+    typedef traits< error_response_factory >    trait_t;
+    typedef server::connection< trait_t >       connection_t;
 
     boost::asio::io_service queue;
     socket_t                socket(queue, begin(simple_get_11), end(simple_get_11), 0, 3);
@@ -193,19 +187,19 @@ BOOST_AUTO_TEST_CASE(non_fatal_error_while_responding)
     assert(size);
     third.parse(size);
 
-    BOOST_CHECK_EQUAL(http::response_header::ok, first.state());
-    BOOST_CHECK_EQUAL(http::response_header::ok, second.state());
-    BOOST_CHECK_EQUAL(http::response_header::ok, third.state());
-    BOOST_CHECK_EQUAL(http::http_continue, first.code());
-    BOOST_CHECK_EQUAL(http::http_not_found, second.code());
-    BOOST_CHECK_EQUAL(http::http_switching_protocols, third.code());
+    BOOST_CHECK_EQUAL( http::response_header::ok, first.state() );
+    BOOST_CHECK_EQUAL( http::response_header::ok, second.state() );
+    BOOST_CHECK_EQUAL( http::response_header::ok, third.state() );
+    BOOST_CHECK_EQUAL( http::http_continue, first.code() );
+    BOOST_CHECK_EQUAL( http::http_not_found, second.code() );
+    BOOST_CHECK_EQUAL( http::http_switching_protocols, third.code() );
 
-    BOOST_CHECK_EQUAL(1, resp[0].use_count());
-    BOOST_CHECK_EQUAL(1, resp[1].use_count());
-    BOOST_CHECK_EQUAL(1, resp[2].use_count());
+    BOOST_CHECK_EQUAL( 1, resp[0].use_count() );
+    BOOST_CHECK_EQUAL( 1, resp[1].use_count() );
+    BOOST_CHECK_EQUAL( 1, resp[2].use_count() );
 
     resp.clear();
-    BOOST_CHECK_EQUAL(1, connection.use_count());
+    BOOST_CHECK_EQUAL( 1, connection.use_count() );
 }
 
 /** 

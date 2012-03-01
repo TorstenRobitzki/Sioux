@@ -246,3 +246,45 @@ BOOST_AUTO_TEST_CASE( remote_endpoint_returns_the_expected_value )
 			tools::as_string( server::test::socket<const char*>().remote_endpoint() ) );
 }
 
+static void increment( int& i )
+{
+    ++i;
+}
+
+/**
+ * @test make sure, that read_plan::execute() will be called
+ */
+BOOST_AUTO_TEST_CASE( read_plan_execute_test )
+{
+    namespace pt = boost::posix_time;
+    using server::test::read;
+
+    int i = 0;
+    read_plan   plan;
+    plan << boost::bind( &increment, boost::ref( i ) ) << read( "a" )
+         << delay( pt::millisec(100) ) << read( "b" )
+         << delay( pt::millisec(200) ) << boost::bind( &increment, boost::ref( i ) ) << read( "c" )
+         << boost::bind( &increment, boost::ref( i ) )
+         << read( "d" );
+
+    BOOST_REQUIRE_EQUAL( i, 0 );
+    read_plan::item item = plan.next_read();
+    BOOST_CHECK_EQUAL( i, 1 );
+    BOOST_CHECK( item == std::make_pair( std::string( "a" ), pt::time_duration() ) );
+
+    item = plan.next_read();
+    BOOST_CHECK_EQUAL( i, 1 );
+    BOOST_CHECK( item == std::make_pair( std::string( "b" ), pt::time_duration( pt::millisec( 100 ) ) ) );
+
+    item = plan.next_read();
+    BOOST_CHECK_EQUAL( i, 1 );
+    BOOST_CHECK( item == std::make_pair( std::string( "" ), pt::time_duration( pt::millisec( 200 ) ) ) );
+
+    item = plan.next_read();
+    BOOST_CHECK_EQUAL( i, 2 );
+    BOOST_CHECK( item == std::make_pair( std::string( "c" ), pt::time_duration() ) );
+
+    item = plan.next_read();
+    BOOST_CHECK_EQUAL( i, 3 );
+    BOOST_CHECK( item == std::make_pair( std::string( "d" ), pt::time_duration() ) );
+}

@@ -36,18 +36,21 @@ namespace server {
     };
 
 
-    template <class Connection>
-    error_response<Connection>::error_response(const boost::shared_ptr<Connection>& con, http::http_error_code ec)
-        : buffer_("HTTP/1.1 " + tools::as_string(static_cast<int>(ec)) + " " + http::reason_phrase(ec) + "\r\nContent-Length:0\r\n\r\n")
-     , connection_(con)
+    template < class Connection >
+    error_response< Connection >::error_response( const boost::shared_ptr<Connection>& con, http::http_error_code ec )
+        : buffer_( "HTTP/1.1 "
+            + tools::as_string( static_cast< int >( ec ) ) + " "
+            + http::reason_phrase( ec )
+            + "\r\nContent-Length:0\r\n\r\n" )
+        , connection_( con )
     {
     }
 
-    template <class Connection>
-    void error_response<Connection>::start()
+    template < class Connection >
+    void error_response< Connection >::start()
     {
         connection_->async_write(
-            boost::asio::buffer(buffer_),
+            boost::asio::buffer( buffer_ ),
             boost::bind(
                 &error_response::handle_written, 
                 this->shared_from_this(),
@@ -57,7 +60,7 @@ namespace server {
     }
 
     template <class Connection>
-    void error_response<Connection>::handle_written(const boost::system::error_code&, std::size_t)
+    void error_response<Connection>::handle_written(const boost::system::error_code&, std::size_t s)
     {
         connection_->response_completed(*this);
     }

@@ -281,7 +281,7 @@ namespace
             ++second_connections_detected_;
         }
 
-        void messages( const json::array& message )
+        void messages( const json::array& message, const json::string& )
         {
             messages_.push_back( message );
         }

@@ -60,4 +60,10 @@ namespace bayeux
 
 		return result;
 	}
+
+    pubsub::node_name node_name_from_channel( const char* s )
+    {
+        return node_name_from_channel( json::string( s ) );
+    }
+
 }

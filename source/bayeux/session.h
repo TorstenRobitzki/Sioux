@@ -37,7 +37,7 @@ namespace bayeux
         /**
          * @brief will be called when new data has been received or the polling timeout has been reached
          */
-        virtual void messages( const json::array& ) = 0;
+        virtual void messages( const json::array&, const json::string& session_id ) = 0;
 
         virtual ~response_interface() {}
 	};
@@ -114,6 +114,11 @@ namespace bayeux
          * @brief releases a stored response_interface by invoking the messages function
          */
         void timeout();
+
+        /**
+         * @brief unblock the session
+         */
+        void hurry();
 
         /**
          * @brief to be called, when the session should be closed.

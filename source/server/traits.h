@@ -131,6 +131,7 @@ namespace server
      * ErrorLog is used to log errors, that can steam from misbehaving clients or from configuration problems.
      */
     template < class Network,
+               class Timer,
                class ResponseFactory,
                class EventLog = null_event_logger,
                class ErrorLog = null_error_logger,
@@ -146,6 +147,11 @@ namespace server
          * the underlying network stream type
          */
         typedef Network network_stream_type;
+
+        /**
+         * the timer to be used for timeouts
+         */
+        typedef Timer timeout_timer_type;
 
         connection_traits() {}
 

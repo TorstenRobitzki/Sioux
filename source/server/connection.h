@@ -49,11 +49,14 @@ namespace server
      * a boost::posix_time::time_duration, that gives the maximum time, a read or write can
      * last until the connection is closed.
 	 */
-    template <class Trait, class Connection = typename Trait::network_stream_type>
+    template < class Trait,
+               class Connection = typename Trait::network_stream_type,
+               class Timer = typename Trait::timeout_timer_type >
     class connection : public boost::enable_shared_from_this<connection<Trait, Connection> >
 	{
 	public:
         typedef Connection  socket_t;
+        typedef Timer       timer_t;
 
         /**
          * @brief contructs a connection object by passing an IO object and trait object.
@@ -76,11 +79,11 @@ namespace server
          * sender to get it's response send.
          *
          * timeout() is called for the trait object that was passed to the c'tor to determine the timeout value. The
-         * timeout is only applied, the connection is realy used for sending, not when waiting for the response of
+         * timeout is only applied, if the connection is really used for sending, not when waiting for the response of
          * request that where made earlier.
          *
-         * @post a async_response implementation have to call response_completed() once after calling
-         *       async_write_some() the last time
+         * @post a async_response implementation have to call response_completed() or response_not_possible() once after
+         *       calling async_write_some() or async_write() the last time
          */
         template<
             typename ConstBufferSequence,
@@ -124,14 +127,14 @@ namespace server
          * have to be called exactly once by an async_response that called response_started() before.
          *
          * It must be harmless to call this function, even when response_not_possible() was called before,
-         * or otherwise the async_response implementations have to keep track if an error occured.
+         * or otherwise the async_response implementations have to keep track if an error occurred.
          */
         void response_completed(async_response& sender);
 
         /**
          * @brief end of response with error
          *
-         * Same as response_completed(), but with an error code. The connection will do the nessary 
+         * Same as response_completed(), but with an error code. The connection will do the necessary
          * response to the client (if possible).
          *
          * In case of a http_internal_server_error error code, all running requests are canceled and the underlying
@@ -252,12 +255,11 @@ namespace server
 	template <class Connection, class Trait>
     boost::shared_ptr<connection<Trait, Connection> > create_connection(const Connection& con, Trait& trait);
 
-
     /////////////////////////////////////////////////////////////////////////////////////////////////////
     // implementation
-	template <class Trait, class Connection>
-    template <class ConArg>
-	connection<Trait, Connection>::connection(ConArg arg, Trait& trait)
+	template < class Trait, class Connection, class Timer >
+    template < class ConArg >
+	connection< Trait, Connection, Timer >::connection(ConArg arg, Trait& trait)
         : connection_(arg)
         , trait_(trait)
         , current_request_()
@@ -271,8 +273,8 @@ namespace server
         trait_.event_connection_created(*this);
     }
 
-    template <class Trait, class Connection>
-	connection<Trait, Connection>::~connection()
+    template < class Trait, class Connection, class Timer >
+	connection< Trait, Connection, Timer >::~connection()
     {
         assert( blocked_writes_.empty() );
         assert( body_read_call_back_.empty() );
@@ -282,15 +284,15 @@ namespace server
         trait_.event_connection_destroyed( *this );
     }
 
-	template <class Trait, class Connection>
-    void connection<Trait, Connection>::start()
+    template < class Trait, class Connection, class Timer >
+    void connection< Trait, Connection, Timer >::start()
     {
         current_request_.reset(new http::request_header);
         issue_header_read(trait_.timeout());
     }
 
-    template <class Trait, class Connection>
-    void connection<Trait, Connection>::hurry_writers(async_response& sender)
+    template < class Trait, class Connection, class Timer >
+    void connection< Trait, Connection, Timer >::hurry_writers(async_response& sender)
     {
         // hurry resposes that are blocking the sender
         for ( response_list::const_iterator r = responses_.begin(); *r != &sender; ++r )
@@ -301,8 +303,8 @@ namespace server
         }
     }
 
-    template <class Trait, class Connection>
-    void connection<Trait, Connection>::deliver_body()
+    template < class Trait, class Connection, class Timer >
+    void connection< Trait, Connection, Timer >::deliver_body()
     {
     	assert( !body_read_call_back_.empty() );
     	for ( std::pair< std::size_t, const char* > current = body_decoder_.decode(); current.first;
@@ -312,13 +314,14 @@ namespace server
     	}
     }
 
-    template <class Trait, class Connection>
+    template < class Trait, class Connection, class Timer >
     template<typename ConstBufferSequence, typename WriteHandler>
-    void connection<Trait, Connection>::async_write(
+    void connection< Trait, Connection, Timer >::async_write(
         const ConstBufferSequence&  buffers,
         WriteHandler                handler,
         async_response&             sender)
     {
+        assert( !responses_.empty() );
         trait_.event_data_write(*this, buffers, sender);
 
         if ( responses_.front() == &sender )
@@ -343,9 +346,9 @@ namespace server
         }
     }
 
-    template <class Trait, class Connection>
+    template < class Trait, class Connection, class Timer >
     template<typename ConstBufferSequence, typename WriteHandler>
-    void connection<Trait, Connection>::async_write_some(
+    void connection< Trait, Connection, Timer >::async_write_some(
         const ConstBufferSequence&  buffers,
         WriteHandler                handler,
         async_response&             sender)
@@ -375,9 +378,9 @@ namespace server
         }
     }
 
-    template < class Trait, class Connection >
+    template < class Trait, class Connection, class Timer >
     template< typename ReadHandler >
-    void connection<Trait, Connection>::async_read_body( ReadHandler handler )
+    void connection< Trait, Connection, Timer >::async_read_body( ReadHandler handler )
     {
 		assert( current_request_->body_expected() );
 		assert( body_read_call_back_.empty() );
@@ -386,8 +389,8 @@ namespace server
 		body_decoder_.start( *current_request_ );
     }
 
-    template <class Trait, class Connection>
-    void connection<Trait, Connection>::response_completed(async_response& sender)
+    template < class Trait, class Connection, class Timer >
+    void connection< Trait, Connection, Timer >::response_completed(async_response& sender)
     {
         trait_.event_response_completed(*this, sender);
 
@@ -425,11 +428,16 @@ namespace server
         }
     }
 
-    template <class Trait, class Connection>
-    void connection<Trait, Connection>::response_not_possible_impl(async_response& sender, const boost::shared_ptr<async_response>& error_response)
+    template < class Trait, class Connection, class Timer >
+    void connection< Trait, Connection, Timer >::response_not_possible_impl(async_response& sender, const boost::shared_ptr<async_response>& error_response)
     {
         const response_list::iterator senders_pos = std::find(responses_.begin(), responses_.end(), &sender);
-        assert(senders_pos != responses_.end());
+        assert( senders_pos != responses_.end() );
+
+        if ( senders_pos == responses_.end() -1 )
+        {
+            body_read_call_back_.clear();
+        }
 
         const typename blocked_write_list::const_iterator writes = blocked_writes_.find(&sender);
 
@@ -447,12 +455,13 @@ namespace server
         }
         else
         {
+            responses_.erase(senders_pos);
             shutdown_close();
         }
     }
 
-    template <class Trait, class Connection>
-    void connection<Trait, Connection>::response_not_possible(async_response& sender, http::http_error_code ec)
+    template < class Trait, class Connection, class Timer >
+    void connection< Trait, Connection, Timer >::response_not_possible(async_response& sender, http::http_error_code ec)
     {
         trait_.event_response_not_possible(*this, sender, ec);
 
@@ -460,33 +469,33 @@ namespace server
 
         // if no data was send from this response, consult the error-trait to get an error response
         if ( responses_.front() != &sender || !current_response_is_sending_ )
-            error_response = trait_.error_response(this->shared_from_this(), ec);
+            error_response = trait_.error_response( this->shared_from_this(), ec );
 
         response_not_possible_impl(sender, error_response);
     }
 
-    template <class Trait, class Connection>
-    void connection<Trait, Connection>::response_not_possible(async_response& sender)
+    template < class Trait, class Connection, class Timer >
+    void connection< Trait, Connection, Timer >::response_not_possible(async_response& sender)
     {
         trait_.event_response_not_possible(*this, sender);
 
         response_not_possible_impl(sender, boost::shared_ptr<async_response>());
     }
 
-    template <class Trait, class Connection>
-    void connection<Trait, Connection>::shutdown_read()
+    template < class Trait, class Connection, class Timer >
+    void connection< Trait, Connection, Timer >::shutdown_read()
     {
-        trait_.event_shutdown_read(*this);
-
         if ( !shutdown_read_ )
         {
+            trait_.event_shutdown_read(*this);
             shutdown_read_ = true;
+
             connection_.shutdown(boost::asio::ip::tcp::socket::shutdown_receive);
         }
     }
 
-    template <class Trait, class Connection>
-    void connection<Trait, Connection>::shutdown_close()
+    template < class Trait, class Connection, class Timer >
+    void connection< Trait, Connection, Timer >::shutdown_close()
     {
         trait_.event_shutdown_close(*this);
 
@@ -495,20 +504,20 @@ namespace server
         connection_.close();
     }
 
-    template <class Trait, class Connection>
-    Connection& connection<Trait, Connection>::socket()
+    template < class Trait, class Connection, class Timer >
+    Connection& connection< Trait, Connection, Timer >::socket()
     {
         return connection_;
     }
 
-    template <class Trait, class Connection>
-    Trait& connection<Trait, Connection>::trait()
+    template < class Trait, class Connection, class Timer >
+    Trait& connection< Trait, Connection, Timer >::trait()
     {
         return trait_;
     }
 
-	template <class Trait, class Connection>
-    void connection<Trait, Connection>::issue_header_read( const boost::posix_time::time_duration& time_out )
+    template < class Trait, class Connection, class Timer >
+    void connection< Trait, Connection, Timer >::issue_header_read( const boost::posix_time::time_duration& time_out )
     {
 		std::pair<char*, std::size_t> buffer( 0, 0 );
 
@@ -534,8 +543,8 @@ namespace server
             time_out);
     }
 
-	template < class Trait, class Connection >
-	void connection< Trait, Connection >::handle_read(const boost::system::error_code& error, std::size_t bytes_transferred)
+    template < class Trait, class Connection, class Timer >
+	void connection< Trait, Connection, Timer >::handle_read(const boost::system::error_code& error, std::size_t bytes_transferred)
     {
 		if ( error || bytes_transferred == 0 )
 		{
@@ -565,13 +574,16 @@ namespace server
 
         		if ( body_decoder_.done() )
         		{
-        			body_read_call_back_( error, 0, 0 );
-        			body_read_call_back_.clear();
-
         			body_buffer_.erase( body_buffer_.begin(), body_buffer_.begin() + decoded_size );
         			// this consumes and decreases bytes_transferred
 					current_request_.reset( new http::request_header(
 							boost::asio::const_buffers_1( &body_buffer_[0], bytes_transferred ), bytes_transferred ) );
+
+					body_read_cb_t cb = body_read_call_back_;
+                    body_read_call_back_.clear();
+
+                    if ( !cb.empty() )
+                        cb( error, 0, 0 );
         		}
         	}
         	// or reading a header
@@ -618,8 +630,8 @@ namespace server
         issue_header_read( next_read_timeout );
     }
 
-	template <class Trait, class Connection>
-    bool connection<Trait, Connection>::handle_request_header(const boost::shared_ptr<const http::request_header>& new_request)
+    template < class Trait, class Connection, class Timer >
+    bool connection< Trait, Connection, Timer >::handle_request_header(const boost::shared_ptr<const http::request_header>& new_request)
     {
         const boost::shared_ptr<async_response> response =
         		trait_.create_response(this->shared_from_this(), new_request);
@@ -660,9 +672,9 @@ namespace server
 
     ///////////////////////
     // class blocked_write
-	template <class Trait, class Connection>
-    template <class ConstBufferSequence, class WriteHandler>
-    connection<Trait, Connection>::blocked_write<ConstBufferSequence, WriteHandler>::blocked_write(
+	template < class Trait, class Connection, class Timer >
+    template < class ConstBufferSequence, class WriteHandler >
+    connection< Trait, Connection, Timer >::blocked_write<ConstBufferSequence, WriteHandler>::blocked_write(
         const ConstBufferSequence&  buffers,
         WriteHandler                handler)
         : buffers_(buffers)
@@ -670,25 +682,25 @@ namespace server
     {
     }
 
-	template <class Trait, class Connection>
-    template <class ConstBufferSequence, class WriteHandler>
-    void connection<Trait, Connection>::blocked_write<ConstBufferSequence, WriteHandler>::operator()(Connection& con)
+	template < class Trait, class Connection, class Timer >
+    template < class ConstBufferSequence, class WriteHandler >
+    void connection< Trait, Connection, Timer >::blocked_write<ConstBufferSequence, WriteHandler>::operator()(Connection& con)
     {
         boost::asio::async_write(con, buffers_, handler_);
     }
 
-	template <class Trait, class Connection>
-    template <class ConstBufferSequence, class WriteHandler>
-    void connection<Trait, Connection>::blocked_write<ConstBufferSequence, WriteHandler>::cancel()
+	template < class Trait, class Connection, class Timer >
+    template < class ConstBufferSequence, class WriteHandler >
+    void connection< Trait, Connection, Timer >::blocked_write<ConstBufferSequence, WriteHandler>::cancel()
     {
         handler_(make_error_code(canceled_by_error), 0);
     }
 
     ////////////////////////////
     // class blocked_write_some
-	template <class Trait, class Connection>
-    template <class ConstBufferSequence, class WriteHandler>
-    connection<Trait, Connection>::blocked_write_some<ConstBufferSequence, WriteHandler>::blocked_write_some(
+	template < class Trait, class Connection, class Timer >
+    template < class ConstBufferSequence, class WriteHandler >
+    connection< Trait, Connection, Timer >::blocked_write_some<ConstBufferSequence, WriteHandler>::blocked_write_some(
         const ConstBufferSequence&  buffers,
         WriteHandler                handler)
         : buffers_(buffers)
@@ -696,37 +708,36 @@ namespace server
     {
     }
 
-	template <class Trait, class Connection>
-    template <class ConstBufferSequence, class WriteHandler>
-    void connection<Trait, Connection>::blocked_write_some<ConstBufferSequence, WriteHandler>::operator()(Connection& con)
+	template < class Trait, class Connection, class Timer >
+    template < class ConstBufferSequence, class WriteHandler >
+    void connection< Trait, Connection, Timer >::blocked_write_some<ConstBufferSequence, WriteHandler>::operator()(Connection& con)
     {
         con.async_write_some(buffers_, handler_);
     }
 
-	template <class Trait, class Connection>
-    template <class ConstBufferSequence, class WriteHandler>
-    void connection<Trait, Connection>::blocked_write_some<ConstBufferSequence, WriteHandler>::cancel()
+	template < class Trait, class Connection, class Timer >
+    template < class ConstBufferSequence, class WriteHandler >
+    void connection< Trait, Connection, Timer >::blocked_write_some<ConstBufferSequence, WriteHandler>::cancel()
     {
         handler_(make_error_code(canceled_by_error), 0);
     }
 
-    template <class Connection, class Trait>
-    boost::shared_ptr<connection<Trait, Connection> > create_connection(const Connection& con, Trait& trait)
+    template < class Connection, class Trait >
+    boost::shared_ptr< connection< Trait, Connection > > create_connection(const Connection& con, Trait& trait)
     {
-        const boost::shared_ptr<connection<Trait, Connection> > result(new connection<Trait, Connection>(con, trait));
+        const boost::shared_ptr< connection< Trait, Connection > > result(
+            new connection< Trait, Connection >( con, trait ) );
         result->start();
 
         return result;
     }
-
-
 
 } // namespace server
 
 namespace boost {
 namespace system {
 
-template<> struct is_error_code_enum<server::error_codes>
+template<> struct is_error_code_enum< server::error_codes >
 {
     static const bool value = true;
 };

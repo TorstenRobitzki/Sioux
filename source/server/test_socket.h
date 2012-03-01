@@ -76,7 +76,7 @@ protected:
 /**
  * @brief test socket that acts like stream for sending and receiving
  */
-template <class Iterator, class Trait = socket_behaviour<> >
+template <class Iterator = const char*, class Trait = socket_behaviour<> >
 class socket : public socket_base
 { 
 public:
@@ -996,23 +996,29 @@ void socket<Iterator, Trait>::impl::async_write_some(
     {
         const write_plan::item item = write_plan_.next_write();
 
-        if ( item.second != boost::posix_time::time_duration() )
+        if ( item.error_code )
         {
-            write_timer_.expires_from_now(item.second);
+            io_service_.post( boost::bind< void >( handler, item.error_code, 0 ) );
+        }
+        else if ( item.delay != boost::posix_time::time_duration() )
+        {
+            write_timer_.expires_from_now(item.delay);
             write_timer_.async_wait(
-                delayed_planned_write(handler, buffers, this->shared_from_this(), item.first));
+                delayed_planned_write(handler, buffers, this->shared_from_this(), item.size));
         }
         else
         {
             boost::asio::buffers_iterator<ConstBufferSequence> begin = boost::asio::buffers_begin(buffers);
+            boost::asio::buffers_iterator<ConstBufferSequence> end   = boost::asio::buffers_end(buffers);
 
+            std::size_t size = 0;
             // std::advance results in a compiler error; this might be a bug in boost::asio
-            for ( std::size_t i = 0; i != item.first; ++i, ++begin )
+            for ( std::size_t i = 0; i != item.size && begin != end; ++i, ++begin, ++size )
             {
             	output_.push_back(*begin);
             }
 
-            io_service_.post(boost::bind<void>(handler, make_error_code(boost::system::errc::success), item.first));
+            io_service_.post( boost::bind<void>(handler, make_error_code(boost::system::errc::success), size) );
         }
     }
     else if ( write_delay_ != boost::posix_time::time_duration() )

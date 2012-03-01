@@ -60,7 +60,7 @@ namespace pubsub
     };
 
     /**
-     * @brief a configuration builder
+     * @brief a configuration builder for nicer configuration syntax
      */
     class configurator
     {

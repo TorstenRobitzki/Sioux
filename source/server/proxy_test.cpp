@@ -21,23 +21,19 @@ using namespace http::test;
 
 namespace {
     template <std::size_t BufferSize = 1024>
-    struct sized_proxy_response_factory
+    struct proxy_response_factory
     {
-        template <class Connection>
-        struct proxy_response_factory
+        template < class Trait, class Connection >
+        static boost::shared_ptr<server::async_response> create_response(
+            const boost::shared_ptr<Connection>&                    connection,
+            const boost::shared_ptr<const http::request_header>&    header,
+                  Trait&                                            trait)
         {
-            template <class Trait>
-            static boost::shared_ptr<server::async_response> create_response(
-                const boost::shared_ptr<Connection>&                    connection,
-                const boost::shared_ptr<const http::request_header>&    header,
-                      Trait&                                            trait)
-            {
-                boost::shared_ptr<server::proxy_configuration> config(new server::proxy_configuration);
+            boost::shared_ptr<server::proxy_configuration> config(new server::proxy_configuration);
 
-                return boost::shared_ptr<server::async_response>(
-                    new server::proxy_response<Connection>(connection, header, trait.proxy(), trait.io_queue(), config));
-            }
-        };
+            return boost::shared_ptr<server::async_response>(
+                new server::proxy_response<Connection>(connection, header, trait.proxy(), trait.io_queue(), config));
+        }
     };
 }
 
@@ -46,13 +42,12 @@ static std::vector<char> simulate_sized_proxy(
     const boost::shared_ptr<server::test::proxy_connector>&               proxy,
           server::test::socket<const char*>&                output)
 {
-    typedef server::test::socket<const char*>           socket_t;
-    typedef sized_proxy_response_factory<BufferSize>    response_factory_factory_t;
-    typedef traits<socket_t, response_factory_factory_t::template proxy_response_factory>    trait_t;
-    typedef server::connection<trait_t, socket_t>       connection_t;
+    typedef proxy_response_factory< BufferSize >        response_factory_factory_t;
+    typedef traits< response_factory_factory_t >        trait_t;
+    typedef server::connection< trait_t >               connection_t;
 
     boost::asio::io_service&                            queue = proxy->get_io_service();
-    trait_t                                             trait(*proxy, queue);
+    trait_t                                             trait( *proxy, queue );
 
     boost::shared_ptr<connection_t>                     connection(new connection_t(output, trait));
     connection->start();
@@ -75,7 +70,7 @@ static std::string simulate_proxy(
     const boost::shared_ptr<proxy_connector>&               proxy,
     const tools::substring&                                 request)
 {
-    server::test::socket<const char*> output(proxy->get_io_service(), request.begin(), request.end());
+    server::test::socket<> output(proxy->get_io_service(), request.begin(), request.end());
 
     const std::vector<char> bin = simulate_sized_proxy<1024>(proxy, output);
 

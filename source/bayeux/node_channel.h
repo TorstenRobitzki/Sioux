@@ -41,6 +41,13 @@ namespace bayeux
 	 * @sa channel_from_node_name()
 	 */
 	pubsub::node_name node_name_from_channel( const json::string& channel );
+
+	/**
+	 * @brief convenience overload of the function above, for testing
+	 * @sa pubsub::node_name node_name_from_channel( const json::string& channel )
+	 */
+    pubsub::node_name node_name_from_channel( const char* );
+
 }
 
 #endif /* NODE_CHANNEL_H_ */

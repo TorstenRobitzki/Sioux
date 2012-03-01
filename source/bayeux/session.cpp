@@ -141,7 +141,12 @@ namespace bayeux
         }
 
         if ( old_connection.get() )
-            old_connection->messages( json::array() );
+            old_connection->messages( json::array(), session_id_ );
+    }
+
+    void session::hurry()
+    {
+        timeout();
     }
 
     void session::close()
@@ -154,7 +159,7 @@ namespace bayeux
 
     void session::on_update(const pubsub::node_name& name, const pubsub::node& data)
     {
-	    // there is no different in receiving the initial data after a subscription,
+        // there is no different in receiving the initial data after a subscription,
 	    // of updated data. If there is an entry for the subject, the subscription wasn't
 	    // acknowledged yet
         json::array response_list;
@@ -348,7 +353,7 @@ namespace bayeux
         }
 
         if ( old_connection.get() )
-            old_connection->messages( updates );
+            old_connection->messages( updates, session_id_ );
     }
 
     void session::add_messages_and_notify( const json::array& new_messages )
@@ -370,7 +375,7 @@ namespace bayeux
         }
 
         if ( old_connection.get() )
-            old_connection->messages( updates );
+            old_connection->messages( updates, session_id_ );
     }
 
 

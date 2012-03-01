@@ -18,19 +18,19 @@ namespace server {
 namespace test {
 
 	class proxy_connector;
+	class timer;
 
-template <class Connection>
 struct response_factory
 {
     response_factory() {}
 
-    template <class T>
-    explicit response_factory(const T&) {}
+    template < class T >
+    explicit response_factory( const T& ) {}
 
-    template <class Trait>
-    static boost::shared_ptr<async_response> create_response(
-        const boost::shared_ptr<Connection>&                    connection,
-        const boost::shared_ptr<const http::request_header>&    header,
+    template < class Trait, class Connection >
+    static boost::shared_ptr< async_response > create_response(
+        const boost::shared_ptr< Connection >&                    connection,
+        const boost::shared_ptr< const http::request_header >&    header,
               Trait&)
     {
         const boost::shared_ptr<response<Connection> > new_response(new response<Connection>(connection, header, "Hello"));
@@ -43,40 +43,43 @@ struct response_factory
  *
  * The default behavior of an incoming request is to answer with a simple "Hello" string
  */
-template <class Network = server::test::socket<const char*>, 
-          template <class> class  ResponseFactory = response_factory>
-class traits : public server::connection_traits<Network, ResponseFactory<Network> >
+template < class ResponseFactory = response_factory,
+           class Network = server::test::socket< const char* >,
+           class Timer = server::test::timer >
+class traits : public server::connection_traits< Network, Timer, ResponseFactory >
 {
 public:
-    traits() : pimpl_(new impl(0, 0))
+    traits() : pimpl_( new impl(0, 0) )
     {
     }
 
-    traits(proxy_connector& p, boost::asio::io_service& io) : pimpl_(new impl(&p, &io))
+    traits( proxy_connector& p, boost::asio::io_service& io ) : pimpl_(new impl(&p, &io))
     {
     }
 
 	typedef Network connection_type;
 
-    template <class Connection>
-    boost::shared_ptr<async_response> create_response(
-        const boost::shared_ptr<Connection>&                    connection,
-        const boost::shared_ptr<const http::request_header>&    header)
+    template < class Connection >
+    boost::shared_ptr< async_response > create_response(
+        const boost::shared_ptr< Connection >&                    connection,
+        const boost::shared_ptr< const http::request_header >&    header)
     {
-        pimpl_->add_request(header);
-        const boost::shared_ptr<async_response> result(ResponseFactory<Connection>::create_response(connection, header, *this));
-        pimpl_->add_response(result);
+        pimpl_->add_request( header );
+        const boost::shared_ptr< async_response > result(
+            ResponseFactory::create_response( connection, header, *this ) );
+        pimpl_->add_response( result );
 
         return result;
     }
 
-    std::vector<boost::shared_ptr<const http::request_header> > requests() const
+    std::vector< boost::shared_ptr< const http::request_header > > requests() const
     {
         return pimpl_->requests();
     }
 
-    template <class Connection>
-    boost::shared_ptr<async_response> error_response(const boost::shared_ptr<Connection>& con, http::http_error_code ec) const
+    template < class Connection >
+    boost::shared_ptr<async_response> error_response(const boost::shared_ptr< Connection >& con,
+        http::http_error_code ec ) const
     {
         boost::shared_ptr<async_response> result(new server::error_response<Connection>(con, ec));
         return result;

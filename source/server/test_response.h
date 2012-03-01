@@ -24,14 +24,14 @@ namespace server{
 namespace test {
 
     enum response_type {
-        /// reponse is automaticaly added
+        /// response is automatically added
         auto_response,
-        /// incomming data, that is needed to response must be simulated by calling simulate_incomming_data()
+        /// incoming data, that is needed to response must be simulated by calling simulate_incomming_data()
         manuel_response 
     };
 
     /**
-     * @brief a async_reponse implementation, that that responses with a given text
+     * @brief a async_reponse implementation, that responses with a given text
      */
     template <class Connection>
     class response : public async_response, public boost::enable_shared_from_this<response<Connection> >

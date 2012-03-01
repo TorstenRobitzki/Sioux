@@ -9,8 +9,10 @@
 
 namespace bayeux
 {
-	connector::connector( pubsub::root& data, server::session_generator& session_generator, const configuration& config )
-		: data_( data )
+	connector::connector( boost::asio::io_service& queue, pubsub::root& data,
+	        server::session_generator& session_generator, const configuration& config )
+		: timer_( queue )
+	    , data_( data )
 		, session_generator_( session_generator )
 		, mutex_()
 		, current_config_( new configuration( config ) )
@@ -40,6 +42,18 @@ namespace bayeux
 
 		return result;
 	}
+
+    void connector::drop_session( const json::string& session_id )
+    {
+        boost::mutex::scoped_lock lock( mutex_ );
+
+        sessions_.erase( session_id.to_std_string() );
+    }
+
+    void connector::idle_session( const boost::shared_ptr< session >& session )
+    {
+
+    }
 
 }
 

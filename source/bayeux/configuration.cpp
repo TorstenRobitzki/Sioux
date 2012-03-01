@@ -13,12 +13,12 @@ namespace bayeux
 	{
 	}
 
-	boost::posix_time::time_duration configuration::max_disconnected_time() const
+	boost::posix_time::time_duration configuration::session_timeout() const
 	{
 		return max_disconnected_time_;
 	}
 
-	configuration& configuration::max_disconnected_time( const boost::posix_time::time_duration& time_out )
+	configuration& configuration::session_timeout( const boost::posix_time::time_duration& time_out )
 	{
 		max_disconnected_time_ = time_out;
 

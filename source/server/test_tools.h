@@ -21,7 +21,7 @@ namespace server
         std::vector<char> random_body(boost::minstd_rand& random, std::size_t size);
 
         /**
-         * @brief returns the given body chunked encoding with the chunks beeing randomly sized
+         * @brief returns the given body chunked encoded with the chunks being randomly sized
          */
         std::vector<char> random_chunk(boost::minstd_rand& random, const std::vector<char>& original, std::size_t max_chunk_size);
 

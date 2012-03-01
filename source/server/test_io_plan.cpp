@@ -10,7 +10,26 @@ namespace server
 
 namespace test
 {
-	////////////////
+    struct read_items
+    {
+        read_plan::item             item_;
+        boost::function< void() >   func_;
+
+        read_items( const read_plan::item& i ) : item_(i)
+        {
+        }
+
+        read_items( const boost::function< void() >& f ) : item_(), func_( f )
+        {
+        }
+
+        bool empty() const
+        {
+            return func_.empty() && item_.first.empty();
+        }
+    };
+
+    ////////////////
 	// class read_plan::impl
 	struct read_plan::impl
 	{
@@ -20,25 +39,37 @@ namespace test
 		{
 		}
 
+		read_items fetch_item()
+		{
+            assert(!steps_.empty());
+
+            read_items result = steps_[next_];
+
+            ++next_;
+
+            if ( next_ == steps_.size() )
+                next_ = 0;
+
+            return result;
+		}
+
 		item next_read()
 	    {
-	        assert(!steps_.empty());
+		    read_items result = fetch_item();
 
-	        const item result = steps_[next_];
+	        for ( ; !result.func_.empty(); result = fetch_item() )
+	        {
+	            result.func_();
+	        }
 
-	        ++next_;
-
-	        if ( next_ == steps_.size() )
-	            next_ = 0;
-
-	        return result;
+	        return result.item_;
 	    }
 
 	    void add( const std::string& s )
 	    {
-	        if ( !steps_.empty() && steps_.back().first.empty() )
+	        if ( !steps_.empty() && steps_.back().empty() )
 	        {
-	            steps_.back().first = s;
+	            steps_.back().item_.first = s;
 	        }
 	        else
 	        {
@@ -52,8 +83,13 @@ namespace test
 	        steps_.push_back(std::make_pair(std::string(), delay));
 	    }
 
-	    std::vector<item>                   steps_;
-        std::vector<item>::size_type        next_;
+	    void execute( const boost::function< void() >& f )
+	    {
+	        steps_.push_back( f );
+	    }
+
+	    std::vector<read_items>                   steps_;
+        std::vector<read_items>::size_type        next_;
 	};
 
     //////////////////
@@ -79,6 +115,12 @@ namespace test
     {
     	assert( pimpl_.get() );
     	return pimpl_->delay( delay );
+    }
+
+    void read_plan::execute( const boost::function< void() >& f )
+    {
+        assert( pimpl_.get() );
+        return pimpl_->execute( f );
     }
 
     bool read_plan::empty() const
@@ -125,6 +167,13 @@ namespace test
     	return plan;
     }
 
+    read_plan operator<<( read_plan plan, const boost::function< void() >& f )
+    {
+        plan.execute( f );
+
+        return plan;
+    }
+
     ///////////////////////////
     // class write_plan::impl
     struct write_plan::impl
@@ -151,13 +200,14 @@ namespace test
 
         void add(const std::size_t& s)
         {
-            if ( !plan_.empty() && plan_.back().first == 0 )
+            if ( !plan_.empty() && plan_.back().size == 0 && !plan_.back().error_code )
             {
-                plan_.back().first = s;
+                plan_.back().size = s;
             }
             else
             {
-                plan_.push_back(std::make_pair(s, boost::posix_time::time_duration()));
+                const item new_item = { s };
+                plan_.push_back( new_item );
             }
         }
 
@@ -186,7 +236,14 @@ namespace test
 
     void write_plan::delay(const boost::posix_time::time_duration& delay )
     {
-        pimpl_->plan_.push_back(std::make_pair(0, delay));
+        const item new_item = { 0, delay };
+        pimpl_->plan_.push_back( new_item );
+    }
+
+    void write_plan::error( const boost::system::error_code& ec )
+    {
+        const item new_item = { 0, boost::posix_time::time_duration(), ec };
+        pimpl_->plan_.push_back( new_item );
     }
 
     bool write_plan::empty() const
@@ -211,6 +268,13 @@ namespace test
     write_plan operator<<(write_plan plan, const delay& d)
     {
         plan.delay(d.delay_value);
+
+        return plan;
+    }
+
+    write_plan operator<<( write_plan plan, const boost::system::error_code& ec )
+    {
+        plan.error( ec );
 
         return plan;
     }

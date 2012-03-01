@@ -5,7 +5,7 @@
 #ifndef SIOUX_BAYEUX_BAYEUX_H_
 #define SIOUX_BAYEUX_BAYEUX_H_
 
-#include <boost/shared_ptr.hpp>
+#include <boost/asio/deadline_timer.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
 
@@ -47,14 +47,18 @@ namespace bayeux
 	class connector
 	{
 	public:
-		connector( pubsub::root& data, server::session_generator& session_generator, const configuration& config );
+		connector( boost::asio::io_service& queue, pubsub::root& data, server::session_generator& session_generator,
+		    const configuration& config );
 
 		template < class Connection >
 		boost::shared_ptr< server::async_response > create_response(
 			const boost::shared_ptr< Connection >&                    connection,
 			const boost::shared_ptr< const http::request_header >&    header );
 
-
+		/**
+		 * @brief looks up the session with the given session_id. If no such session exists, a null pointer
+		 *        is returned.
+		 */
 		boost::shared_ptr< session > find_session( const json::string& session_id );
 
 		/**
@@ -65,11 +69,17 @@ namespace bayeux
 
 		/**
 		 * @brief removes the session with the given id
-		 *
-		 * If now such id is known,
 		 */
-		void drop_session( const std::string& sesion_id );
+		void drop_session( const json::string& session_id );
+
+		/**
+		 * @brief this session is currently idle
+		 *
+		 * This session will be kept for at least the configured session timeout value.
+		 */
+		void idle_session( const boost::shared_ptr< session >& session );
 	private:
+		boost::asio::deadline_timer timer_;
 		pubsub::root& 				data_;
 		boost::mutex				generator_mutex_;
 		server::session_generator&	session_generator_;
@@ -79,6 +89,8 @@ namespace bayeux
 
 		typedef std::map< std::string, boost::shared_ptr< session > > session_list_t;
 		session_list_t				sessions_;
+
+		void session_timeout_reached();
 	};
 
 

@@ -110,6 +110,16 @@ namespace json
         TargetType upcast() const;
 
         /**
+         * @brief converts this to the requested type, if possible
+         * @exception none _
+         *
+         * If the dynamic type of the this is not equal to the requested type, the function will return
+         * (false, TargetType()). If this is of the requested type, the function will return std::pair(true, *this)
+         */
+        template < class TargetType >
+        std::pair< bool, TargetType > try_cast() const;
+
+        /**
          * @brief swaps the guts of this and other
          * @exception none _
          */

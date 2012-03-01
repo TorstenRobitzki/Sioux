@@ -327,19 +327,14 @@ namespace json
                 const list_t::iterator pos = members_.find(key);
 
                 if ( pos == members_.end() )
-                    throw std::out_of_range("object::at() out of range");
+                    throw std::out_of_range( "object::at() out of range: " + key.to_std_string() );
 
                 return pos->second;
             }
 
             const value& at(const string& key) const
             {
-                const list_t::const_iterator pos = members_.find(key);
-
-                if ( pos == members_.end() )
-                    throw std::out_of_range("object::at() out of range");
-
-                return pos->second;
+                return const_cast< object_impl& >( *this ).at( key );
             }
 
             const value* find( const string& key ) const
@@ -1005,46 +1000,79 @@ namespace json
             {
             }
         };
-    }
 
-#   define CAST_VISITOR_VISIT(target_token) \
-        void visit(const target_token&) \
-        { \
-            equal_types<Target, target_token>::throw_exception(runtime_name_,#target_token); \
-        }
-
-    namespace {
         template <class Target>
-        struct cast_visitor : visitor
+        struct cast_throw_visitor : visitor
         {
-            cast_visitor(const char* implementation_name) : runtime_name_(implementation_name) 
+            cast_throw_visitor(const char* implementation_name) : runtime_name_(implementation_name)
             {
             }
 
-            CAST_VISITOR_VISIT(string)
-            CAST_VISITOR_VISIT(number)
-            CAST_VISITOR_VISIT(object)
-            CAST_VISITOR_VISIT(array)
-            CAST_VISITOR_VISIT(true_val)
-            CAST_VISITOR_VISIT(false_val)
-            CAST_VISITOR_VISIT(null)
+#           define CAST_THROW_VISITOR_VISIT(target_token) \
+            void visit(const target_token&) \
+            { \
+                equal_types<Target, target_token>::throw_exception(runtime_name_,#target_token); \
+            }
+
+            CAST_THROW_VISITOR_VISIT(string)
+            CAST_THROW_VISITOR_VISIT(number)
+            CAST_THROW_VISITOR_VISIT(object)
+            CAST_THROW_VISITOR_VISIT(array)
+            CAST_THROW_VISITOR_VISIT(true_val)
+            CAST_THROW_VISITOR_VISIT(false_val)
+            CAST_THROW_VISITOR_VISIT(null)
+
+#           undef CAST_THROW_VISITOR_VISIT
 
             const char* const runtime_name_;
         };
+
+        template < class Target >
+        struct cast_check_visitor : default_visitor
+        {
+            bool same_type_;
+
+            cast_check_visitor() : same_type_( false ) {}
+
+            void visit( const Target& )
+            {
+                same_type_ = true;
+            }
+        };
+
+        template < class T >
+        T make_default()
+        {
+            return T();
+        }
+
+        template <>
+        number make_default< number >()
+        {
+            return number( 0 );
+        }
     }
+
 
     template <class TargetType>
     TargetType value::upcast() const
     {
-        cast_visitor<TargetType> throw_invalid_cast(pimpl_->name());
+        cast_throw_visitor<TargetType> throw_invalid_cast(pimpl_->name());
         visit(throw_invalid_cast);
 
         return static_cast<const TargetType&>(*this);
     }
 
-    void value::swap( value& other )
+    template < class TargetType >
+    std::pair< bool, TargetType > value::try_cast() const
     {
-        pimpl_.swap( other.pimpl_ );
+        cast_check_visitor< TargetType > check_type;
+        visit( check_type );
+
+        if ( !check_type.same_type_ )
+            return std::make_pair( false, make_default< TargetType >() );
+
+        return std::make_pair( true, static_cast< const TargetType& >( *this ) );
     }
 
     template string     value::upcast<string>() const;
@@ -1054,6 +1082,20 @@ namespace json
     template true_val   value::upcast<true_val>() const;
     template false_val  value::upcast<false_val>() const;
     template null       value::upcast<null>() const;
+
+
+    template std::pair< bool, string >    value::try_cast<string>() const;
+    template std::pair< bool, number >    value::try_cast<number>() const;
+    template std::pair< bool, object >    value::try_cast<object>() const;
+    template std::pair< bool, array  >    value::try_cast<array>() const;
+    template std::pair< bool, true_val>   value::try_cast<true_val>() const;
+    template std::pair< bool, false_val>  value::try_cast<false_val>() const;
+    template std::pair< bool, null >      value::try_cast<null>() const;
+
+    void value::swap( value& other )
+    {
+        pimpl_.swap( other.pimpl_ );
+    }
 
     value::value(impl* p)
         : pimpl_(p)

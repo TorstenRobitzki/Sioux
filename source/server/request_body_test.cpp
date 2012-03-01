@@ -172,13 +172,14 @@ namespace
 	};
 
 	typedef server::test::socket<const char*>                       socket_t;
+	typedef server::test::timer                                     timer_t;
 	typedef server::null_event_logger								event_logger_t;
 //	typedef server::stream_event_log								event_logger_t;
 	typedef server::stream_error_log								error_logger_t;
 
-	struct trait_t : server::connection_traits< socket_t, response_factory, event_logger_t, error_logger_t >
+	struct trait_t : server::connection_traits< socket_t, timer_t, response_factory, event_logger_t, error_logger_t >
 	{
-		typedef server::connection_traits< socket_t, response_factory, event_logger_t, error_logger_t > base_t;
+		typedef server::connection_traits< socket_t, timer_t, response_factory, event_logger_t, error_logger_t > base_t;
 
 		explicit trait_t() : base_t( *this ) {}
 
@@ -496,4 +497,11 @@ BOOST_AUTO_TEST_CASE( timeout_while_receiving_a_request_body )
 	BOOST_CHECK( !get_body( trait.read_bodies_.front() ).body_completed() );
 }
 
+/**
+ * @test in case, that the body receiving response removes it self from the connection (by calling response_completed()
+ * or response_not_possible()), no further calls to the read-body handler should happen.
+ */
+BOOST_AUTO_TEST_CASE( no_further_body_read_callbacks_after_stop_responing )
+{
+}
 

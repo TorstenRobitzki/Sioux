@@ -25,12 +25,12 @@ namespace bayeux
 		/**
 		 * @brief maximum time, a client can be disconnected until the client will be unsubscribed and freed
 		 */
-		boost::posix_time::time_duration max_disconnected_time() const;
+		boost::posix_time::time_duration session_timeout() const;
 
 		/**
 		 * @brief changes the maximum time, a client can be disconnected until the client be unsubscribed and freed
 		 */
-		configuration& max_disconnected_time( const boost::posix_time::time_duration& time_out );
+		configuration& session_timeout( const boost::posix_time::time_duration& time_out );
 
 		/**
 		 * @brief maximum number of messages, that will be buffered for a client before messages will be discard.

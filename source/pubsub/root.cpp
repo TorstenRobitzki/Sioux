@@ -214,7 +214,7 @@ namespace {
 
     void root::update_node(const node_name& node_name, const json::value& new_data)
     {
-    	pimpl_->update_node(node_name, new_data);
+        pimpl_->update_node(node_name, new_data);
     }
 
 }

@@ -17,23 +17,25 @@ namespace bayeux
 	{
 	}
 
-    void response_base::second_connection_detected()
-    {
-        // and now?
-    }
+	response_base::~response_base()
+	{
+	    if ( session_.get() )
+	        connector_.idle_session( session_ );
+	}
 
-    void response_base::messages( const json::array& )
-    {
-
-    }
-
+    static const json::string id_token( "id" );
     static const json::string client_id_token( "clientId" );
 	static const json::string channel_token( "channel" );
 	static const json::string subscription_token( "subscription" );
+	static const json::string connection_typen_token( "connectionType" );
 
-	std::string response_base::extract_channel( const json::object& request )
+	static const json::string meta_handshake_channel( "/meta/handshake" );
+	static const json::string meta_connect_channel( "/meta/connect" );
+	static const json::string meta_subscribe_channel( "/meta/subscribe" );
+
+	json::string response_base::extract_channel( const json::object& request )
 	{
-		return request.at( channel_token ).upcast< json::string >().to_std_string();
+		return request.at( channel_token ).upcast< json::string >();
 	}
 
 	json::string response_base::extract_client_id( const json::object& request )
@@ -85,27 +87,36 @@ namespace bayeux
 		return add_session_id( response, session_id.session_id() );
 	}
 
-
-	void response_base::handle_request( const json::object& request, const std::string& connection_name )
+	void response_base::handle_request( const json::object& request,
+	    const boost::shared_ptr< response_interface >& self, const std::string& connection_name )
 	{
-		const std::string channel = extract_channel( request );
+		const json::string channel = extract_channel( request );
 
-		if ( channel == "/meta/handshake" )
+		if ( channel == meta_handshake_channel )
 		{
 			handle_handshake( request, connection_name );
+			return;
 		}
-		else if ( channel == "/meta/connect" )
-		{
-			handle_connect( request, connection_name );
-		}
-		else if ( channel == "/meta/subscribe")
-		{
-			handle_subscribe( request, connection_name );
-		}
-		else
-		{
-			throw "foo";
-		}
+
+		const json::string client_id = check_client_id( request, channel );
+		if ( client_id.empty() )
+		    return;
+
+		if ( !check_session( request, client_id, channel ) )
+		    return;
+
+        if ( channel == meta_connect_channel )
+        {
+            handle_connect( request, self );
+        }
+        else if ( channel == meta_subscribe_channel )
+        {
+            handle_subscribe( request );
+        }
+        else
+        {
+            throw "invalid channel";
+        }
 	}
 
 	void response_base::handle_handshake( const json::object& request, const std::string& connection_name )
@@ -118,75 +129,174 @@ namespace bayeux
 			"	'successful':true"
 			"}" ).upcast< json::object >();
 
-		const boost::shared_ptr< const session > new_session = connector_.create_session( connection_name );
-		bayeux_response_.add( add_session_id( response_prototype, *new_session ) );
+		session_ = connector_.create_session( connection_name );
+		json::object response = add_session_id( response_prototype, *session_ );
+		copy_id_field( request, response );
+
+		bayeux_response_.add( response );
 	}
 
-	void response_base::handle_connect( const json::object& request, const std::string& connection_name )
+
+	void response_base::handle_connect( const json::object& request,
+	    const boost::shared_ptr< response_interface >& self )
 	{
-		const json::string id = extract_client_id( request );
+	    assert( session_.get() );
 
-		const boost::shared_ptr< session > existing_session = id.empty()
-				? boost::shared_ptr< session >()
-				: connector_.find_session( id );
+	    if ( !check_connection_type( request, session_->session_id() ) )
+	        return;
 
-		if ( existing_session.get() )
+	    // when there are already messages to be send, then there is no point in blocking
+	    const bool do_not_block = !bayeux_response_.empty();
+	    const json::array messages = do_not_block ? session_->events() : session_->wait_for_events( self );
+
+	    if ( !messages.empty() )
 		{
-			static const json::object reponse_prototype = json::parse_single_quoted(
-				"{"
-				"	'channel'    : '/meta/connect',"
-				"	'successful' : true"
-				"}" ).upcast< json::object >();
-
-			bayeux_response_.add( add_session_id( reponse_prototype, *existing_session ) );
+	        bayeux_response_ += messages;
+			bayeux_response_.add( build_connect_response( request, session_->session_id() ) );
 		}
 		else
 		{
-			static const json::object failed_response_prototype = json::parse_single_quoted(
-				"{"
-				"	'channel'    : '/meta/connect',"
-				"	'successful' : false,"
-				"	'error'		 : 'invalid clientId'"
-				"}" ).upcast< json::object >();
-
-			bayeux_response_.add( add_session_id( failed_response_prototype, id ) );
+		    if ( do_not_block )
+		    {
+                bayeux_response_.add( build_connect_response( request, session_->session_id() ) );
+		    }
+		    else
+		    {
+                blocking_connect_ = request;
+		    }
 		}
-
 	}
 
-	void response_base::handle_subscribe( const json::object& request, const std::string& connection_name )
+    json::object response_base::build_connect_response( const json::object& request, const json::string& session_id )
+    {
+        static const json::object reponse_prototype = json::parse_single_quoted(
+            "{"
+            "   'channel'    : '/meta/connect',"
+            "   'successful' : true"
+            "}" ).upcast< json::object >();
+
+        json::object response = add_session_id( reponse_prototype, session_id );
+        copy_id_field( request, response );
+
+        return response;
+    }
+
+
+	void response_base::handle_subscribe( const json::object& request )
 	{
-		const json::string 			id = extract_client_id( request );
-		const pubsub::node_name 	node_name = extract_node_name( request );
+        assert( session_.get() );
 
-		if ( !id.empty() && node_name != pubsub::node_name() )
-		{
-			static const json::object response_prototype = json::parse_single_quoted(
-				"{"
-				"	'channel':'/meta/subscribe',"
-				"	'"
-				"	'version':'1.0',"
-				"	'supportedConnectionTypes':['long-polling'],"
-				"	'successful':true"
-				"}" ).upcast< json::object >();
+        const json::string subscription = check_subscription( request, meta_subscribe_channel );
 
-			const boost::shared_ptr< const session > new_session = connector_.create_session( connection_name );
-			bayeux_response_.add( add_session_id( response_prototype, *new_session ) );
-		}
-		else
-		{
-			static const json::object failed_response_prototype = json::parse_single_quoted(
-				"{"
-				"	'channel'    : '/meta/subscribe',"
-				"	'successful' : false,"
-				"	'error'		 : 'invalid subscription'"
-				"}" ).upcast< json::object >();
-
-			bayeux_response_.add( add_session_id( failed_response_prototype, id ) );
-		}
+        session_->subscribe( node_name_from_channel( subscription ), request.find( id_token ) );
 	}
 
-	std::vector< boost::asio::const_buffer > response_base::build_response( const json::array& bayeux_response )
+    json::string response_base::check_client_id( const json::object& request, const json::string& response_channel )
+    {
+        const json::string id = extract_client_id( request );
+
+        if ( id.empty() )
+        {
+            static const json::object response_template = json::parse_single_quoted(
+                "{"
+                "   'successful' : false,"
+                "   'error'      : 'unsupported connection type'"
+                "}" ).upcast< json::object >();
+
+            json::object response = response_template.copy();
+            response.add( channel_token, response_channel );
+            copy_id_field( request, response );
+
+            bayeux_response_.add( response );
+        }
+
+        return id;
+    }
+
+    bool response_base::check_session( const json::object& request, const json::string& id,
+        const json::string& response_channel )
+    {
+        if ( session_.get() )
+            connector_.idle_session( session_ );
+
+        session_ = connector_.find_session( id );
+
+        if ( session_.get() == 0 )
+        {
+            static const json::object response_template = json::parse_single_quoted(
+                "{"
+                "   'successful' : false,"
+                "   'error'      : 'invalid clientId'"
+                "}" ).upcast< json::object >();
+
+            json::object response = response_template.copy();
+            response.add( channel_token, response_channel );
+            response.add( client_id_token, id );
+            copy_id_field( request, response );
+
+            bayeux_response_.add( response );
+        }
+
+        return session_.get();
+    }
+
+    json::string response_base::check_subscription( const json::object& request, const json::string& response_channel )
+    {
+        const json::value* const subscription = request.find( subscription_token );
+
+        if ( subscription )
+        {
+            std::pair< bool, json::string > subscription_str = subscription->try_cast< json::string >();
+
+            if ( subscription_str.first && !subscription_str.second.empty() )
+                return subscription_str.second;
+        }
+
+        static const json::object response_template = json::parse_single_quoted(
+            "{"
+            "   'successful' : false,"
+            "   'error'      : 'invalid clientId'"
+            "}" ).upcast< json::object >();
+
+        json::object response = response_template.copy();
+        response.add( channel_token, response_channel );
+
+        return json::string();
+    }
+
+    bool response_base::check_connection_type( const json::object& request, const json::string& session_id )
+	{
+	    const json::value* const type = request.find( connection_typen_token );
+
+	    const bool result = type != 0 && *type == json::string( "long-polling" );
+
+	    if ( !result )
+	    {
+	        static const json::object response_template = json::parse_single_quoted(
+                "{"
+                "   'channel'    : '/meta/connect',"
+                "   'successful' : false,"
+                "   'error'      : 'unsupported connection type'"
+                "}" ).upcast< json::object >();
+
+	        json::object response = add_session_id( response_template, session_id );
+	        copy_id_field( request, response );
+
+	        bayeux_response_.add( response );
+	    }
+
+	    return result;
+	}
+
+    void response_base::copy_id_field( const json::object& from, json::object& to ) const
+    {
+        const json::value* const id_value = from.find( id_token );
+
+        if ( id_value )
+            to.add( id_token, *id_value );
+    }
+
+    std::vector< boost::asio::const_buffer > response_base::build_response( const json::array& bayeux_response )
 	{
 		static const char response_header[] =
 			"HTTP/1.1 200 OK\r\n"
