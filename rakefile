@@ -286,7 +286,7 @@ task :tests, [:flavor] => ALL_TEST_NAMES
 
 desc 'lists the available tests'
 task :list_tests do
-    puts "list of all available test:\n\n"
+    puts "list of all available tests:\n\n"
 	puts ALL_TEST_NAMES.collect{|t| "\t#{t}" }.join("\n")
 	
 	puts <<EOD

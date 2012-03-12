@@ -57,6 +57,7 @@ namespace server
 	public:
         typedef Connection  socket_t;
         typedef Timer       timer_t;
+        typedef Trait       trait_t;
 
         /**
          * @brief contructs a connection object by passing an IO object and trait object.

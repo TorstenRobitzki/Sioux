@@ -10,8 +10,9 @@
 #include "pubsub/root.h"
 #include "pubsub/test_helper.h"
 #include "server/session_generator.h"
-#include "server/test_tools.h"
+#include "server/test_timer.h"
 #include "tools/asstring.h"
+#include "tools/io_service.h"
 
 namespace
 {
@@ -40,6 +41,25 @@ namespace
         std::string network_name_;
     };
 
+    typedef bayeux::connector< server::test::timer > connector_t;
+
+    template < class Connector >
+    bool session_alive( Connector& con, const char *session_id )
+    {
+        bayeux::session* const session = con.find_session( json::string( session_id ) );
+        const bool result = session != 0;
+
+        if ( session )
+            con.idle_session( session );
+
+        return result;
+    }
+
+    void advance_time( boost::asio::io_service& queue, unsigned delay_in_seconds )
+    {
+        server::test::advance_time( boost::posix_time::seconds( delay_in_seconds ) );
+        tools::run( queue );
+    }
 }
 
 /*!
@@ -52,16 +72,21 @@ BOOST_AUTO_TEST_CASE( create_session_find_session_test )
     pubsub::root            root( queue, adapter, pubsub::configuration() );
 
     test_session_generator  generator;
-    bayeux::connector       connector( queue, root, generator, bayeux::configuration() );
+    connector_t             connector( queue, root, generator, bayeux::configuration() );
 
-    BOOST_CHECK( connector.find_session( json::string( "1" ) ).get() == 0 );
+    BOOST_CHECK( connector.find_session( json::string( "1" ) ) == 0 );
 
-    boost::shared_ptr< bayeux::session > session = connector.create_session( "foobar" );
+    bayeux::session* session = connector.create_session( "foobar" );
     connector.idle_session( session );
 
     BOOST_CHECK_EQUAL( "foobar", generator.network_name() );
-    BOOST_REQUIRE( session.get() );
+    BOOST_REQUIRE( session );
     BOOST_CHECK_EQUAL( session->session_id(), json::string( "1" ) );
+
+    bayeux::session* same_session = connector.find_session( json::string( "1" ) );
+    BOOST_CHECK( same_session == session );
+
+    connector.idle_session( same_session );
 }
 
 /*!
@@ -74,13 +99,44 @@ BOOST_AUTO_TEST_CASE( drop_session_test )
     pubsub::root            root( queue, adapter, pubsub::configuration() );
 
     test_session_generator  generator;
-    bayeux::connector       connector( queue, root, generator, bayeux::configuration() );
+    connector_t             connector( queue, root, generator, bayeux::configuration() );
 
-    boost::shared_ptr< bayeux::session > session = connector.create_session( "foobar" );
+    bayeux::session* session = connector.create_session( "foobar" );
     connector.idle_session( session );
 
+    BOOST_CHECK( session_alive( connector, "1" ) );
     connector.drop_session( json::string( "1" ) );
-    BOOST_CHECK( connector.find_session( json::string( "1" ) ).get() == 0 );
+    BOOST_CHECK( !session_alive( connector, "1" ) );
+}
+
+/*!
+ * @test drop a session, that is otherwise in use
+ *
+ * there are two possible behaviors:
+ * - when dropping a session, mark the session as dropped and delete it, when the last outstanding use returns
+ * - just ignore the dropping, if the session is currently in use and let the timeout cleanup
+ */
+BOOST_AUTO_TEST_CASE( drop_session_in_use )
+{
+    /*
+    boost::asio::io_service queue;
+    pubsub::test::adapter   adapter;
+    pubsub::root            root( queue, adapter, pubsub::configuration() );
+
+    test_session_generator  generator;
+    connector_t             connector( queue, root, generator, bayeux::configuration() );
+
+    bayeux::session* session = connector.create_session( "foobar" );
+    connector.idle_session( session );
+
+    session = connector.find_session( json::string( "1" ) );
+    BOOST_REQUIRE( session );
+
+    connector.drop_session( json::string( "1" ) );
+
+    connector.idle_session( session );
+    BOOST_CHECK( !session_alive( connector, "1" ) );
+    */
 }
 
 /*!
@@ -93,14 +149,15 @@ BOOST_AUTO_TEST_CASE( session_timeout_test )
     pubsub::root            root( queue, adapter, pubsub::configuration() );
 
     test_session_generator  generator;
-    bayeux::connector       connector( queue, root, generator,
-        bayeux::configuration().session_timeout( boost::posix_time::milliseconds( 100u ) ) );
+    connector_t             connector( queue, root, generator,
+        bayeux::configuration().session_timeout( boost::posix_time::seconds( 20u ) ) );
 
-    boost::shared_ptr< bayeux::session > session = connector.create_session( "foobar" );
+    bayeux::session* session = connector.create_session( "foobar" );
     connector.idle_session( session );
 
-    server::test::wait( boost::posix_time::microseconds( 120u ) );
-    BOOST_CHECK( connector.find_session( json::string( "1" ) ).get() == 0 );
+    advance_time( queue, 20u );
+
+    BOOST_CHECK( connector.find_session( json::string( "1" ) ) == 0 );
 }
 
 /*!
@@ -113,30 +170,24 @@ BOOST_AUTO_TEST_CASE( session_doesnt_get_timeout_when_used )
     pubsub::root            root( queue, adapter, pubsub::configuration() );
 
     test_session_generator  generator;
-    bayeux::connector       connector( queue, root, generator,
-        bayeux::configuration().session_timeout( boost::posix_time::milliseconds( 100u ) ) );
+    connector_t             connector( queue, root, generator,
+        bayeux::configuration().session_timeout( boost::posix_time::seconds( 20u ) ) );
 
-    boost::shared_ptr< bayeux::session > session = connector.create_session( "foobar" );
+    bayeux::session* session = connector.create_session( "foobar" );
     connector.idle_session( session );
 
-    server::test::wait( boost::posix_time::microseconds( 80u ) );
+    advance_time( queue, 15u );
+    BOOST_CHECK( session_alive( connector, "1" ) );
 
-    session = connector.find_session( json::string( "1" ) );
-    BOOST_CHECK( session.get() );
-    connector.idle_session( session );
+    advance_time( queue, 15u );
+    BOOST_CHECK( session_alive( connector, "1" ) );
 
-    server::test::wait( boost::posix_time::microseconds( 80u ) );
-    session = connector.find_session( json::string( "1" ) );
-    BOOST_CHECK( session.get() );
-    connector.idle_session( session );
-
-    server::test::wait( boost::posix_time::microseconds( 120u ) );
-    session = connector.find_session( json::string( "1" ) );
-    BOOST_CHECK( session.get() == 0 );
+    advance_time( queue, 20u );
+    BOOST_CHECK( !session_alive( connector, "1" ) );
 }
 
 /*!
- * @test test that a session timeout doesn't when it is in use
+ * @test test that a session doesn't timeout when it is in use
  */
 BOOST_AUTO_TEST_CASE( session_in_use_doesnt_timeout )
 {
@@ -145,13 +196,96 @@ BOOST_AUTO_TEST_CASE( session_in_use_doesnt_timeout )
     pubsub::root            root( queue, adapter, pubsub::configuration() );
 
     test_session_generator  generator;
-    bayeux::connector       connector( queue, root, generator,
-        bayeux::configuration().session_timeout( boost::posix_time::milliseconds( 100u ) ) );
+    connector_t             connector( queue, root, generator,
+        bayeux::configuration().session_timeout( boost::posix_time::seconds( 100u ) ) );
 
-    boost::shared_ptr< bayeux::session > session = connector.create_session( "foobar" );
-    server::test::wait( boost::posix_time::microseconds( 120u ) );
+    bayeux::session* session = connector.create_session( "foobar" );
+
+    advance_time( queue, 120u );
 
     connector.idle_session( session );
-    BOOST_CHECK( connector.find_session( json::string( "1" ) ).get() );
+
+    BOOST_CHECK( session_alive( connector, "1" ) );
 }
 
+/*!
+ * @test session doesn't time out if used once
+ */
+BOOST_AUTO_TEST_CASE( single_outstanding_session_prevents_timeout_test )
+{
+    boost::asio::io_service queue;
+    pubsub::test::adapter   adapter;
+    pubsub::root            root( queue, adapter, pubsub::configuration() );
+
+    test_session_generator  generator;
+    connector_t             connector( queue, root, generator,
+        bayeux::configuration().session_timeout( boost::posix_time::seconds( 20u ) ) );
+
+    bayeux::session* session = connector.create_session( "foobar" );
+    connector.idle_session( session );
+
+    bayeux::session* second_handle = connector.find_session( json::string( "1" ) );
+
+    advance_time( queue, 20u );
+    BOOST_CHECK( session_alive( connector, "1" ) );
+
+    connector.idle_session( second_handle );
+
+    advance_time( queue, 20u );
+    BOOST_CHECK( !session_alive( connector, "1" ) );
+}
+
+/*!
+ * @test session will timeout independently from other sessions
+ */
+BOOST_AUTO_TEST_CASE( session_timeouts_are_independent )
+{
+    boost::asio::io_service queue;
+    pubsub::test::adapter   adapter;
+    pubsub::root            root( queue, adapter, pubsub::configuration() );
+
+    test_session_generator  generator;
+    connector_t             connector( queue, root, generator,
+        bayeux::configuration().session_timeout( boost::posix_time::seconds( 5u ) ) );
+
+    bayeux::session* sessionA = connector.create_session( "foobar" );
+    connector.idle_session( sessionA );
+
+    bayeux::session* sessionB = connector.create_session( "foobar" );
+
+    advance_time( queue, 4u );
+    connector.idle_session( sessionB );
+
+    advance_time( queue, 1u );
+    BOOST_CHECK( !session_alive( connector, "1" ) );
+    BOOST_CHECK( session_alive( connector, "2" ) );
+
+    advance_time( queue, 5u );
+    BOOST_CHECK( !session_alive( connector, "2" ) );
+}
+
+/*!
+ * @test used after timeout will cancel the timeout
+ */
+BOOST_AUTO_TEST_CASE( timeout_will_not_delete_session_if_in_use )
+{
+    boost::asio::io_service queue;
+    pubsub::test::adapter   adapter;
+    pubsub::root            root( queue, adapter, pubsub::configuration() );
+
+    test_session_generator  generator;
+    connector_t             connector( queue, root, generator,
+        bayeux::configuration().session_timeout( boost::posix_time::seconds( 5u ) ) );
+
+    bayeux::session* session = connector.create_session( "foobar" );
+    connector.idle_session( session );
+
+    // this will trigger the timeout call back, but will not execute the callback
+    server::test::advance_time( boost::posix_time::seconds( 5u ) );
+    session = connector.find_session( json::string( "1" ) );
+    BOOST_CHECK( session );
+
+    // but this will execute the timeout callback
+    tools::run( queue );
+    connector.idle_session( session );
+}

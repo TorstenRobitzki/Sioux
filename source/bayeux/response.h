@@ -31,17 +31,18 @@ namespace pubsub
 
 namespace bayeux
 {
+    template < class Timer >
 	class connector;
 	class session;
 
 	/*!
 	 * @brief base class for response, with functions that do not depend on the Connection type
 	 */
+	template < class Timer >
 	class response_base : public response_interface
 	{
 	protected:
-
-		explicit response_base( connector& con );
+		explicit response_base( connector< Timer >& con );
 
 		~response_base();
 
@@ -65,7 +66,7 @@ namespace bayeux
 
 		// the connect request that broad this response to block on
         json::object                        blocking_connect_;
-        boost::shared_ptr< session >        session_;
+        session*                            session_;
 	private:
         json::string check_client_id( const json::object& request, const json::string& response_channel);
         bool check_session( const json::object& request, const json::string& id, const json::string& reponse_channel );
@@ -80,19 +81,19 @@ namespace bayeux
 		static json::object add_session_id( const json::object& response, const json::string& session_id );
 		static json::object add_session_id( const json::object& response, const session& session_id );
 
-		connector&							connector_;
+		connector< Timer >& connector_;
 	};
 
 	template < class Connection >
 	class response :
-		public response_base,
+		public response_base< typename Connection::trait_t::timeout_timer_type >,
 		public server::async_response,
 		public boost::enable_shared_from_this< response< Connection > >,
 	    private boost::noncopyable
 	{
 	public:
 		response( const boost::shared_ptr< Connection >& connection, const http::request_header& request,
-				connector& root );
+				connector< typename Connection::trait_t::timeout_timer_type >& root );
 
 	private:
         virtual void implement_hurry();
@@ -125,8 +126,8 @@ namespace bayeux
 	// implementation
 	template < class Connection >
 	response< Connection >::response( const boost::shared_ptr< Connection >& connection, const http::request_header&,
-			connector& root )
-	  : response_base( root )
+			connector< typename Connection::trait_t::timeout_timer_type >& root )
+	  : response_base< typename Connection::trait_t::timeout_timer_type >( root )
 	  , connection_( connection )
 	  , parsed_( false )
 	  , message_parser_()
@@ -136,8 +137,8 @@ namespace bayeux
 	template < class Connection >
     void response< Connection >::implement_hurry()
 	{
-	    if ( !blocking_connect_.empty() )
-	        session_->hurry();
+	    if ( !this->blocking_connect_.empty() )
+	        this->session_->hurry();
 	}
 
 	template < class Connection >
@@ -212,22 +213,22 @@ namespace bayeux
 
 		request_container.visit( visitor );
 
-        if ( blocking_connect_.empty() )
+        if ( this->blocking_connect_.empty() )
             write_reponse();
 	}
 
     template < class Connection >
     void response< Connection >::second_connection_detected()
     {
-        assert( session_.get() );
-        messages( json::array(), session_->session_id() );
+        assert( this->session_ );
+        messages( json::array(), this->session_->session_id() );
     }
 
     template < class Connection >
 	void response< Connection >::messages( const json::array& msg, const json::string& session_id )
 	{
-        bayeux_response_ += msg;
-        bayeux_response_.add( build_connect_response( blocking_connect_, session_id ) );
+        this->bayeux_response_ += msg;
+        this->bayeux_response_.add( build_connect_response( this->blocking_connect_, session_id ) );
 
         write_reponse();
 	}
@@ -235,7 +236,7 @@ namespace bayeux
     template < class Connection >
     void response< Connection >::write_reponse()
     {
-        response_ = build_response( bayeux_response_ );
+        response_ = build_response( this->bayeux_response_ );
         connection_->async_write(
             response_,
             boost::bind( &response::response_written, this->shared_from_this(), _1, _2 ),

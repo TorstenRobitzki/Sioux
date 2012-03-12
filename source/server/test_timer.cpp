@@ -214,5 +214,9 @@ namespace test {
         impl().current_time( new_time );
     }
 
+    void advance_time( const boost::posix_time::time_duration& delay )
+    {
+        current_time( current_time() + delay );
+    }
 }
 }

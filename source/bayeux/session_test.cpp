@@ -44,7 +44,7 @@ namespace {
             , root_( io_queue_, adapter_, config )
         {
         }
-};
+    };
 
     static void subscribe_session(
         test_root& context, const boost::shared_ptr< pubsub::subscriber >& session, const pubsub::node_name& node )

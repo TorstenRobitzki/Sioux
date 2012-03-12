@@ -84,8 +84,18 @@ namespace server {
 
         /**
          * @brief sets the currently simulated time
+         * @pre new_time >= current_time()
+         * @post current_time() will yield new_time
          */
         void current_time( const boost::posix_time::ptime& new_time );
+
+        /**
+         * @brief updates the current time
+         *
+         * Equivalent to current_time( current_time() + delay )
+         * @pre delay >= 0
+         */
+        void advance_time( const boost::posix_time::time_duration& delay );
 
         // implementation
         template< typename WaitHandler >

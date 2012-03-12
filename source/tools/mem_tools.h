@@ -30,8 +30,8 @@ void save_push_back(T* ptr, Cont& c)
 /// @class ptr_container_guard mem_tools.h "tools/mem_tools.h"
 /// @brief Guards dynamic allocated objects contained by a sequence container.
 ///
-/// This little guard take a reference to a container containing pointers to 
-/// dynamic allocated object. If the function dismiss() is not been called until
+/// This little guard takes a reference to a container containing pointers to
+/// dynamically allocated objects. If the function dismiss() is not been called until
 /// the guard goes out of scope, the d'tor of ptr_container_guard, will call
 /// delete on all elements of the container passed to the c'tor.
 

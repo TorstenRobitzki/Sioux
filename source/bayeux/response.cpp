@@ -8,18 +8,22 @@
 #include "bayeux/node_channel.h"
 #include "bayeux/session.h"
 #include "pubsub/node.h"
+#include "server/test_timer.h"
 
 namespace bayeux
 {
 
-	response_base::response_base( connector& con )
-		: connector_( con )
+    template < class Timer >
+	response_base< Timer >::response_base( connector< Timer >& con )
+	    : session_( 0 )
+		, connector_( con )
 	{
 	}
 
-	response_base::~response_base()
+    template < class Timer >
+	response_base< Timer >::~response_base()
 	{
-	    if ( session_.get() )
+	    if ( session_ )
 	        connector_.idle_session( session_ );
 	}
 
@@ -33,12 +37,14 @@ namespace bayeux
 	static const json::string meta_connect_channel( "/meta/connect" );
 	static const json::string meta_subscribe_channel( "/meta/subscribe" );
 
-	json::string response_base::extract_channel( const json::object& request )
+    template < class Timer >
+	json::string response_base< Timer >::extract_channel( const json::object& request )
 	{
 		return request.at( channel_token ).upcast< json::string >();
 	}
 
-	json::string response_base::extract_client_id( const json::object& request )
+    template < class Timer >
+	json::string response_base< Timer >::extract_client_id( const json::object& request )
 	{
         const json::value* const id = request.find( client_id_token );
 
@@ -57,7 +63,8 @@ namespace bayeux
         return visitor.value;
 	}
 
-	pubsub::node_name response_base::extract_node_name( const json::object& request )
+    template < class Timer >
+	pubsub::node_name response_base< Timer >::extract_node_name( const json::object& request )
 	{
         const json::value* const channel = request.find( subscription_token );
 
@@ -77,17 +84,20 @@ namespace bayeux
         return visitor.value;
 	}
 
-	json::object response_base::add_session_id( const json::object& response, const json::string& session_id )
+    template < class Timer >
+	json::object response_base< Timer >::add_session_id( const json::object& response, const json::string& session_id )
 	{
 		return response.copy().add( client_id_token, session_id );
 	}
 
-	json::object response_base::add_session_id( const json::object& response, const session& session_id )
+    template < class Timer >
+	json::object response_base< Timer >::add_session_id( const json::object& response, const session& session_id )
 	{
 		return add_session_id( response, session_id.session_id() );
 	}
 
-	void response_base::handle_request( const json::object& request,
+    template < class Timer >
+	void response_base< Timer >::handle_request( const json::object& request,
 	    const boost::shared_ptr< response_interface >& self, const std::string& connection_name )
 	{
 		const json::string channel = extract_channel( request );
@@ -119,7 +129,8 @@ namespace bayeux
         }
 	}
 
-	void response_base::handle_handshake( const json::object& request, const std::string& connection_name )
+    template < class Timer >
+	void response_base< Timer >::handle_handshake( const json::object& request, const std::string& connection_name )
 	{
 		static const json::object response_prototype = json::parse_single_quoted(
 			"{"
@@ -137,10 +148,11 @@ namespace bayeux
 	}
 
 
-	void response_base::handle_connect( const json::object& request,
+    template < class Timer >
+	void response_base< Timer >::handle_connect( const json::object& request,
 	    const boost::shared_ptr< response_interface >& self )
 	{
-	    assert( session_.get() );
+	    assert( session_ );
 
 	    if ( !check_connection_type( request, session_->session_id() ) )
 	        return;
@@ -167,7 +179,8 @@ namespace bayeux
 		}
 	}
 
-    json::object response_base::build_connect_response( const json::object& request, const json::string& session_id )
+    template < class Timer >
+    json::object response_base< Timer >::build_connect_response( const json::object& request, const json::string& session_id )
     {
         static const json::object reponse_prototype = json::parse_single_quoted(
             "{"
@@ -182,16 +195,18 @@ namespace bayeux
     }
 
 
-	void response_base::handle_subscribe( const json::object& request )
+    template < class Timer >
+	void response_base< Timer >::handle_subscribe( const json::object& request )
 	{
-        assert( session_.get() );
+        assert( session_ );
 
         const json::string subscription = check_subscription( request, meta_subscribe_channel );
 
         session_->subscribe( node_name_from_channel( subscription ), request.find( id_token ) );
 	}
 
-    json::string response_base::check_client_id( const json::object& request, const json::string& response_channel )
+    template < class Timer >
+    json::string response_base< Timer >::check_client_id( const json::object& request, const json::string& response_channel )
     {
         const json::string id = extract_client_id( request );
 
@@ -213,15 +228,19 @@ namespace bayeux
         return id;
     }
 
-    bool response_base::check_session( const json::object& request, const json::string& id,
+    template < class Timer >
+    bool response_base< Timer >::check_session( const json::object& request, const json::string& id,
         const json::string& response_channel )
     {
-        if ( session_.get() )
+        if ( session_ )
+        {
             connector_.idle_session( session_ );
+            session_ = 0;
+        }
 
         session_ = connector_.find_session( id );
 
-        if ( session_.get() == 0 )
+        if ( session_ == 0 )
         {
             static const json::object response_template = json::parse_single_quoted(
                 "{"
@@ -237,10 +256,11 @@ namespace bayeux
             bayeux_response_.add( response );
         }
 
-        return session_.get();
+        return session_ != 0;
     }
 
-    json::string response_base::check_subscription( const json::object& request, const json::string& response_channel )
+    template < class Timer >
+    json::string response_base< Timer >::check_subscription( const json::object& request, const json::string& response_channel )
     {
         const json::value* const subscription = request.find( subscription_token );
 
@@ -264,7 +284,8 @@ namespace bayeux
         return json::string();
     }
 
-    bool response_base::check_connection_type( const json::object& request, const json::string& session_id )
+    template < class Timer >
+    bool response_base< Timer >::check_connection_type( const json::object& request, const json::string& session_id )
 	{
 	    const json::value* const type = request.find( connection_typen_token );
 
@@ -288,7 +309,8 @@ namespace bayeux
 	    return result;
 	}
 
-    void response_base::copy_id_field( const json::object& from, json::object& to ) const
+    template < class Timer >
+    void response_base< Timer >::copy_id_field( const json::object& from, json::object& to ) const
     {
         const json::value* const id_value = from.find( id_token );
 
@@ -296,7 +318,8 @@ namespace bayeux
             to.add( id_token, *id_value );
     }
 
-    std::vector< boost::asio::const_buffer > response_base::build_response( const json::array& bayeux_response )
+    template < class Timer >
+    std::vector< boost::asio::const_buffer > response_base< Timer >::build_response( const json::array& bayeux_response )
 	{
 		static const char response_header[] =
 			"HTTP/1.1 200 OK\r\n"
@@ -314,4 +337,7 @@ namespace bayeux
 		return result;
 	}
 
+
+    template class response_base< boost::asio::deadline_timer >;
+    template class response_base< server::test::timer >;
 }
