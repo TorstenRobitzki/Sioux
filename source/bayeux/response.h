@@ -175,6 +175,11 @@ namespace bayeux
                 parsed_ = message_parser_.parse( buffer, buffer + bytes_read_and_decoded );
                 guard.dismiss();
             }
+            else
+            {
+                connection_->trait().log_error( *connection_, "unexpected state while reading body:",
+                    bytes_read_and_decoded, parsed_ );
+            }
         }
         catch ( const std::exception& e )
         {

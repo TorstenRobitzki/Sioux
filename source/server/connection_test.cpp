@@ -156,7 +156,7 @@ BOOST_AUTO_TEST_CASE(closed_when_idle_time_exceeded)
     boost::weak_ptr<server::connection<traits<>, traits<>::connection_type> > connection(server::create_connection(socket, trait));
     BOOST_CHECK(!connection.expired());
 
-    timer time;
+    elapse_timer time;
     queue.run();
 
     // 30sec is the default idle time
@@ -214,7 +214,7 @@ BOOST_AUTO_TEST_CASE(timeout_while_writing_to_client)
     boost::weak_ptr<server::connection<traits<>, traits<>::connection_type> > connection(server::create_connection(socket, trait));
     BOOST_CHECK(!connection.expired());
 
-    timer time;
+    elapse_timer time;
     queue.run();
 
     // 3sec is the default timeout
@@ -251,7 +251,7 @@ BOOST_AUTO_TEST_CASE(timeout_while_reading_from_client)
     boost::weak_ptr<server::connection<traits<>, traits<>::connection_type> > connection(server::create_connection(socket, trait));
     BOOST_CHECK(!connection.expired());
 
-    timer time;
+    elapse_timer time;
     queue.run();
 
     // 3sec is the default timeout

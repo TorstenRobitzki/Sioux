@@ -14,7 +14,7 @@ namespace server {
     namespace test {
 
         /**
-         * @brief test replacement of a boost::asio::deadline_timer
+         * @brief test replacement for a boost::asio::deadline_timer
          */
         class timer : boost::noncopyable
         {
@@ -90,12 +90,25 @@ namespace server {
         void current_time( const boost::posix_time::ptime& new_time );
 
         /**
+         * @brief resets the time to 1970-01-01 00:00:00
+         */
+        void reset_time();
+
+        /**
          * @brief updates the current time
          *
          * Equivalent to current_time( current_time() + delay )
          * @pre delay >= 0
          */
         void advance_time( const boost::posix_time::time_duration& delay );
+
+        /**
+         * @brief advances the simulated time up to the next point, where a timer is scheduled to expire.
+         *
+         * @return returns the number of scheduled timer that reached there expiration times by advancing the
+         *         time to the nearest expirtion time.
+         */
+        unsigned advance_time();
 
         // implementation
         template< typename WaitHandler >

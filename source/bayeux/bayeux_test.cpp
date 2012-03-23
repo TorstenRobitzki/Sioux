@@ -30,8 +30,6 @@
 
 namespace
 {
-	typedef server::test::socket< const char* > socket_t;
-
 	template < std::size_t S >
 	server::test::read bayeux_msg( const char(&txt)[S] )
 	{
@@ -119,8 +117,8 @@ namespace
 		bayeux::configuration 	    config_;
 	};
 
-	typedef server::test::socket<>      socket_t;
-	typedef server::test::timer         timer_t;
+    typedef server::test::timer         timer_t;
+	typedef server::test::socket< const char*, timer_t > socket_t;
 	typedef server::null_event_logger	event_logger_t;
 //	typedef server::stream_event_log	event_logger_t;
 	typedef server::stream_error_log	error_logger_t;
@@ -156,6 +154,7 @@ namespace
 			, data( queue, adapter, pubsub::configuration() )
 			, trait( queue, data )
 		{
+		    server::test::reset_time();
 		}
 
 		explicit test_context( const pubsub::configuration& config )
@@ -164,6 +163,7 @@ namespace
             , data( queue, adapter, config )
             , trait( queue, data )
         {
+            server::test::reset_time();
         }
 
         test_context( const pubsub::configuration& config, const bayeux::configuration& bayeux_config )
@@ -172,12 +172,67 @@ namespace
             , data( queue, adapter, config )
             , trait( queue, data, bayeux_config )
         {
+            server::test::reset_time();
         }
 
 	};
 
 	typedef server::connection< trait_t >                           connection_t;
-	typedef std::pair< boost::shared_ptr< http::response_header >, json::array >	response_t;
+
+	struct response_t
+	{
+	    boost::shared_ptr< http::response_header >  first;
+	    json::array                                 second;
+	    boost::posix_time::ptime                    received;
+	};
+
+	class stream_decoder
+	{
+	public:
+	    stream_decoder()
+	        : idle_( true )
+	    {}
+
+	    void operator()( boost::asio::const_buffer data )
+	    {
+	        for ( ; buffer_size( data ); data = feed_data( data ) )
+	            ;
+	    }
+
+	    std::vector< response_t > result() const
+        {
+	        if ( !idle_ )
+	            throw std::runtime_error( "incomplete http message" );
+
+	        return result_;
+        }
+	private:
+	    boost::asio::const_buffer feed_data( const boost::asio::const_buffer& data )
+	    {
+	        const std::pair< bool, std::size_t > remaining = decoder_.feed_data( data );
+            idle_ = remaining.first && remaining.second == 0;
+
+	        if ( remaining.first )
+	        {
+	            std::pair< boost::shared_ptr< http::response_header >, std::vector< char > > msg =
+	                decoder_.last_message();
+
+	            const response_t new_response = {
+	                msg.first,
+	                json::parse( msg.second.begin(), msg.second.end() ).upcast< json::array >(),
+	                server::test::current_time()
+	            };
+
+	            result_.push_back( new_response );
+	        }
+
+	        return data + ( buffer_size( data ) - remaining.second );
+	    }
+
+	    http::stream_decoder< http::response_header >   decoder_;
+	    std::vector< response_t >                       result_;
+	    bool                                            idle_;
+	};
 
 	/*
 	 * splits the response byte stream in the http and the bayeux part
@@ -190,8 +245,13 @@ namespace
 
 		for ( http::decoded_response_stream_t::const_iterator r = responses.begin(); r != responses.end(); ++r )
 		{
-			const json::array messages = json::parse( r->second.begin(), r->second.end() ).upcast< json::array >();
-			result.push_back( std::make_pair( r->first, messages ) );
+		    const response_t response =
+		    {
+		        r->first,
+		        json::parse( r->second.begin(), r->second.end() ).upcast< json::array >(),
+		        server::test::current_time()
+		    };
+			result.push_back( response );
 		}
 
 		return result;
@@ -199,12 +259,14 @@ namespace
 
 	/*
 	 * Takes the simulated client input, records the response and extracts the bayeux messages from the
-	 * http responses.
+	 * http responses. At the beginning of the session, the time is set to "1970-01-01 00:00:00"
 	 */
 	std::vector< response_t > bayeux_session( const server::test::read_plan& input,
 	    const server::test::write_plan& output, test_context& context )
 	{
-		socket_t	socket( context.queue, input, output );
+        stream_decoder  decoder;
+        socket_t	    socket( context.queue, input, output );
+        socket.write_callback( boost::bind< void >( boost::ref( decoder ), _1 ) );
 
 		boost::shared_ptr< connection_t > connection( new connection_t( socket, context.trait ) );
 		connection->start();
@@ -219,7 +281,7 @@ namespace
 		    BOOST_REQUIRE( false );
 		}
 
-		return extract_responses( socket.bin_output() );
+		return decoder.result();
 	}
 
     std::vector< response_t > bayeux_session( const server::test::read_plan& input, test_context& context )
@@ -428,7 +490,7 @@ BOOST_AUTO_TEST_CASE( bayeux_connection_with_unsupported_connection_type_must_fa
  */
 BOOST_AUTO_TEST_CASE( bayeux_simple_handshake_subscribe_connect )
 {
-	test_context context( pubsub::configurator().authorization_not_required() );
+    test_context context( pubsub::configurator().authorization_not_required() );
 
 	context.adapter.answer_validation_request( bayeux::node_name_from_channel( "/foo/bar" ), true );
 	context.adapter.answer_initialization_request( bayeux::node_name_from_channel( "/foo/bar" ), json::null() );
@@ -552,7 +614,7 @@ BOOST_AUTO_TEST_CASE( bayeux_connect_blocks_until_an_event_happens )
         ) );
 }
 
- /**
+/**
  * @test what should happen, if the connection to the client get closed (writing part) while the response is blocked?
  */
 BOOST_AUTO_TEST_CASE( http_connection_get_closed_while_response_is_waiting )
@@ -616,9 +678,8 @@ BOOST_AUTO_TEST_CASE( http_connection_get_closed_while_response_is_waiting )
  */
 BOOST_AUTO_TEST_CASE( bayeux_only_supported_connection_types )
 {
-    /// @todo
+    /// @todo should be implemented, when a second connection type is implemented
 }
-
 /**
  * @test currently the response is to disconnect when the body contains errors.
  *       In a later version there should be a HTTP error response, if the body was completely received.
@@ -633,10 +694,55 @@ BOOST_AUTO_TEST_CASE( incomplete_bayeux_request_should_result_in_http_error_resp
     BOOST_REQUIRE_EQUAL( 0u, response.size() );
 }
 
+namespace
+{
+    unsigned count_fields( const json::array& list, const json::string& field_name, const json::value& value )
+    {
+        unsigned result = 0;
+        for ( std::size_t i = 0, length = list.length(); i != length; ++i )
+        {
+            const std::pair< bool, json::object > element = list.at( i ).try_cast< json::object >();
+
+            if ( element.first )
+            {
+                const json::value* const value_found = element.second.find( field_name );
+                if ( value_found && *value_found == value )
+                    ++result;
+            }
+        }
+
+        return result;
+    }
+
+    bool occurences_in_range( const std::vector< response_t >& response, const char* field, const char* value,
+        unsigned min, unsigned max )
+    {
+        const json::string field_name( field );
+        const json::value field_value = json::parse_single_quoted( value );
+
+        bool result = true;
+        for ( std::vector< response_t >::const_iterator i = response.begin(); i != response.end() && result; ++i )
+        {
+            const unsigned count = count_fields( i->second, field_name, field_value );
+            result = count >= min && count <= max;
+        }
+
+        return result;
+    }
+
+    bool contains_at_least_once( const std::vector< response_t >& response, const char* field, const char* value )
+    {
+        return occurences_in_range( response, field, value, 1u, 100000000u );
+    }
+
+    bool contains_not( const std::vector< response_t >& response, const char* field, const char* value )
+    {
+        return occurences_in_range( response, field, value, 0, 0 );
+    }
+}
+
 /**
  * @test a http proxy could use one http connection to connect more than one client to the bayeux server
- *
- * The test sucks because it documents one possible behavior, other possible behaviors would be flagged as bug.
  */
 BOOST_AUTO_TEST_CASE( more_than_one_session_in_a_single_connection )
 {
@@ -697,6 +803,23 @@ BOOST_AUTO_TEST_CASE( more_than_one_session_in_a_single_connection )
              << server::test::disconnect_read(),
         context );
 
+    BOOST_REQUIRE_EQUAL( 6u, response.size() );
+    std::vector< response_t > response_first_client;
+    std::vector< response_t > response_second_client;
+    response_first_client.push_back( response[ 0 ] );
+    response_first_client.push_back( response[ 1 ] );
+    response_second_client.push_back( response[ 2 ] );
+    response_second_client.push_back( response[ 3 ] );
+    response_first_client.push_back( response[ 4 ] );
+    response_second_client.push_back( response[ 5 ] );
+
+    // now in the response to the first session in ever response, the session id must be mentioned and the
+    // session id from the second session must not be contained
+    BOOST_CHECK( contains_at_least_once( response_first_client, "clientId", "'192.168.210.1:9999/0'" ) );
+    BOOST_CHECK( contains_not( response_first_client, "clientId", "'192.168.210.1:9999/1'" ) );
+    BOOST_CHECK( contains_at_least_once( response_second_client, "clientId", "'192.168.210.1:9999/1'" ) );
+    BOOST_CHECK( contains_not( response_second_client, "clientId", "'192.168.210.1:9999/0'" ) );
+
     // getting the session id for the first session
     BOOST_REQUIRE_LE( 1u, response.size() );
     BOOST_CHECK_EQUAL( response[ 0 ].second,
@@ -712,23 +835,6 @@ BOOST_AUTO_TEST_CASE( more_than_one_session_in_a_single_connection )
             "   }"
             "]"
         ) );
-
-    BOOST_REQUIRE_LE( 2u, response.size() );
-    BOOST_CHECK_EQUAL( response[ 1u ].second,
-        json::parse_single_quoted(
-            "["
-            "   {"
-            "       'channel'       : '/meta/subscribe',"
-            "       'successful'    : true, "
-            "       'clientId'      : '192.168.210.1:9999/0',"
-            "       'subscription'  : '/foo/bar'"
-            "   },"
-            "   {"
-            "       'channel'       : '/meta/connect',"
-            "       'successful'    : true, "
-            "       'clientId'      : '192.168.210.1:9999/0',"
-            "   }"
-            "]") );
 
     // getting the session id for the second session
     BOOST_REQUIRE_LE( 3u, response.size() );
@@ -746,60 +852,57 @@ BOOST_AUTO_TEST_CASE( more_than_one_session_in_a_single_connection )
             "]"
         ) );
 
-    // first connect doesn't contain the subscribe success for the second session
-    BOOST_REQUIRE_LE( 4u, response.size() );
-    BOOST_CHECK_EQUAL( response[ 3u ].second,
-        json::parse_single_quoted(
-            "["
-            "   {"
-            "       'channel'       : '/meta/connect',"
-            "       'successful'    : true, "
-            "       'clientId'      : '192.168.210.1:9999/1'"
-            "   }"
-            "]") );
-
-    BOOST_REQUIRE_LE( 5u, response.size() );
-    BOOST_CHECK_EQUAL( response[ 4u ].second,
-        json::parse_single_quoted(
-            "["
-            "   {"
-            "       'channel'       : '/foo/bar',"
-            "       'data'          : 42"
-            "   },"
-            "   {"
-            "       'channel'       : '/meta/connect',"
-            "       'successful'    : true, "
-            "       'clientId'      : '192.168.210.1:9999/0'"
-            "   }"
-            "]") );
-
-    BOOST_REQUIRE_EQUAL( 6u, response.size() );
-    BOOST_CHECK_EQUAL( response[ 5u ].second,
-        json::parse_single_quoted(
-            "["
-            "   {"
-            "       'channel'       : '/meta/subscribe',"
-            "       'clientId'      : '192.168.210.1:9999/1',"
-            "       'successful'    : true,"
-            "       'subscription'  : '/foo/bar'"
-            "   },"
-            "   {"
-            "       'data'          : 42,"
-            "       'channel'       : '/foo/bar'"
-            "   },"
-            "   {"
-            "       'channel'       : '/meta/connect',"
-            "       'clientId'      : '192.168.210.1:9999/1',"
-            "       'successful'    : true"
-            "   }"
-            "]" ) );
 }
 
 /**
  * @brief hurry a listening connection, if a normal http request is pipelined
+ *
+ * The second http request should block because it contains a connect.
  */
 BOOST_AUTO_TEST_CASE( hurry_bayeux_connection_if_request_is_pipelined )
 {
+    test_context context( pubsub::configurator().authorization_not_required() );
+
+    const std::vector< response_t > response = bayeux_session(
+        server::test::read_plan()
+            << bayeux_msg(
+                "{"
+                "   'channel' : '/meta/handshake',"
+                "   'version' : '1.0.0',"
+                "   'supportedConnectionTypes' : ['long-polling', 'callback-polling'],"
+                "   'id'      : 'id_first_handshake'"
+                "}" )
+            << bayeux_msg(
+                "[{"
+                "   'channel' : '/meta/subscribe',"
+                "   'clientId' : '192.168.210.1:9999/0',"
+                "   'subscription' : '/foo/bar' "
+                "},{ "
+                "   'channel' : '/meta/connect',"
+                "   'clientId' : '192.168.210.1:9999/0',"
+                "   'connectionType' : 'long-polling' "
+                "}]" )
+            << bayeux_msg(
+                "[{"
+                "   'channel' : '/meta/subscribe',"
+                "   'clientId' : '192.168.210.1:9999/0',"
+                "   'subscription' : '/foo/chu' "
+                "}]" )
+            << server::test::disconnect_read(),
+            context );
+
+    BOOST_REQUIRE_EQUAL( response.size(), 3u );
+    BOOST_REQUIRE_EQUAL(
+        response[ 1 ].second,
+        json::parse_single_quoted(
+            "["
+            "   {"
+            "       'channel'       : '/meta/connect',"
+            "       'clientId'      : '192.168.210.1:9999/0',"
+            "       'successful'    : true"
+            "   }"
+            "]" ) );
+
 }
 
 BOOST_AUTO_TEST_CASE( single_valued_containing_a_single_bayeux_message )
@@ -834,18 +937,18 @@ BOOST_AUTO_TEST_CASE( single_http_request_with_connect_not_beeing_the_last_eleme
  */
 BOOST_AUTO_TEST_CASE( long_poll_time_out_test )
 {
-    /*
-    const boost::posix_time::milliseconds timeout( 100 );
-    const boost::posix_time::milliseconds tollerance( 10 );
+    const boost::posix_time::seconds timeout( 100 );
 
     test_context context(
         pubsub::configurator().authorization_not_required(),
         bayeux::configuration().session_timeout( timeout ) );
 
+    const boost::posix_time::ptime   start_time = server::test::current_time();
+
     context.adapter.answer_validation_request( bayeux::node_name_from_channel( "/foo/bar" ), true );
     context.adapter.answer_initialization_request( bayeux::node_name_from_channel( "/foo/bar" ), json::null() );
 
-    socket_t    socket( context.queue,
+    const std::vector< response_t > response = bayeux_session(
         server::test::read_plan()
             << bayeux_msg(
                 "{"
@@ -870,22 +973,15 @@ BOOST_AUTO_TEST_CASE( long_poll_time_out_test )
                "   'clientId' : '192.168.210.1:9999/0',"
                "   'connectionType' : 'long-polling' "
                "}" )
+           << server::test::delay( timeout + timeout )
            << server::test::disconnect_read(),
-       server::test::write_plan() );
+       server::test::write_plan(),
+       context );
 
-    boost::shared_ptr< connection_t > connection( new connection_t( socket, context.trait ) );
-    connection->start();
-
-    const boost::posix_time::ptime start = boost::posix_time::microsec_clock::universal_time();
-    tools::run( context.queue );
-    const boost::posix_time::time_duration lasting = boost::posix_time::microsec_clock::universal_time() - start;
-
-    BOOST_CHECK_GE(lasting, timeout - tollerance );
-    BOOST_CHECK_LE(lasting, timeout + tollerance );
-
-    const std::vector< response_t > response = extract_responses( socket.bin_output() );
     BOOST_REQUIRE_EQUAL( 3u, response.size() );
+
     BOOST_CHECK_EQUAL( response[ 2u ].first->code(), http::http_ok );
     BOOST_CHECK( response[ 2u ].second.empty() );
-    */
+    BOOST_CHECK_EQUAL( response[ 2u ].received - start_time, timeout );
 }
+

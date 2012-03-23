@@ -115,12 +115,12 @@ void server::test::wait(const boost::posix_time::time_duration& period)
 }
 
 
-server::test::timer::timer()
+server::test::elapse_timer::elapse_timer()
     : start_(boost::posix_time::microsec_clock::universal_time())
 {
 }
 
-boost::posix_time::time_duration server::test::timer::elapsed() const
+boost::posix_time::time_duration server::test::elapse_timer::elapsed() const
 {
     return boost::posix_time::microsec_clock::universal_time() - start_;
 }

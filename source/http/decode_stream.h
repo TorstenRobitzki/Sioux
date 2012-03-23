@@ -5,6 +5,8 @@
 #ifndef HTTP_DECODE_STREAM_H_
 #define HTTP_DECODE_STREAM_H_
 
+#include "http/body_decoder.h"
+
 #include <vector>
 #include <utility>
 #include <boost/shared_ptr.hpp>
@@ -45,6 +47,45 @@ namespace http
 	std::vector< std::pair< boost::shared_ptr< Message >, std::vector< char > > >
 		decode_stream( const std::vector< char >& stream );
 
+	/**
+	 * @brief state full http decoder. To slit a stream into separate http message headers and bodies
+	 */
+	template < class Message >
+	class stream_decoder
+	{
+	public:
+	    stream_decoder();
+
+	    /**
+	     * @brief feeds new data to the decoder. If a new message is completely decoded, the function
+	     *        will return std::make_pair( true, undecoded ). Where undecoded is the number of bytes from
+	     *        raw_data that was not passed and should be feed to the decoder with a subsequent call to feed_data().
+	     *
+	     * If the function returns std::make_pair( true, 0 ), than all data was consumed and a new message decoded.
+	     */
+	    std::pair< bool, std::size_t > feed_data( const boost::asio::const_buffer& raw_data );
+
+	    typedef std::pair< boost::shared_ptr< Message >, std::vector< char > > message_t;
+
+	    /**
+	     * @brief returns the last, decoded http header and body
+	     * @pre the last call to feed_data() must have returned true in the first member.
+	     */
+	    message_t last_message() const;
+	private:
+	    std::pair< bool, std::size_t > decode_header( const char*, std::size_t );
+        std::pair< bool, std::size_t > decode_body( const char*, std::size_t );
+
+        body_decoder decoder_;
+
+        enum {
+            idle_state,
+            decoding_header,
+            decoding_body
+        } state_;
+
+        message_t   current_;
+	};
 }
 
 #endif /* HTTP_DECODE_STREAM_H_ */

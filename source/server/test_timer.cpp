@@ -16,6 +16,8 @@ namespace
     typedef boost::function< void ( const boost::system::error_code& ) > time_cb_t;
     typedef boost::posix_time::ptime time_t;
 
+    const time_t time_zero = boost::posix_time::time_from_string( "1970-01-01 00:00:00" );
+
     struct timer_data
     {
         std::vector< time_cb_t >    call_backs_;
@@ -68,12 +70,28 @@ namespace
             return result;
         }
 
+        unsigned advance_time()
+        {
+            boost::mutex::scoped_lock lock( mutex_ );
+
+            if ( timers_.empty() )
+                return 0;
+
+            boost::posix_time::ptime min = boost::posix_time::max_date_time;
+            for ( timer_map_t::iterator timer = timers_.begin(); timer != timers_.end(); ++timer )
+            {
+                min = std::min( min, timer->second.expiration_time_ );
+            }
+
+            return current_time_impl( min );
+        }
+
         time_t current_time()
         {
             boost::mutex::scoped_lock lock( mutex_ );
 
             if ( current_time_ == time_t() )
-                current_time_ = boost::posix_time::time_from_string( "1970-01-01 00:00:00");
+                current_time_ = time_zero;
 
             return current_time_;
         }
@@ -81,7 +99,14 @@ namespace
         void current_time( const boost::posix_time::ptime& new_time )
         {
             boost::mutex::scoped_lock lock( mutex_ );
+            current_time_impl( new_time );
+        }
+
+    private:
+        unsigned current_time_impl( const boost::posix_time::ptime& new_time )
+        {
             current_time_ = new_time;
+            unsigned result = 0;
 
             for ( timer_map_t::iterator timer = timers_.begin(); timer != timers_.end(); )
             {
@@ -89,13 +114,17 @@ namespace
                 {
                     invoke_handlers( timer->second, boost::system::error_code() );
                     timers_.erase( timer++ );
+                    ++result;
                 }
                 else
+                {
                     ++timer;
+                }
             }
+
+            return result;
         }
 
-    private:
         void invoke_handlers( const timer_data& timer, const boost::system::error_code& ec )
         {
             for ( std::vector< time_cb_t >::const_iterator cb = timer.call_backs_.begin();
@@ -214,9 +243,20 @@ namespace test {
         impl().current_time( new_time );
     }
 
+    void reset_time()
+    {
+        impl().current_time( time_zero );
+    }
+
     void advance_time( const boost::posix_time::time_duration& delay )
     {
         current_time( current_time() + delay );
     }
+
+    unsigned advance_time()
+    {
+        return impl().advance_time();
+    }
+
 }
 }

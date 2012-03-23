@@ -42,7 +42,7 @@ namespace http
         bool done() const;
 
         /**
-         * @brief returns a part of the decodes body. If the first member of
+         * @brief returns a part of the decoded body. If the first member of
          * the returned pair is 0, the part, that was feed to the decode by feed_buffer()
          * is decoded and more data must be feeded to the decoder.s
          */

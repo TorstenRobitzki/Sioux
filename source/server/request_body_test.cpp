@@ -19,6 +19,7 @@
 #include "server/response.h"
 #include "server/test_socket.h"
 #include "server/test_tools.h"
+#include "server/test_timer.h"
 #include "server/traits.h"
 #include "tools/io_service.h"
 #include "tools/iterators.h"

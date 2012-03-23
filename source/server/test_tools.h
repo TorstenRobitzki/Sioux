@@ -38,10 +38,10 @@ namespace server
         /**
          * @brief times the time since construction
          */
-        class timer
+        class elapse_timer
         {
         public:
-            timer();
+            elapse_timer();
 
             boost::posix_time::time_duration elapsed() const;
         private:

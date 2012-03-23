@@ -238,3 +238,67 @@ BOOST_AUTO_TEST_CASE( resetting_expiration_time_cancels_timer )
     handlerA.check_not_called();
     handlerB.check_not_called();
 }
+
+BOOST_AUTO_TEST_CASE( advance_time_test )
+{
+    server::test::reset_time();
+    const boost::posix_time::ptime start_time = server::test::current_time();
+    const boost::posix_time::ptime t1 = start_time + boost::posix_time::seconds( 1 );
+    const boost::posix_time::ptime t5 = start_time + boost::posix_time::seconds( 5 );
+    const boost::posix_time::ptime t7 = start_time + boost::posix_time::seconds( 7 );
+
+    boost::asio::io_service queue;
+
+    server::test::timer timerA( queue );
+    server::test::timer timerB( queue );
+    server::test::timer timerC( queue );
+    server::test::timer timerD( queue );
+
+    BOOST_CHECK_EQUAL( start_time, server::test::current_time() );
+
+    timer_call_back handlerA;
+    timer_call_back handlerB;
+    timer_call_back handlerC;
+    timer_call_back handlerD;
+
+    BOOST_TEST_MESSAGE( "setup timers" );
+
+    timerA.expires_at( t5 );
+    timerA.async_wait( boost::ref( handlerA ) );
+    timerB.expires_at( t1 );
+    timerB.async_wait( boost::ref( handlerB ) );
+    timerC.expires_at( t7 );
+    timerC.async_wait( boost::ref( handlerC ) );
+    timerD.expires_at( t5 );
+    timerD.async_wait( boost::ref( handlerD ) );
+
+    BOOST_REQUIRE_EQUAL( 1u, server::test::advance_time() );
+    BOOST_CHECK_EQUAL( t1, server::test::current_time() );
+
+    tools::run( queue );
+
+    handlerA.check_not_called();
+    handlerB.check_called_without_error_at( t1 );
+    handlerC.check_not_called();
+    handlerD.check_not_called();
+
+    BOOST_REQUIRE_EQUAL( 2u, server::test::advance_time() );
+    BOOST_CHECK_EQUAL( t5, server::test::current_time() );
+
+    tools::run( queue );
+
+    handlerA.check_called_without_error_at( t5 );
+    handlerB.check_not_called();
+    handlerC.check_not_called();
+    handlerD.check_called_without_error_at( t5 );
+
+    BOOST_REQUIRE_EQUAL( 1u, server::test::advance_time() );
+    BOOST_CHECK_EQUAL( t7, server::test::current_time() );
+
+    tools::run( queue );
+
+    handlerA.check_not_called();
+    handlerB.check_not_called();
+    handlerC.check_called_without_error_at( t7 );
+    handlerD.check_not_called();
+}

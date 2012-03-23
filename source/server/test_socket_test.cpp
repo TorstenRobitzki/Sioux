@@ -14,6 +14,7 @@
 #include <boost/asio/read.hpp>
 #include <boost/thread/condition_variable.hpp>
 #include <boost/bind.hpp>
+#include <boost/lambda/lambda.hpp>
 
 using namespace server::test;
 using namespace http::test;
@@ -203,7 +204,7 @@ BOOST_AUTO_TEST_CASE(first_read_followed_by_delay_and_second_read)
     server::test::socket<const char*> socket(queue, reads);
     read_handler h = {buffer, socket};
 
-    timer time;
+    elapse_timer time;
 
     socket.async_read_some(boost::asio::buffer(buffer), h);
     tools::run(queue);
@@ -288,3 +289,33 @@ BOOST_AUTO_TEST_CASE( read_plan_execute_test )
     BOOST_CHECK_EQUAL( i, 3 );
     BOOST_CHECK( item == std::make_pair( std::string( "d" ), pt::time_duration() ) );
 }
+
+BOOST_AUTO_TEST_CASE( write_callback_is_called )
+{
+    using namespace boost::lambda;
+    using boost::lambda::_1;
+
+    boost::asio::io_service         queue;
+    server::test::socket<>          socket( queue, read_plan() );
+    boost::asio::const_buffer       buffer;
+    io_completed                    io_result;
+
+    socket.write_callback( var( buffer ) = _1 );
+    BOOST_REQUIRE_EQUAL( buffer_size( buffer ), 0 );
+
+    socket.async_write_some( boost::asio::buffer( "Hallo" ), io_result );
+    tools::run( queue );
+
+    BOOST_CHECK( !io_result.error );
+    BOOST_CHECK_EQUAL( io_result.bytes_transferred, 6u );
+
+    BOOST_CHECK_EQUAL( buffer_size( buffer ), 6u );
+    BOOST_CHECK_EQUAL( std::string( "Hallo" ), boost::asio::buffer_cast< const char* >( buffer ) );
+
+    socket.async_write_some( boost::asio::buffer( "Welt" ), io_result );
+    tools::run( queue );
+
+    BOOST_CHECK_EQUAL( buffer_size( buffer ), 5u );
+    BOOST_CHECK_EQUAL( std::string( "Welt" ), boost::asio::buffer_cast< const char* >( buffer ) );
+}
+

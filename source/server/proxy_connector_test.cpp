@@ -8,6 +8,7 @@
 #include "server/test_resolver.h"
 #include "server/test_socket.h"
 #include "server/test_tools.h"
+#include "server/test_timer.h"
 #include "tools/iterators.h"
 #include "tools/io_service.h"
 #include <boost/bind.hpp>
@@ -17,7 +18,7 @@
 
 using namespace server::test;
 
-typedef server::test::socket<const char*> socket_t;
+typedef server::test::socket< const char* > socket_t;
 typedef server::ip_proxy_connector<socket_t> ip_proxy_connector;
 
 namespace {
@@ -302,7 +303,7 @@ BOOST_AUTO_TEST_CASE(proxy_connection_error)
     boost::asio::io_service                         queue;
 
     // use a socket type, that will simulate a connect error
-    typedef server::test::socket<const char*, socket_behaviour<connect_error<error_on_connect> > > socket_t;
+    typedef server::test::socket<const char*, server::test::timer, socket_behaviour<connect_error<error_on_connect> > > socket_t;
     typedef server::ip_proxy_connector<socket_t> ip_proxy_connector;
 
     boost::shared_ptr<server::proxy_connector_base> proxy(
@@ -329,7 +330,10 @@ BOOST_AUTO_TEST_CASE(proxy_connection_timeout)
     boost::asio::io_service                         queue;
 
     // use a socket type, that will answer the connect request
-    typedef server::test::socket<const char*, socket_behaviour<connect_error<do_not_respond> > > socket_t;
+    typedef server::test::socket<
+        const char*,
+        boost::asio::deadline_timer,
+        socket_behaviour<connect_error<do_not_respond> > > socket_t;
     typedef server::ip_proxy_connector<socket_t> ip_proxy_connector;
 
     boost::shared_ptr<server::proxy_connector_base> proxy(
