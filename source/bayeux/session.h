@@ -128,6 +128,10 @@ namespace bayeux
          */
         void close();
 
+        /**
+         * @brief returns the connection timeout for this session
+         */
+        boost::posix_time::time_duration long_polling_timeout() const;
 	private:
         // no copy, no assigment
         session( const session& );
@@ -163,7 +167,7 @@ namespace bayeux
         pubsub::root&                               root_;
 
         // used to synchronize the access to the members below
-        boost::mutex								mutex_;
+        mutable boost::mutex						mutex_;
 
         json::array                                 messages_;
         boost::shared_ptr< response_interface >     http_connection_;

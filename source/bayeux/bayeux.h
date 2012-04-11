@@ -10,6 +10,7 @@
 #include <boost/thread/mutex.hpp>
 
 #include "bayeux/response.h"
+#include "bayeux/adapter.h"
 #include "pubsub/root.h"
 #include "server/connection.h"
 #include "json/json.h"
@@ -38,7 +39,7 @@ namespace bayeux
 	class session;
 	class configuration;
 
-	/**
+    /**
 	 * @brief Class that creates responses to request targeting a bayeux server component
 	 *
 	 * The template is currently explicit instantiated for boost::asio::deadline_timer and server::test::timer
@@ -60,6 +61,10 @@ namespace bayeux
 	     */
 		connector( boost::asio::io_service& queue, pubsub::root& data, server::session_generator& session_generator,
 		    const configuration& config );
+
+		template < class SessionData >
+		connector( boost::asio::io_service& queue, pubsub::root& data, server::session_generator& session_generator,
+            adapter< SessionData >& user_acctions, const configuration& config );
 
 		/**
 		 * @brief creates a new response object for a given http request.
@@ -101,6 +106,11 @@ namespace bayeux
          * If no such session is given, no special action is taken.
          */
         void drop_session( const json::string& session_id );
+
+        /**
+         * @brief reference to the queue, that have to be used by connections for timer ect.
+         */
+        boost::asio::io_service& queue();
 	private:
         boost::asio::io_service&                    queue_;
 		pubsub::root& 				                data_;

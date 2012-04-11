@@ -106,6 +106,12 @@ namespace bayeux
     }
 
     template < class Timer >
+    boost::asio::io_service& connector< Timer >::queue()
+    {
+        return queue_;
+    }
+
+    template < class Timer >
     void connector< Timer >::remove_from_sessions( typename session_list_t::iterator pos )
     {
         sessions_.erase( pos );

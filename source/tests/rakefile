@@ -1,0 +1,8 @@
+# Copyright (c) Torrox GmbH & Co KG. All rights reserved.
+# Please note that the content of this file is confidential or protected by law.
+# Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
+
+test_util 'bayeux_reply', 
+    :libraries => ['server', 'bayeux', 'json', 'pubsub', 'http', 'tools'], 
+    :extern_libs => ['boost_date_time', 'boost_regex', 'boost_system', 'boost_thread'], 
+    :sources =>  FileList['./source/tests/bayeux_reply.cpp'] 

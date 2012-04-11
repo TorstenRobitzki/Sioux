@@ -8,6 +8,7 @@ namespace bayeux
 {
 	configuration::configuration()
 		: max_disconnected_time_( boost::posix_time::seconds( 60 ) )
+	    , long_polling_timeout_( boost::posix_time::seconds( 20 ) )
 		, max_messages_per_client_( 10u )
 		, max_messages_size_per_client_( 10 * 1024 )
 	{
@@ -25,7 +26,19 @@ namespace bayeux
 		return *this;
 	}
 
-	unsigned configuration::max_messages_per_client() const
+    boost::posix_time::time_duration configuration::long_polling_timeout() const
+    {
+        return long_polling_timeout_;
+    }
+
+    configuration& configuration::long_polling_timeout( const boost::posix_time::time_duration& time_out )
+    {
+        long_polling_timeout_ = time_out;
+
+        return *this;
+    }
+
+    unsigned configuration::max_messages_per_client() const
 	{
 		return max_messages_per_client_;
 	}

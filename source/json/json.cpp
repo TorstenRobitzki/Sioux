@@ -776,11 +776,13 @@ namespace json
 
     const value& array::at(std::size_t idx) const
     {
+        assert( idx < get_impl<array_impl>().members_.size() );
         return get_impl<array_impl>().members_.at(idx);
     }
 
     value& array::at(std::size_t idx)
     {
+        assert( idx < get_impl<array_impl>().members_.size() );
         return get_impl<array_impl>().members_.at(idx);
     }
 

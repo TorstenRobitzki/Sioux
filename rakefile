@@ -262,6 +262,10 @@ def test test_name, *dependencies
 	end
 end
 
+def test_util test_name, *dependencies
+    test test_name, *dependencies
+end
+
 # include sub rake files (this will populate ALL_TEST_NAMES)
 libraries.each do |library_name|
     rakefile = File.join(SOURCE_FOLDER, library_name, 'rakefile')

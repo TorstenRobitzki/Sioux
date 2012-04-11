@@ -29,6 +29,8 @@ namespace
             , expiration_time_( boost::posix_time::pos_infin )
         {
         }
+
+        timer_data() : queue_( 0 ) {}
     };
 
     class implemenation
@@ -60,14 +62,17 @@ namespace
 
         std::size_t cancel( boost::asio::io_service& queue, const server::test::timer& timer )
         {
-            boost::mutex::scoped_lock lock( mutex_ );
+            timer_data callbacks;
 
-            timer_data callbacks = remove_timer( timer, queue );
-            const std::size_t result = callbacks.call_backs_.size();
+            {
+                boost::mutex::scoped_lock lock( mutex_ );
+
+                callbacks = remove_timer( timer, queue );
+            }
 
             invoke_handlers( callbacks, boost::asio::error::operation_aborted );
 
-            return result;
+            return callbacks.call_backs_.size();
         }
 
         unsigned advance_time()

@@ -35,7 +35,9 @@ namespace bayeux
 
 	static const json::string meta_handshake_channel( "/meta/handshake" );
 	static const json::string meta_connect_channel( "/meta/connect" );
+	static const json::string meta_disconnect_channel( "/meta/disconnect" );
 	static const json::string meta_subscribe_channel( "/meta/subscribe" );
+    static const json::string meta_unsubscribe_channel( "/meta/unsubscribe" );
 
     template < class Timer >
 	json::string response_base< Timer >::extract_channel( const json::object& request )
@@ -98,7 +100,7 @@ namespace bayeux
 
     template < class Timer >
 	void response_base< Timer >::handle_request( const json::object& request,
-	    const boost::shared_ptr< response_interface >& self, const std::string& connection_name )
+	    const boost::shared_ptr< response_interface >& self, const std::string& connection_name, bool last_message )
 	{
 		const json::string channel = extract_channel( request );
 
@@ -117,15 +119,23 @@ namespace bayeux
 
         if ( channel == meta_connect_channel )
         {
-            handle_connect( request, self );
+            handle_connect( request, self, last_message );
+        }
+        else if ( channel == meta_disconnect_channel )
+        {
+            handle_disconnect( request );
         }
         else if ( channel == meta_subscribe_channel )
         {
             handle_subscribe( request );
         }
+        else if ( channel == meta_unsubscribe_channel )
+        {
+            handle_unsubscribe( request );
+        }
         else
         {
-            throw "invalid channel";
+            throw std::runtime_error( "invalid channel: " + channel.to_std_string() );
         }
 	}
 
@@ -150,7 +160,7 @@ namespace bayeux
 
     template < class Timer >
 	void response_base< Timer >::handle_connect( const json::object& request,
-	    const boost::shared_ptr< response_interface >& self )
+	    const boost::shared_ptr< response_interface >& self, bool last_message )
 	{
 	    assert( session_ );
 
@@ -158,7 +168,7 @@ namespace bayeux
 	        return;
 
 	    // when there are already messages to be send, then there is no point in blocking
-	    const bool do_not_block = !bayeux_response_.empty();
+	    const bool do_not_block = !bayeux_response_.empty() || !last_message;
 	    const json::array messages = do_not_block ? session_->events() : session_->wait_for_events( self );
 
 	    if ( !messages.empty() )
@@ -178,6 +188,21 @@ namespace bayeux
 		    }
 		}
 	}
+
+    template < class Timer >
+    void response_base< Timer >::handle_disconnect( const json::object& request )
+    {
+        static const json::object response_prototype = json::parse_single_quoted(
+            "{"
+            "   'channel':'/meta/disconnect',"
+            "   'successful':true"
+            "}" ).upcast< json::object >();
+
+        json::object response = add_session_id( response_prototype, *session_ );
+        copy_id_field( request, response );
+
+        bayeux_response_.add( response );
+    }
 
     template < class Timer >
     json::object response_base< Timer >::build_connect_response( const json::object& request, const json::string& session_id )
@@ -203,7 +228,19 @@ namespace bayeux
         const json::string subscription = check_subscription( request, meta_subscribe_channel );
 
         session_->subscribe( node_name_from_channel( subscription ), request.find( id_token ) );
+        bayeux_response_ += session_->events();
 	}
+
+    template < class Timer >
+    void response_base< Timer >::handle_unsubscribe( const json::object& request )
+    {
+        assert( session_ );
+
+        const json::string subscription = check_subscription( request, meta_subscribe_channel );
+
+        session_->unsubscribe( node_name_from_channel( subscription ), request.find( id_token ) );
+        bayeux_response_ += session_->events();
+    }
 
     template < class Timer >
     json::string response_base< Timer >::check_client_id( const json::object& request, const json::string& response_channel )
@@ -215,7 +252,7 @@ namespace bayeux
             static const json::object response_template = json::parse_single_quoted(
                 "{"
                 "   'successful' : false,"
-                "   'error'      : 'unsupported connection type'"
+                "   'error'      : 'invalid clientId'"
                 "}" ).upcast< json::object >();
 
             json::object response = response_template.copy();

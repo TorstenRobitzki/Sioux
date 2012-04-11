@@ -23,9 +23,7 @@ namespace pubsub
     class configuration;
     class node_group;
     class node_name;
-    class node_version;
     class subscriber;
-    class transaction;
 
     /**
      * @brief root of a changeable and observable tree like data structure
@@ -82,6 +80,11 @@ namespace pubsub
          */
         unsigned unsubscribe_all(const boost::shared_ptr<subscriber>&);
 
+        /**
+         * @brief updates the named node to a new value
+         * @attention it's important to know that authorization control doesn't apply to this function. The function
+         *            should only be called if whom ever triggered the data change, was authorized to do so.
+         */
         void update_node(const node_name& node_name, const json::value& new_data);
 
     private:

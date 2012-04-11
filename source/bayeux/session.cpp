@@ -95,7 +95,7 @@ namespace bayeux
     {
         json::value subscribe_response = json::null();
 
-        // check if there is still a subscription response is outstanding
+        /* check if there is still a subscription response is outstanding */
         {
             boost::mutex::scoped_lock lock( subscription_mutex_ );
 
@@ -155,6 +155,13 @@ namespace bayeux
 
         boost::mutex::scoped_lock lock( mutex_ );
         http_connection_.reset();
+    }
+
+    boost::posix_time::time_duration session::long_polling_timeout() const
+    {
+        boost::mutex::scoped_lock lock( mutex_ );
+
+        return config_->long_polling_timeout();
     }
 
     void session::on_update(const pubsub::node_name& name, const pubsub::node& data)

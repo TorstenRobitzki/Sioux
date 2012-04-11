@@ -190,7 +190,7 @@ namespace pubsub
         virtual ~adapter() {}
     };
 
-} // namespace data
+} // namespace pubsub
 
 #endif // include guard
 

@@ -33,6 +33,16 @@ namespace bayeux
 		configuration& session_timeout( const boost::posix_time::time_duration& time_out );
 
 		/**
+		 * @brief default value for long-polling timeout
+		 */
+        boost::posix_time::time_duration long_polling_timeout() const;
+
+        /**
+         * @brief set the default value for long-polling timeout
+         */
+        configuration& long_polling_timeout( const boost::posix_time::time_duration& time_out );
+
+		/**
 		 * @brief maximum number of messages, that will be buffered for a client before messages will be discard.
 		 *
 		 * If messages have to be discard, older messages get discard first.
@@ -63,6 +73,7 @@ namespace bayeux
 
 	private:
 		boost::posix_time::time_duration	max_disconnected_time_;
+		boost::posix_time::time_duration    long_polling_timeout_;
 		unsigned 							max_messages_per_client_;
 		std::size_t							max_messages_size_per_client_;
 	};

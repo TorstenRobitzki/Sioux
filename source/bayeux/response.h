@@ -17,7 +17,6 @@
 #include "server/response.h"
 #include "server/timeout.h"
 #include "server/session_generator.h"
-#include "response.h"
 
 namespace http
 {
@@ -50,10 +49,13 @@ namespace bayeux
 		 * @brief dispatcher for the different channels
 		 */
 		void handle_request( const json::object& request, const boost::shared_ptr< response_interface >& self,
-		    const std::string& connection_name );
+		    const std::string& connection_name, bool last_message );
 		void handle_handshake( const json::object& request, const std::string& connection_name );
-		void handle_connect( const json::object& request, const boost::shared_ptr< response_interface >& self );
+		void handle_connect( const json::object& request, const boost::shared_ptr< response_interface >& self,
+		    bool last_message );
+        void handle_disconnect( const json::object& request );
 		void handle_subscribe( const json::object& request );
+        void handle_unsubscribe( const json::object& request );
 
 		json::object build_connect_response( const json::object& request, const json::string& session_id );
 
@@ -92,8 +94,9 @@ namespace bayeux
 	    private boost::noncopyable
 	{
 	public:
-		response( const boost::shared_ptr< Connection >& connection, const http::request_header& request,
-				connector< typename Connection::trait_t::timeout_timer_type >& root );
+		response( const boost::shared_ptr< Connection >&                            connection,
+		          const http::request_header&                                       request,
+				  connector< typename Connection::trait_t::timeout_timer_type >&    root );
 
 	private:
         virtual void implement_hurry();
@@ -115,12 +118,17 @@ namespace bayeux
 			const boost::system::error_code& error,
 			std::size_t bytes_transferred );
 
+        void connection_time_out( const boost::system::error_code& error );
+
 		boost::shared_ptr< Connection >				connection_;
 		bool										parsed_;
         json::parser								message_parser_;
 
 		// a concatenated list of snippets that form the http response
         std::vector< boost::asio::const_buffer > 	response_;
+
+        typedef typename Connection::trait_t::timeout_timer_type timer_t;
+        timer_t                                     timer_;
 	};
 
 	// implementation
@@ -131,6 +139,7 @@ namespace bayeux
 	  , connection_( connection )
 	  , parsed_( false )
 	  , message_parser_()
+	  , timer_( root.queue() )
 	{
 	}
 
@@ -194,23 +203,29 @@ namespace bayeux
 		{
 	        void visit( const json::object& o )
 	        {
-	        	response_.handle_request( o, response_.shared_from_this(), connection_ );
+	        	response_.handle_request( o, response_.shared_from_this(), connection_, last_ );
 	        	handled_ = true;
 	        }
 
 	        void visit( const json::array& list )
 	        {
-	        	list.for_each( *this );
+	            for ( std::size_t i = 0, size = list.length(); i != size; ++i )
+	            {
+	                last_ = i + 1  == size;
+	                list.at( i ).visit( *this );
+	            }
 	        }
 
 	        visitor_t( response< Connection >& r, const std::string& connection_name )
 	        	: handled_( false )
+	            , last_( true )
 	        	, response_( r )
 	        	, connection_( connection_name )
 	        {
 	        }
 
 	        bool 					                        handled_;
+	        bool                                            last_;
 			response< Connection >&                         response_;
 			const std::string		                        connection_;
 		} visitor( *this,
@@ -219,7 +234,16 @@ namespace bayeux
 		request_container.visit( visitor );
 
         if ( this->blocking_connect_.empty() )
+        {
             write_reponse();
+        }
+        else
+        {
+            assert( this->session_ );
+
+            timer_.expires_from_now( this->session_->long_polling_timeout() );
+            timer_.async_wait( boost::bind( &response::connection_time_out, this->shared_from_this(), _1 ) );
+        }
 	}
 
     template < class Connection >
@@ -241,6 +265,8 @@ namespace bayeux
     template < class Connection >
     void response< Connection >::write_reponse()
     {
+        timer_.cancel();
+
         response_ = build_response( this->bayeux_response_ );
         connection_->async_write(
             response_,
@@ -261,6 +287,15 @@ namespace bayeux
             connection_->response_not_possible( *this );
         }
 	}
+
+    template < class Connection >
+    void response< Connection >::connection_time_out( const boost::system::error_code& error )
+    {
+        if ( !error )
+        {
+            this->session_->timeout();
+        }
+    }
 
 
 }
