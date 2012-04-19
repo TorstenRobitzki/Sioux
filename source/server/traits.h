@@ -134,6 +134,12 @@ namespace server
          * @todo lookup reasonable values from the appache documentation
          */
         boost::posix_time::time_duration timeout() const;
+
+        /**
+         * @brief when accepting a new connection fails, the next attempt to accept a new connection
+         *        is not made before this timeout have been reached.
+         */
+        boost::posix_time::time_duration reaccept_timeout() const;
     };
 
     /**

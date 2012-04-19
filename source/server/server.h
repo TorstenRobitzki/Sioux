@@ -91,6 +91,7 @@ namespace server {
             : end_point_(ep)
             , acceptor_(s, ep)
             , queue_(s)
+            , timer_( queue_ )
             , connection_()
             , trait_(trait)
         {
@@ -102,8 +103,9 @@ namespace server {
 
         void issue_accept()
         {
-            connection_.reset(new connection_t(boost::ref(queue_), trait_));
-            acceptor_.async_accept(connection_->socket(), end_point_, boost::bind(&acceptator::handler_connect, this, boost::asio::placeholders::error));
+            connection_.reset( new connection_t( boost::ref( queue_ ), trait_ ) );
+            acceptor_.async_accept( connection_->socket(), end_point_,
+                boost::bind( &acceptator::handler_connect, this, boost::asio::placeholders::error ) );
         }
 
         void handler_connect( const boost::system::error_code& error )
@@ -118,12 +120,25 @@ namespace server {
             else
             {
                 trait_.error_accepting_new_connection( end_point_, error );
+
+                timer_.expires_from_now( trait_.reaccept_timeout() );
+                timer_.async_wait(
+                    boost::bind( &acceptator::handle_reaccept_timeout, this, boost::asio::placeholders::error ) );
             }
+        }
+
+        void handle_reaccept_timeout( const boost::system::error_code& ec )
+        {
+            if ( ec )
+                return;
+
+            issue_accept();
         }
 
         boost::asio::ip::tcp::endpoint  end_point_;
         boost::asio::ip::tcp::acceptor  acceptor_;
         boost::asio::io_service&        queue_;
+        boost::asio::deadline_timer     timer_;
         boost::shared_ptr<connection_t> connection_;
         Trait&                          trait_;
     };
