@@ -6,6 +6,7 @@
 #include "server/test_session_generator.h"
 #include "bayeux/bayeux.h"
 #include "bayeux/configuration.h"
+#include "bayeux/node_channel.h"
 #include "pubsub/root.h"
 #include "pubsub/configuration.h"
 
@@ -49,7 +50,7 @@ namespace
         boost::asio::ip::tcp::socket,
         boost::asio::deadline_timer,
         response_factory,
-        server::stream_event_log,
+        server::null_event_logger,
         server::stream_error_log > > server_t;
 
     class reply_adapter : public pubsub::adapter
@@ -58,7 +59,6 @@ namespace
         virtual void validate_node(const pubsub::node_name&                                 node_name,
                                    const boost::shared_ptr<pubsub::validation_call_back>&   result)
         {
-            std::cout << "node validation: " << node_name << std::endl;
             result->is_valid();
         }
 
@@ -66,14 +66,12 @@ namespace
                                const pubsub::node_name&                                     node_name,
                                const boost::shared_ptr<pubsub::authorization_call_back>&    result)
         {
-            std::cout << "authorize requested: " << node_name << std::endl;
             result->is_authorized();
         }
 
         virtual void node_init(const pubsub::node_name&                                     node_name,
                                const boost::shared_ptr<pubsub::initialization_call_back>&   result)
         {
-            std::cout << "node_init: " << node_name << std::endl;
             result->initial_value( json::null() );
         }
 
@@ -97,10 +95,41 @@ namespace
 
     };
 
+    struct empty {};
+
+    class bayeux_to_pubsub_adapter : public bayeux::adapter< empty >
+    {
+        std::pair< bool, json::string > handshake( const json::value& ext, empty& )
+        {
+            return std::pair< bool, json::string >( true, json::string() );
+        }
+
+        std::pair< bool, json::string > publish( const json::string& channel, const json::value& data,
+            const json::object& message, empty&, pubsub::root& root )
+        {
+            const pubsub::node_name node = bayeux::node_name_from_channel( channel );
+
+            json::object reply;
+            reply.add( json::string( "data" ), data );
+
+            const json::value* const id = message.find( json::string( "id" ) );
+            if ( id )
+                reply.add( json::string( "id" ), *id );
+
+            root.update_node( node, reply );
+            return std::pair< bool, json::string >( true, json::string() );
+        }
+    };
+
     struct context
     {
-        context( boost::asio::io_service& queue, pubsub::root& data, server::session_generator& generator )
-            : connector_( queue, data, generator, bayeux::configuration() )
+        context( boost::asio::io_service& queue, pubsub::root& data, server::session_generator& generator,
+            bayeux_to_pubsub_adapter& adapter )
+            : connector_( queue, data, generator, adapter,
+                bayeux::configuration()
+                    .max_messages_per_client( 1000 )
+                    .max_messages_size_per_client( 1000 * 1000 )
+                    .long_polling_timeout( boost::posix_time::seconds( 60 ) ) )
         {
         }
 
@@ -117,11 +146,12 @@ namespace
 int main()
 {
     boost::asio::io_service             queue;
-    reply_adapter                       adapter;
-    pubsub::root                        data( queue, adapter, pubsub::configuration() );
+    reply_adapter                       pubsub_adapter;
+    pubsub::root                        data( queue, pubsub_adapter, pubsub::configurator().authorization_not_required() );
 
     server::test::session_generator     session_generator;
-    context                             parameters( queue, data, session_generator );
+    bayeux_to_pubsub_adapter            bayeux_adapter;
+    context                             parameters( queue, data, session_generator, bayeux_adapter );
 
     server_t server( queue, 0u, parameters );
     using namespace boost::asio::ip;

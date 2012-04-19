@@ -150,6 +150,16 @@ namespace server
             out_ << "event_close_after_response: " << request_url( request ) << std::endl;
         }
 
+        /*
+         * listen / accept server logging
+         */
+        void event_accepting_new_connection( const boost::asio::ip::tcp::endpoint& local_endpoint,
+            const boost::asio::ip::tcp::endpoint& remote_endpoint )
+        {
+            boost::mutex::scoped_lock lock(mutex_);
+            out_ << "event_accepting_new_connection: local: " << local_endpoint << " remote: " << remote_endpoint
+                << std::endl;
+        }
     private:
         boost::mutex    mutex_;
         std::ostream&   out_;
@@ -190,6 +200,18 @@ namespace server
             boost::mutex::scoped_lock lock(mutex_);
             log_ << "error_executing_request_handler: " << request_url( request ) << std::endl;
             log_ << "error: " << error_text << std::endl;
+        }
+
+        /*
+         * listen / accept server logging
+         */
+        template < class Error >
+        void error_accepting_new_connection( const boost::asio::ip::tcp::endpoint& local_endpoint,
+            const Error& error )
+        {
+            boost::mutex::scoped_lock lock(mutex_);
+            log_ << "error_accepting_new_connection: local: " << local_endpoint;
+            log_ << "\nerror: " << error << std::endl;
         }
     private:
         boost::mutex    mutex_;

@@ -80,6 +80,12 @@ namespace server
 
         template < class Connection, class Request >
         void event_close_after_response( const Connection&, const Request& ) {}
+
+        /*
+         * listen / accept server logging
+         */
+        template < class EndPoint >
+        void event_accepting_new_connection( const EndPoint& local_endpoint, const EndPoint& remote_endpoint ) {}
     };
 
     struct null_error_logger
@@ -99,6 +105,12 @@ namespace server
 
         template < class Connection, class Request, class ErrorText >
         void error_executing_request_handler( const Connection&, const Request&, const ErrorText& ) {}
+
+        /*
+         * listen / accept server logging
+         */
+        template < class EndPoint, class Error >
+        void error_accepting_new_connection( const EndPoint& local_endpoint, const Error& error ) {}
     };
 
     namespace details 

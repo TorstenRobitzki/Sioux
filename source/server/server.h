@@ -106,16 +106,18 @@ namespace server {
             acceptor_.async_accept(connection_->socket(), end_point_, boost::bind(&acceptator::handler_connect, this, boost::asio::placeholders::error));
         }
 
-        void handler_connect(const boost::system::error_code& error)
+        void handler_connect( const boost::system::error_code& error )
         {
             if ( !error )
             {
+                connection_->trait().event_accepting_new_connection( end_point_, connection_->socket().remote_endpoint() );
+
                 connection_->start();
                 issue_accept();
             }
             else
             {
-                std::cerr << "handler: " << error << std::endl;
+                trait_.error_accepting_new_connection( end_point_, error );
             }
         }
 

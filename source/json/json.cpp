@@ -847,6 +847,14 @@ namespace json
     {
     }
 
+    value from_bool( bool v )
+    {
+        static const value t = true_val();
+        static const value f = false_val();
+
+        return v ? t : f;
+    }
+
     null::null() : value(single_null())
     {
     }

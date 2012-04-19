@@ -6,7 +6,6 @@
 
 #include <boost/bind.hpp>
 
-#include "bayeux/configuration.h"
 #include "bayeux/session.h"
 #include "server/test_timer.h"
 #include "tools/scope_guard.h"
@@ -44,7 +43,8 @@ namespace bayeux
 
 
     template < class Timer >
-	session* connector< Timer >::create_session( const std::string& network_connection_name )
+	session* connector< Timer >::handshake( const std::string& network_connection_name, const json::value* ext_value,
+	    json::string& error_txt )
 	{
         boost::mutex::scoped_lock lock( mutex_ );
         std::string session_id = session_generator_( network_connection_name );
@@ -52,13 +52,32 @@ namespace bayeux
         for ( ; sessions_.find( session_id ) != sessions_.end(); session_id = session_generator_( network_connection_name ) )
             ;
 
-        const session_data data( session_id, data_, current_config_, queue_ );
-        const typename session_list_t::iterator pos = sessions_.insert( std::make_pair( session_id, data ) ).first;
+        typename session_list_t::iterator pos;
+
+        if ( users_actions_.get() )
+        {
+            boost::shared_ptr< session > session_obj;
+            const std::pair< bool, json::string > hook_result =
+                users_actions_->handshake( session_id, data_, current_config_, ext_value ? *ext_value : json::null(), session_obj );
+
+            if ( !hook_result.first )
+            {
+                error_txt = hook_result.second;
+                return 0;
+            }
+
+            pos = sessions_.insert( std::make_pair( session_id, session_data( session_obj, queue_ ) ) ).first;
+        }
+        else
+        {
+            const session_data data( session_id, data_, current_config_, queue_ );
+            pos = sessions_.insert( std::make_pair( session_id, data ) ).first;
+        }
 
         tools::scope_guard remove_session_if_index_fails =
             tools::make_obj_guard( *this, &connector< Timer >::remove_from_sessions, pos );
 
-        session* const result = data.session_.get();
+        session* const result = pos->second.session_.get();
         index_.insert( std::make_pair( result, pos ) );
 
         remove_session_if_index_fails.dismiss();
@@ -106,6 +125,21 @@ namespace bayeux
     }
 
     template < class Timer >
+    std::pair< bool, json::string > connector< Timer >::publish( const json::string& channel, const json::value& data,
+        const json::object& message, session& s  )
+    {
+        if ( users_actions_.get() )
+        {
+            return users_actions_->publish( channel, data, message, s, data_ );
+        }
+        else
+        {
+            static const std::pair< bool, json::string > error_result( false, json::string( "no handler installed" ) );
+            return error_result;
+        }
+    }
+
+    template < class Timer >
     boost::asio::io_service& connector< Timer >::queue()
     {
         return queue_;
@@ -123,16 +157,25 @@ namespace bayeux
         if ( ec )
             return;
 
-        boost::mutex::scoped_lock lock( mutex_ );
-        const typename session_index_t::iterator pos = index_.find( s );
+        boost::shared_ptr< session > session_to_be_deleted;
 
-        if ( pos != index_.end() && pos->second->second.use_count_ == 0 )
         {
-            sessions_.erase( pos->second );
-            index_.erase( pos );
+            boost::mutex::scoped_lock lock( mutex_ );
 
-            assert( sessions_.size() == index_.size() );
+            const typename session_index_t::iterator pos = index_.find( s );
+
+            if ( pos != index_.end() && pos->second->second.use_count_ == 0 )
+            {
+                session_to_be_deleted = pos->second->second.session_;
+                sessions_.erase( pos->second );
+                index_.erase( pos );
+
+                assert( sessions_.size() == index_.size() );
+            }
         }
+
+        if ( session_to_be_deleted.get() )
+            session_to_be_deleted->close();
     }
 
     template < class Timer >
@@ -141,6 +184,16 @@ namespace bayeux
         : use_count_( 1u )
         , remove_( false )
         , session_( new session( session_id, data, config ) )
+        , timer_( new Timer ( queue ) )
+    {
+    }
+
+    template < class Timer >
+    connector< Timer >::session_data::session_data( const boost::shared_ptr< session >& session,
+        boost::asio::io_service& queue )
+        : use_count_( 1u )
+        , remove_( false )
+        , session_( session )
         , timer_( new Timer ( queue ) )
     {
     }

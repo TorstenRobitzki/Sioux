@@ -562,3 +562,8 @@ BOOST_AUTO_TEST_CASE( value_try_cast )
     BOOST_CHECK( !null_as_string.first );
 }
 
+BOOST_AUTO_TEST_CASE( from_bool_test )
+{
+    BOOST_CHECK_EQUAL( json::true_val(), json::from_bool( true ) );
+    BOOST_CHECK_EQUAL( json::false_val(), json::from_bool( false ) );
+}

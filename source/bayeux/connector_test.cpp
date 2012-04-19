@@ -76,7 +76,8 @@ BOOST_AUTO_TEST_CASE( create_session_find_session_test )
 
     BOOST_CHECK( connector.find_session( json::string( "1" ) ) == 0 );
 
-    bayeux::session* session = connector.create_session( "foobar" );
+    json::string error_txt;
+    bayeux::session* session = connector.handshake( "foobar", 0, error_txt );
     connector.idle_session( session );
 
     BOOST_CHECK_EQUAL( "foobar", generator.network_name() );
@@ -101,7 +102,8 @@ BOOST_AUTO_TEST_CASE( drop_session_test )
     test_session_generator  generator;
     connector_t             connector( queue, root, generator, bayeux::configuration() );
 
-    bayeux::session* session = connector.create_session( "foobar" );
+    json::string error_txt;
+    bayeux::session* session = connector.handshake( "foobar", 0, error_txt );
     connector.idle_session( session );
 
     BOOST_CHECK( session_alive( connector, "1" ) );
@@ -126,7 +128,7 @@ BOOST_AUTO_TEST_CASE( drop_session_in_use )
     test_session_generator  generator;
     connector_t             connector( queue, root, generator, bayeux::configuration() );
 
-    bayeux::session* session = connector.create_session( "foobar" );
+    bayeux::session* session = connector.handshake( "foobar", 0 );
     connector.idle_session( session );
 
     session = connector.find_session( json::string( "1" ) );
@@ -152,7 +154,8 @@ BOOST_AUTO_TEST_CASE( session_timeout_test )
     connector_t             connector( queue, root, generator,
         bayeux::configuration().session_timeout( boost::posix_time::seconds( 20u ) ) );
 
-    bayeux::session* session = connector.create_session( "foobar" );
+    json::string error_txt;
+    bayeux::session* session = connector.handshake( "foobar", 0, error_txt );
     connector.idle_session( session );
 
     advance_time( queue, 20u );
@@ -173,7 +176,8 @@ BOOST_AUTO_TEST_CASE( session_doesnt_get_timeout_when_used )
     connector_t             connector( queue, root, generator,
         bayeux::configuration().session_timeout( boost::posix_time::seconds( 20u ) ) );
 
-    bayeux::session* session = connector.create_session( "foobar" );
+    json::string error_txt;
+    bayeux::session* session = connector.handshake( "foobar", 0, error_txt );
     connector.idle_session( session );
 
     advance_time( queue, 15u );
@@ -199,7 +203,8 @@ BOOST_AUTO_TEST_CASE( session_in_use_doesnt_timeout )
     connector_t             connector( queue, root, generator,
         bayeux::configuration().session_timeout( boost::posix_time::seconds( 100u ) ) );
 
-    bayeux::session* session = connector.create_session( "foobar" );
+    json::string error_txt;
+    bayeux::session* session = connector.handshake( "foobar", 0, error_txt );
 
     advance_time( queue, 120u );
 
@@ -221,7 +226,8 @@ BOOST_AUTO_TEST_CASE( single_outstanding_session_prevents_timeout_test )
     connector_t             connector( queue, root, generator,
         bayeux::configuration().session_timeout( boost::posix_time::seconds( 20u ) ) );
 
-    bayeux::session* session = connector.create_session( "foobar" );
+    json::string error_txt;
+    bayeux::session* session = connector.handshake( "foobar", 0, error_txt );
     connector.idle_session( session );
 
     bayeux::session* second_handle = connector.find_session( json::string( "1" ) );
@@ -248,10 +254,11 @@ BOOST_AUTO_TEST_CASE( session_timeouts_are_independent )
     connector_t             connector( queue, root, generator,
         bayeux::configuration().session_timeout( boost::posix_time::seconds( 5u ) ) );
 
-    bayeux::session* sessionA = connector.create_session( "foobar" );
+    json::string error_txt;
+    bayeux::session* sessionA = connector.handshake( "foobar", 0, error_txt );
     connector.idle_session( sessionA );
 
-    bayeux::session* sessionB = connector.create_session( "foobar" );
+    bayeux::session* sessionB = connector.handshake( "foobar", 0, error_txt );
 
     advance_time( queue, 4u );
     connector.idle_session( sessionB );
@@ -277,7 +284,8 @@ BOOST_AUTO_TEST_CASE( timeout_will_not_delete_session_if_in_use )
     connector_t             connector( queue, root, generator,
         bayeux::configuration().session_timeout( boost::posix_time::seconds( 5u ) ) );
 
-    bayeux::session* session = connector.create_session( "foobar" );
+    json::string error_txt;
+    bayeux::session* session = connector.handshake( "foobar", 0, error_txt );
     connector.idle_session( session );
 
     // this will trigger the timeout call back, but will not execute the callback

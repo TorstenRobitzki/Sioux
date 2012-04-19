@@ -27,29 +27,6 @@ server::test::read bayeux::test::msg( const std::string& txt )
     return server::test::read( result.begin(), result.end() );
 }
 
-/*
- * splits the response byte stream in the http and the bayeux part
- */
-static std::vector< bayeux::test::response_t > extract_responses( const std::vector< char >& response_text )
-{
-    const http::decoded_response_stream_t responses = http::decode_stream< http::response_header >( response_text );
-
-    std::vector< bayeux::test::response_t > result;
-
-    for ( http::decoded_response_stream_t::const_iterator r = responses.begin(); r != responses.end(); ++r )
-    {
-        const bayeux::test::response_t response =
-        {
-            r->first,
-            json::parse( r->second.begin(), r->second.end() ).upcast< json::array >(),
-            server::test::current_time()
-        };
-        result.push_back( response );
-    }
-
-    return result;
-}
-
 namespace
 {
     class stream_decoder

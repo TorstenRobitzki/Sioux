@@ -48,7 +48,7 @@ namespace http
 		decode_stream( const std::vector< char >& stream );
 
 	/**
-	 * @brief state full http decoder. To slit a stream into separate http message headers and bodies
+	 * @brief state full http decoder. To split a stream into separate http message headers and bodies
 	 */
 	template < class Message >
 	class stream_decoder

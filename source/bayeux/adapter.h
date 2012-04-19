@@ -5,11 +5,10 @@
 #ifndef SIOUX_BAYEUX_ADAPTER_H
 #define SIOUX_BAYEUX_ADAPTER_H
 
-#include <string>
-
 namespace json {
     class value;
     class string;
+    class object;
 }
 
 namespace pubsub {
@@ -37,7 +36,7 @@ namespace bayeux
          *         should return false in the first member and optional an error message in the second member of
          *         the returned pair.
          */
-        virtual std::pair< bool, std::string > handshake( const json::value& ext, SessionData& client ) = 0;
+        virtual std::pair< bool, json::string > handshake( const json::value& ext, SessionData& client ) = 0;
 
         /**
          * @brief hook for a new published message
@@ -46,8 +45,8 @@ namespace bayeux
          *         should return false in the first member and optional an error message in the second member of
          *         the returned pair.
          */
-        virtual std::pair< bool, std::string > publish( const json::string& channel, const json::value& data,
-            SessionData& client, pubsub::root& root ) = 0;
+        virtual std::pair< bool, json::string > publish( const json::string& channel, const json::value& data,
+            const json::object& message, SessionData& client, pubsub::root& root ) = 0;
 
         virtual ~adapter() {}
     };

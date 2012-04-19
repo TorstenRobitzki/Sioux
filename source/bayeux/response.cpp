@@ -32,6 +32,10 @@ namespace bayeux
 	static const json::string channel_token( "channel" );
 	static const json::string subscription_token( "subscription" );
 	static const json::string connection_typen_token( "connectionType" );
+	static const json::string ext_field_token( "ext" );
+	static const json::string error_field_token( "error" );
+	static const json::string data_field_token( "data" );
+	static const json::string successful_field_token( "successful" );
 
 	static const json::string meta_handshake_channel( "/meta/handshake" );
 	static const json::string meta_connect_channel( "/meta/connect" );
@@ -135,28 +139,70 @@ namespace bayeux
         }
         else
         {
-            throw std::runtime_error( "invalid channel: " + channel.to_std_string() );
+            handle_publish( channel, request );
         }
 	}
 
     template < class Timer >
 	void response_base< Timer >::handle_handshake( const json::object& request, const std::string& connection_name )
 	{
-		static const json::object response_prototype = json::parse_single_quoted(
-			"{"
-			"	'channel':'/meta/handshake',"
-			"	'version':'1.0',"
-			"	'supportedConnectionTypes':['long-polling'],"
-			"	'successful':true"
-			"}" ).upcast< json::object >();
+        json::string error_txt;
+		session_ = connector_.handshake( connection_name, request.find( ext_field_token ), error_txt );
 
-		session_ = connector_.create_session( connection_name );
-		json::object response = add_session_id( response_prototype, *session_ );
-		copy_id_field( request, response );
+		if ( session_ )
+		{
+	        static const json::object response_prototype = json::parse_single_quoted(
+	            "{"
+	            "   'channel':'/meta/handshake',"
+	            "   'version':'1.0',"
+	            "   'supportedConnectionTypes':['long-polling'],"
+	            "   'successful':true"
+	            "}" ).upcast< json::object >();
 
-		bayeux_response_.add( response );
+	        json::object response = add_session_id( response_prototype, *session_ );
+            copy_id_field( request, response );
+
+            bayeux_response_.add( response );
+		}
+		else
+		{
+	        static const json::object response_prototype = json::parse_single_quoted(
+	            "{"
+	            "   'channel':'/meta/handshake',"
+	            "   'successful':false"
+	            "}" ).upcast< json::object >();
+
+            json::object response = response_prototype.copy().add( error_field_token, error_txt );
+            copy_id_field( request, response );
+
+            bayeux_response_.add( response );
+		}
 	}
 
+    static bool zero_timeout_advice( const json::object& request )
+    {
+        static const json::string advice_tag( "advice" );
+        static const json::string timeout_tag( "timeout" );
+
+        const json::value* const advice_field = request.find( advice_tag );
+
+        if ( !advice_field )
+            return false;
+
+        const std::pair< bool, json::object > advice = advice_field->try_cast< json::object >();
+
+        if ( !advice.first )
+            return false;
+
+        const json::value* const timeout_field = advice.second.find( timeout_tag );
+
+        if ( !timeout_field )
+            return false;
+
+        const std::pair< bool, json::number > timeout = timeout_field->try_cast< json::number >();
+
+        return timeout.first && timeout.second.to_int() == 0;
+    }
 
     template < class Timer >
 	void response_base< Timer >::handle_connect( const json::object& request,
@@ -168,7 +214,7 @@ namespace bayeux
 	        return;
 
 	    // when there are already messages to be send, then there is no point in blocking
-	    const bool do_not_block = !bayeux_response_.empty() || !last_message;
+	    const bool do_not_block = !bayeux_response_.empty() || !last_message || zero_timeout_advice( request );
 	    const json::array messages = do_not_block ? session_->events() : session_->wait_for_events( self );
 
 	    if ( !messages.empty() )
@@ -243,6 +289,41 @@ namespace bayeux
     }
 
     template < class Timer >
+    void response_base< Timer >::handle_publish( const json::string& channel, const json::object& request )
+    {
+        assert( session_ );
+
+        json::object response;
+        const json::value* const data = request.find( data_field_token );
+
+        if ( !data )
+        {
+            static const json::object response_template = json::parse_single_quoted(
+                "{"
+                "   'successful' : false,"
+                "   'error'      : 'data field expected'"
+                "}" ).upcast< json::object >();
+
+            response = response_template.copy();
+        }
+        else
+        {
+            const std::pair< bool, json::string > update_result = connector_.publish( channel, *data, request, *session_ );
+
+            response.add( successful_field_token, json::from_bool( update_result.first ) );
+
+            if ( !update_result.first )
+                response.add( error_field_token, update_result.second );
+        }
+
+        response.add( channel_token, channel );
+        copy_id_field( request, response );
+
+        bayeux_response_.add( response );
+        bayeux_response_ += session_->events();
+    }
+
+    template < class Timer >
     json::string response_base< Timer >::check_client_id( const json::object& request, const json::string& response_channel )
     {
         const json::string id = extract_client_id( request );
@@ -269,6 +350,7 @@ namespace bayeux
     bool response_base< Timer >::check_session( const json::object& request, const json::string& id,
         const json::string& response_channel )
     {
+        // for the case, that more than one session is used in one HTTP transport
         if ( session_ )
         {
             connector_.idle_session( session_ );
@@ -369,6 +451,7 @@ namespace bayeux
 
 		result.push_back( boost::asio::buffer( response_header, sizeof response_header -1 ) );
 		result.push_back( boost::asio::buffer( response_buffer_ ) );
+
 		bayeux_response.to_json( result );
 
 		return result;

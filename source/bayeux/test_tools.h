@@ -5,8 +5,11 @@
 #ifndef SIOUX_BAYEUX_TEST_TOOLS_H_
 #define SIOUX_BAYEUX_TEST_TOOLS_H_
 
+#include <boost/mpl/if.hpp>
+
 #include "bayeux/bayeux.h"
 #include "bayeux/configuration.h"
+#include "bayeux/adapter.h"
 #include "http/request.h"
 #include "http/response.h"
 #include "pubsub/configuration.h"
@@ -34,7 +37,7 @@ namespace bayeux
         {
             template < class Trait >
             explicit response_factory( Trait& trait )
-              : connector_( trait.queue(), trait.data(), session_generator_, trait.config() )
+              : bayeux_connector( trait.connector() )
             {
             }
 
@@ -45,7 +48,7 @@ namespace bayeux
             {
                 if ( header->state() == http::message::ok )
                 {
-                    return connector_.create_response( connection, header );
+                    return bayeux_connector.create_response( connection, header );
                 }
 
                 return boost::shared_ptr< server::async_response >(
@@ -60,17 +63,23 @@ namespace bayeux
                 return boost::shared_ptr< server::async_response >( new ::server::error_response< Connection >( con, ec ) );
             }
 
-            bayeux::connector< server::test::timer> connector_;
-            server::test::session_generator         session_generator_;
+            bayeux::connector< server::test::timer >&   bayeux_connector;
         };
 
         class trait_data
         {
         public:
             trait_data( boost::asio::io_service& queue, pubsub::root& data, const bayeux::configuration& config )
-                : queue_( queue )
-                , data_( data )
-                , config_( config )
+                : session_generator_()
+                , connector_( queue, data, session_generator_, config )
+            {
+            }
+
+            template < class SessionData >
+            trait_data( boost::asio::io_service& queue, pubsub::root& data, bayeux::adapter< SessionData >& adapter,
+                const bayeux::configuration& config )
+                : session_generator_()
+                , connector_( queue, data, session_generator_, adapter, config )
             {
             }
 
@@ -79,32 +88,26 @@ namespace bayeux
                 return std::cerr;
             }
 
-            pubsub::root& data() const
+            bayeux::connector< server::test::timer >& connector() const
             {
-                return data_;
-            }
-
-            boost::asio::io_service& queue() const
-            {
-                return queue_;
-            }
-
-            const bayeux::configuration& config() const
-            {
-                return config_;
+                return connector_;
             }
         private:
-            boost::asio::io_service&    queue_;
-            pubsub::root&               data_;
-            bayeux::configuration       config_;
+            server::test::session_generator                     session_generator_;
+            mutable bayeux::connector< server::test::timer >    connector_;
         };
 
         typedef server::test::timer         timer_t;
         typedef server::test::socket< const char*, timer_t > socket_t;
-        typedef server::null_event_logger   event_logger_t;
-    //  typedef server::stream_event_log    event_logger_t;
-        typedef server::null_error_logger   error_logger_t;
-    //  typedef server::stream_error_log    error_logger_t;
+
+        // set to true_ for extended debug messages
+        typedef boost::mpl::false_ extended_debugging;
+
+        typedef boost::mpl::if_< extended_debugging, server::stream_event_log, server::null_event_logger >::type
+            event_logger_t;
+
+        typedef boost::mpl::if_< extended_debugging, server::stream_error_log, server::null_error_logger >::type
+            error_logger_t;
 
         class trait_t :
             public trait_data,
@@ -116,6 +119,14 @@ namespace bayeux
             trait_t( boost::asio::io_service& queue, pubsub::root& data,
                         const bayeux::configuration& config = bayeux::configuration() )
                 : trait_data( queue, data, config )
+                , base_t( *this )
+            {
+            }
+
+            template < class SessionData >
+            trait_t( boost::asio::io_service& queue, pubsub::root& data, bayeux::adapter< SessionData >& adapter,
+                        const bayeux::configuration& config = bayeux::configuration() )
+                : trait_data( queue, data, adapter, config )
                 , base_t( *this )
             {
             }
@@ -158,6 +169,15 @@ namespace bayeux
                 server::test::reset_time();
             }
 
+            template < class SessionData >
+            explicit context( bayeux::adapter< SessionData >& adapt )
+                : queue()
+                , adapter()
+                , data( queue, adapter, pubsub::configuration() )
+                , trait( queue, data, adapt )
+            {
+                server::test::reset_time();
+            }
         };
 
         struct response_t

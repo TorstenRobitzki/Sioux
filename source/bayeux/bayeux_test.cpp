@@ -344,7 +344,7 @@ BOOST_AUTO_TEST_CASE( subscribe_with_invalid_client_id )
 }
 
 /**
- * @test check that a subscribed client get updates an that an unsubscribed client does not.
+ * @test check that a subscribed client get updates and that an unsubscribed client does not.
  */
 BOOST_AUTO_TEST_CASE( unsubscribe_after_subscription )
 {
@@ -760,10 +760,10 @@ BOOST_AUTO_TEST_CASE( http_connection_get_closed_while_response_is_waiting )
 
     // now the session should still be available
     bayeux::session* session =
-        context.trait.connector_.find_session( json::string( "192.168.210.1:9999/0" ) );
+        context.trait.connector().find_session( json::string( "192.168.210.1:9999/0" ) );
 
     BOOST_REQUIRE( session );
-    context.trait.connector_.idle_session( session );
+    context.trait.connector().idle_session( session );
 }
 
 /**

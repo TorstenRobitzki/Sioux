@@ -54,7 +54,8 @@ namespace server {
 
             /**
              * @brief overload version the function above.
-             * @parm ec will never by altered in the test library.
+             * @param expiry_time sets a new expiration time for the timer
+             * @param ec will never by altered in the test library.
              */
             std::size_t expires_at( const time_type & expiry_time, boost::system::error_code & ec );
 

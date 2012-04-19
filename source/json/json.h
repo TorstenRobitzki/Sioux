@@ -388,6 +388,14 @@ namespace json
     };
 
     /**
+     * @brief returns an instance of true_val or false_val depending on value
+     *
+     * If value is true, an instance of true_val will be returned if value is false,
+     * an instance of false_val will be returned.
+     */
+    value from_bool( bool value );
+
+    /**
      * @brief class representing the java script value 'null'
      *
      * The only useful property of null is to compare true with every

@@ -56,6 +56,7 @@ namespace bayeux
         void handle_disconnect( const json::object& request );
 		void handle_subscribe( const json::object& request );
         void handle_unsubscribe( const json::object& request );
+        void handle_publish( const json::string& channel, const json::object& request );
 
 		json::object build_connect_response( const json::object& request, const json::string& session_id );
 

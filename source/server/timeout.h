@@ -10,9 +10,6 @@
 #include <boost/asio/deadline_timer.hpp>
 #include <boost/asio/write.hpp>
 
-// delete me if you see me
-#include <iostream>
-
 namespace server 
 {
     /**
