@@ -204,10 +204,12 @@ namespace server
             const WriteHandler          handler_;
         };
 
-        void issue_header_read(const boost::posix_time::time_duration& time_out);
+        boost::posix_time::time_duration read_timeout_value() const;
+        void issue_read(const boost::posix_time::time_duration& time_out);
 		void handle_read(const boost::system::error_code& e, std::size_t bytes_transferred);
+		void handle_keep_alive_timeout( const boost::system::error_code& ec );
 
-        /*
+		/*
          * handles a newly read request_header and returns true, if further request_header should be 
          * read
          */
@@ -236,6 +238,7 @@ namespace server
 
         bool                                    current_response_is_sending_;
         bool                                    shutdown_read_;
+        bool                                    no_read_timeout_set_;
 
         boost::asio::deadline_timer             read_timer_;
         boost::asio::deadline_timer             write_timer_;
@@ -266,6 +269,7 @@ namespace server
         , current_request_()
         , current_response_is_sending_(false)
         , shutdown_read_(false)
+        , no_read_timeout_set_( false )
         , read_timer_(connection_.get_io_service())
         , write_timer_(connection_.get_io_service())
         , body_decoder_()
@@ -288,8 +292,8 @@ namespace server
     template < class Trait, class Connection, class Timer >
     void connection< Trait, Connection, Timer >::start()
     {
-        current_request_.reset(new http::request_header);
-        issue_header_read(trait_.timeout());
+        current_request_.reset( new http::request_header );
+        issue_read( trait_.timeout() );
     }
 
     template < class Trait, class Connection, class Timer >
@@ -332,7 +336,7 @@ namespace server
                 buffers,
                 handler,
                 write_timer_,
-                trait_.timeout());
+                trait_.timeout() );
 
             current_response_is_sending_ = true;
         }
@@ -405,27 +409,37 @@ namespace server
             current_response_is_sending_ = false;
             responses_.pop_front();
 
-            if ( responses_.empty() )
-                return;
-
-            const typename blocked_write_list::iterator pending_writes = blocked_writes_.find(responses_.front());
-
-            if ( pending_writes != blocked_writes_.end() )
+            if ( !responses_.empty() )
             {
-                // first remove all pending writes from the list
-                typename blocked_write_list::mapped_type                             list;
-                tools::ptr_container_guard<typename blocked_write_list::mapped_type> delete_blocked_writes(list);
+                const typename blocked_write_list::iterator pending_writes = blocked_writes_.find(responses_.front());
 
-                list.swap(pending_writes->second);
-                blocked_writes_.erase(pending_writes);
+                if ( pending_writes != blocked_writes_.end() )
+                {
+                    // first remove all pending writes from the list
+                    typename blocked_write_list::mapped_type                             list;
+                    tools::ptr_container_guard<typename blocked_write_list::mapped_type> delete_blocked_writes(list);
 
-                std::for_each(list.begin(), list.end(), 
-                    boost::bind(&blocked_write_base::operator(), _1, boost::ref(connection_)));
+                    list.swap(pending_writes->second);
+                    blocked_writes_.erase(pending_writes);
+
+                    std::for_each(list.begin(), list.end(),
+                        boost::bind(&blocked_write_base::operator(), _1, boost::ref(connection_)));
+                }
             }
         }
         else if ( senders_pos != responses_.end() )
         {
             responses_.erase(senders_pos);
+        }
+
+        // start keep timeout, if the last read was issued without timeout
+        if ( responses_.empty() && no_read_timeout_set_ && !shutdown_read_ )
+        {
+            read_timer_.expires_from_now( trait_.keep_alive_timeout() );
+            read_timer_.async_wait(
+                boost::bind( &connection::handle_keep_alive_timeout,
+                             boost::static_pointer_cast< connection< Trait, Connection > >( this->shared_from_this() ),
+                             boost::asio::placeholders::error ) );
         }
     }
 
@@ -501,7 +515,7 @@ namespace server
         trait_.event_shutdown_close(*this);
 
         shutdown_read();
-        connection_.shutdown(boost::asio::ip::tcp::socket::shutdown_send);
+        connection_.shutdown( boost::asio::ip::tcp::socket::shutdown_send );
         connection_.close();
     }
 
@@ -518,7 +532,21 @@ namespace server
     }
 
     template < class Trait, class Connection, class Timer >
-    void connection< Trait, Connection, Timer >::issue_header_read( const boost::posix_time::time_duration& time_out )
+    boost::posix_time::time_duration connection< Trait, Connection, Timer >::read_timeout_value() const
+    {
+        boost::posix_time::time_duration result;
+
+        if ( !current_request_->empty() || !body_read_call_back_.empty() )
+            result = trait_.timeout();
+
+        else if  ( responses_.empty() && current_request_->empty() && body_read_call_back_.empty() )
+            result = trait_.keep_alive_timeout();
+
+        return result;
+    }
+
+    template < class Trait, class Connection, class Timer >
+    void connection< Trait, Connection, Timer >::issue_read( const boost::posix_time::time_duration& time_out )
     {
 		std::pair<char*, std::size_t> buffer( 0, 0 );
 
@@ -533,20 +561,43 @@ namespace server
 			buffer = std::make_pair( &body_buffer_[0], body_buffer_.size() );
 		}
 
-        server::async_read_some_with_to(
-            connection_,
-            boost::asio::buffer(buffer.first, buffer.second),
-            boost::bind(&connection::handle_read, 
-                        boost::static_pointer_cast<connection<Trait, Connection> >(this->shared_from_this()),
-                        boost::asio::placeholders::error,
-                        boost::asio::placeholders::bytes_transferred),
-            read_timer_,
-            time_out);
+		if ( time_out != boost::posix_time::seconds( 0 ) )
+		{
+            server::async_read_some_with_to(
+                connection_,
+                boost::asio::buffer(buffer.first, buffer.second),
+                boost::bind(&connection::handle_read,
+                            boost::static_pointer_cast<connection<Trait, Connection> >(this->shared_from_this()),
+                            boost::asio::placeholders::error,
+                            boost::asio::placeholders::bytes_transferred),
+                read_timer_,
+                time_out);
+
+            no_read_timeout_set_ = false;
+		}
+		else
+		{
+		    connection_.async_read_some(
+		        boost::asio::buffer(buffer.first, buffer.second),
+                boost::bind( &connection::handle_read,
+                             boost::static_pointer_cast<connection<Trait, Connection> >(this->shared_from_this()),
+                             boost::asio::placeholders::error,
+                             boost::asio::placeholders::bytes_transferred) );
+
+		    no_read_timeout_set_ = true;
+		}
     }
 
     template < class Trait, class Connection, class Timer >
 	void connection< Trait, Connection, Timer >::handle_read(const boost::system::error_code& error, std::size_t bytes_transferred)
     {
+        // cancel keep alive timer
+        if ( no_read_timeout_set_ )
+        {
+            no_read_timeout_set_ = false;
+            read_timer_.cancel();
+        }
+
 		if ( error || bytes_transferred == 0 )
 		{
         	if ( !body_read_call_back_.empty() )
@@ -580,11 +631,11 @@ namespace server
 					current_request_.reset( new http::request_header(
 							boost::asio::const_buffers_1( &body_buffer_[0], bytes_transferred ), bytes_transferred ) );
 
-					body_read_cb_t cb = body_read_call_back_;
-                    body_read_call_back_.clear();
+					body_read_cb_t read_call_back;
+                    body_read_call_back_.swap( read_call_back );
 
-                    if ( !cb.empty() )
-                        cb( error, 0, 0 );
+                    if ( !read_call_back.empty() )
+                        read_call_back( error, 0, 0 );
         		}
         	}
         	// or reading a header
@@ -624,11 +675,17 @@ namespace server
         	}
         }
 
-        const boost::posix_time::time_duration next_read_timeout = current_request_->empty() && body_read_call_back_.empty()
-            ? trait_.keep_alive_timeout()
-            : trait_.timeout();
+        issue_read( read_timeout_value() );
+    }
 
-        issue_header_read( next_read_timeout );
+    template < class Trait, class Connection, class Timer >
+    void connection< Trait, Connection, Timer >::handle_keep_alive_timeout( const boost::system::error_code& ec )
+    {
+        if ( ec )
+            return;
+
+        trait_.event_keep_alive_timeout( *this );
+        shutdown_close();
     }
 
     template < class Trait, class Connection, class Timer >

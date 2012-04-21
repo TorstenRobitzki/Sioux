@@ -48,6 +48,9 @@ namespace server
         template <class Connection, class Response>
         void event_response_not_possible(const Connection&, const Response&) {}
 
+        template < class Connection >
+        void event_keep_alive_timeout( const Connection& ) {}
+
         template <class Connection>
         void event_shutdown_read(const Connection&) {}
 

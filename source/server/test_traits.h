@@ -9,6 +9,7 @@
 #include "server/test_response.h"
 #include "server/error.h"
 #include "server/traits.h"
+#include "server/log.h"
 #include <vector>
 
 namespace server {
@@ -46,7 +47,7 @@ struct response_factory
 template < class ResponseFactory = response_factory,
            class Network = server::test::socket< const char* >,
            class Timer = server::test::timer >
-class traits : public server::connection_traits< Network, Timer, ResponseFactory >
+class traits : public server::connection_traits< Network, Timer, ResponseFactory, server::null_event_logger >
 {
 public:
     traits() : pimpl_( new impl(0, 0) )

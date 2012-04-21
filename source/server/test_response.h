@@ -33,8 +33,8 @@ namespace test {
     /**
      * @brief a async_reponse implementation, that responses with a given text
      */
-    template <class Connection>
-    class response : public async_response, public boost::enable_shared_from_this<response<Connection> >
+    template < class Connection >
+    class response : public async_response, public boost::enable_shared_from_this< response< Connection > >
     {
     public:
         response(const boost::shared_ptr<Connection>& connection, const boost::shared_ptr<const http::request_header>& /*header*/, const std::string& answer)
@@ -93,9 +93,16 @@ namespace test {
         }
 
     private:
-        void handler(const boost::system::error_code& /*error*/, std::size_t /*bytes_transferred*/)
+        void handler( const boost::system::error_code& error, std::size_t bytes_transferred )
         {
-            connection_->response_completed(*this); 
+            if ( error )
+            {
+                connection_->response_not_possible( *this );
+            }
+            else
+            {
+                connection_->response_completed(*this);
+            }
         }
 
         const boost::shared_ptr<Connection> connection_;

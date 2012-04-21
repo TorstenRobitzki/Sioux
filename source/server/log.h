@@ -7,6 +7,7 @@
 
 #include <boost/thread/mutex.hpp>
 #include <boost/asio/buffers_iterator.hpp>
+#include <boost/asio/ip/tcp.hpp>
 #include <ostream>
 
 #include "http/request.h"
@@ -22,13 +23,17 @@ namespace server
     class stream_event_log
     {
     public:
-        template <class P>
-        explicit stream_event_log(const P& p) 
+        template < class Parameter >
+        explicit stream_event_log( const Parameter& param )
             : mutex_()
-            , out_(p.logstream())
-            , connection_cnt_(0)
+            , out_( param.logstream() )
+            , connection_cnt_( 0 )
         {
         }
+
+        // uses std::cout as output stream
+        stream_event_log();
+
 
         template <class Connection>
         void event_connection_created(const Connection&) 
@@ -79,6 +84,13 @@ namespace server
         {
             boost::mutex::scoped_lock lock(mutex_);
             out_ << "event_response_not_possible" << std::endl;
+        }
+
+        template < class Connection >
+        void event_keep_alive_timeout( const Connection& )
+        {
+            boost::mutex::scoped_lock lock(mutex_);
+            out_ << "event_keep_alive_timeout" << std::endl;
         }
 
         template <class Connection>

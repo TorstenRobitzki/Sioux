@@ -8,12 +8,12 @@ namespace server
 {
     boost::posix_time::time_duration connection_config::keep_alive_timeout() const
     {
-        return boost::posix_time::seconds(3000);
+        return boost::posix_time::seconds( 30 );
     }
 
     boost::posix_time::time_duration connection_config::timeout() const
     {
-        return boost::posix_time::seconds(3000);
+        return boost::posix_time::seconds( 3 );
     }
 
     boost::posix_time::time_duration connection_config::reaccept_timeout() const
