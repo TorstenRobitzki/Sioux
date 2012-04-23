@@ -7,6 +7,7 @@
 #include "bayeux/bayeux.h"
 #include "bayeux/configuration.h"
 #include "bayeux/node_channel.h"
+#include "bayeux/log.h"
 #include "pubsub/root.h"
 #include "pubsub/configuration.h"
 
@@ -46,12 +47,13 @@ namespace
         bayeux::connector<>& connector_;
     };
 
-    typedef server::basic_server< server::connection_traits<
-        boost::asio::ip::tcp::socket,
-        boost::asio::deadline_timer,
-        response_factory,
-        server::null_event_logger,
-        server::stream_error_log > > server_t;
+    typedef server::basic_server<
+        server::connection_traits<
+            boost::asio::ip::tcp::socket,
+            boost::asio::deadline_timer,
+            response_factory,
+            bayeux::stream_event_log< server::null_event_logger >,
+            server::stream_error_log > > server_t;
 
     class reply_adapter : public pubsub::adapter
     {

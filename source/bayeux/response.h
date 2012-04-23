@@ -9,7 +9,6 @@
 #include <boost/bind.hpp>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/noncopyable.hpp>
-#include <boost/system/error_code.hpp>
 
 #include "bayeux/session.h"
 #include "http/request.h"
@@ -100,6 +99,8 @@ namespace bayeux
 				  connector< typename Connection::trait_t::timeout_timer_type >&    root );
 
 	private:
+		typedef typename Connection::trait_t trait_t;
+
         virtual void implement_hurry();
         virtual void start();
 		void body_read_handler(
@@ -132,7 +133,45 @@ namespace bayeux
         timer_t                                     timer_;
 	};
 
+
 	// implementation
+	namespace log
+	{
+	    struct no_logging {};
+	    struct has_logging {};
+
+	    template < class Connection >
+	    has_logging enabled( const Connection* c,
+	        typename Connection::trait_t::bayeux_logging_enabled* f = 0 )
+	    {
+	        return has_logging();
+	    }
+
+        template < class Connection >
+        no_logging enabled( ... )
+        {
+            return no_logging();
+        }
+
+        template < class Connection >
+        void bayeux_start_response( Connection& con, const has_logging& )
+        {
+            con.trait().bayeux_start_response( con );
+        }
+
+        template < class Connection, class Payload >
+        void bayeux_handle_requests( Connection& con, const Payload& request_container, const has_logging& )
+        {
+            con.trait().bayeux_handle_requests( con, request_container );
+        }
+
+        template < class Connection >
+        void bayeux_start_response( Connection&, const no_logging& ) {}
+
+        template < class Connection, class Payload >
+        void bayeux_handle_requests( Connection&, const Payload&, const no_logging& ) {}
+	}
+
 	template < class Connection >
 	response< Connection >::response( const boost::shared_ptr< Connection >& connection, const http::request_header&,
 			connector< typename Connection::trait_t::timeout_timer_type >& root )
@@ -154,7 +193,8 @@ namespace bayeux
 	template < class Connection >
     void response< Connection >::start()
 	{
-		connection_->async_read_body( boost::bind( &response::body_read_handler, this->shared_from_this(), _1, _2, _3
+	    log::bayeux_start_response( *connection_, log::enabled< Connection >( connection_.get() ) );
+	    connection_->async_read_body( boost::bind( &response::body_read_handler, this->shared_from_this(), _1, _2, _3
 				) );
 	}
 
@@ -172,34 +212,29 @@ namespace bayeux
 		    return;
 		}
 
-        try
+        if ( bytes_read_and_decoded == 0 && parsed_ )
         {
-            if ( bytes_read_and_decoded == 0 && parsed_ )
-            {
-                message_parser_.flush();
-                handle_requests( message_parser_.result() );
-                guard.dismiss();
-            }
-            else if ( bytes_read_and_decoded != 0 && !parsed_ )
-            {
-                parsed_ = message_parser_.parse( buffer, buffer + bytes_read_and_decoded );
-                guard.dismiss();
-            }
-            else
-            {
-                connection_->trait().log_error( *connection_, "unexpected state while reading body:",
-                    bytes_read_and_decoded, parsed_ );
-            }
+            message_parser_.flush();
+            handle_requests( message_parser_.result() );
+            guard.dismiss();
         }
-        catch ( const std::exception& e )
+        else if ( bytes_read_and_decoded != 0 && !parsed_ )
         {
-            connection_->trait().error_executing_request_handler( *connection_, http::request_header(), e.what() );
+            parsed_ = message_parser_.parse( buffer, buffer + bytes_read_and_decoded );
+            guard.dismiss();
+        }
+        else
+        {
+            connection_->trait().log_error( *connection_, "unexpected state while reading body:",
+                bytes_read_and_decoded, parsed_ );
         }
 	}
 
 	template < class Connection >
 	void response< Connection >::handle_requests( const json::value& request_container )
 	{
+	    log::bayeux_handle_requests( *connection_, request_container, log::enabled< Connection >( connection_.get() ) );
+
 		struct visitor_t : json::default_visitor
 		{
 	        void visit( const json::object& o )
