@@ -719,12 +719,6 @@ namespace server
             return false;
         }
 
-        if ( new_request->close_after_response() ) 
-        {
-            shutdown_read();
-            return false;
-        }
-
         return true;
     }
 
