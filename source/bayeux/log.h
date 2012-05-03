@@ -5,6 +5,8 @@
 #ifndef SIOUX_BAYEUX_LOG_H_
 #define SIOUX_BAYEUX_LOG_H_
 
+#include "http/request.h"
+
 namespace bayeux
 {
     struct empty_base;
@@ -46,7 +48,14 @@ namespace bayeux
         void bayeux_handle_requests( Connection&, const Payload& request_container )
         {
             boost::mutex::scoped_lock lock( mutex_ );
-            out_ << "request: " << request_container << std::endl;
+            out_ << "bayeux_handle_requests: " << request_container << std::endl;
+        }
+
+        template < class Connection >
+        void bayeux_new_request( Connection&, const http::request_header& header )
+        {
+            boost::mutex::scoped_lock lock( mutex_ );
+            out_ << "bayeux_new_request: " << header.text() << std::endl;
         }
     private:
         boost::mutex    mutex_;

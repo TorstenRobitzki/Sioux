@@ -101,20 +101,23 @@ std::vector< bayeux::test::response_t > bayeux::test::bayeux_session( const serv
 
     // in case that the test-setup didn't posted any handler, run() might block
     context.queue.post( boost::bind( &empty_call_back, boost::system::error_code() ) );
-    try
+    do
     {
-        do
+        try
         {
             tools::run( context.queue );
         }
-        while ( server::test::current_time() < end_of_test && server::test::advance_time() != 0
-            && server::test::current_time() <= end_of_test );
+        catch ( const std::exception& e )
+        {
+            std::cerr << "error running bayeux_session: " << e.what() << std::endl;
+        }
+        catch ( ... )
+        {
+            std::cerr << "error running bayeux_session" << std::endl;
+        }
     }
-    catch ( ... )
-    {
-        std::cerr << "error running bayeux_session" << std::endl;
-        BOOST_REQUIRE( false );
-    }
+    while ( server::test::current_time() < end_of_test && server::test::advance_time() != 0
+        && server::test::current_time() <= end_of_test );
 
     return decoder.result();
 }

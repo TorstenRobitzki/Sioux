@@ -37,6 +37,7 @@ namespace
 			: connection_( connection )
 			, body_read_( false )
 			, has_body_( request.body_expected() )
+		    , has_error_( false )
 		{
 		}
 
@@ -78,11 +79,12 @@ namespace
 		  	  	        const char* 					 buffer,
 		  	  	 	    std::size_t 					 bytes_read_and_decoded )
 		{
-			assert( !body_read_ );
+		    assert( !body_read_ );
 
 			if ( error )
 			{
 				connection_->response_completed( *this );
+				has_error_ = true;
 				return;
 			}
 
@@ -98,6 +100,16 @@ namespace
 		bool body_completed() const
 		{
 			return body_read_;
+		}
+
+		bool has_error() const
+		{
+		    return has_error_;
+		}
+
+		std::size_t body_size() const
+		{
+		    return body_.size();
 		}
 	private:
 		// not implemented
@@ -501,8 +513,47 @@ BOOST_AUTO_TEST_CASE( timeout_while_receiving_a_request_body )
 /**
  * @test in case, that the body receiving response removes it self from the connection (by calling response_completed()
  * or response_not_possible()), no further calls to the read-body handler should happen.
+ * @todo implement
  */
-BOOST_AUTO_TEST_CASE( no_further_body_read_callbacks_after_stop_responing )
+BOOST_AUTO_TEST_CASE( no_further_body_read_callbacks_after_stop_responding )
 {
 }
 
+/**
+ * @test if the body of the request is expected, but missing, an installed read handler should be called once.
+ */
+BOOST_AUTO_TEST_CASE( missing_body_should_be_flagged_as_error )
+{
+    const char simple_post_with_missing_body[] =
+        "POST / HTTP/1.1\r\n"
+        "Host: web-sniffer.net\r\n"
+        "Origin: http://web-sniffer.net\r\n"
+        "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_6_8) AppleWebKit/534.50 (KHTML, like Gecko) Version/5.1 Safari/534.50\r\n"
+        "Content-Type: application/x-www-form-urlencoded\r\n"
+        "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"
+        "Referer: http://web-sniffer.net/\r\n"
+        "Accept-Language: de-de\r\n"
+        "Accept-Encoding: gzip, deflate\r\n"
+        "Content-Length: 73\r\n"
+        "Connection: keep-alive\r\n"
+        "\r\n";
+
+    trait_t                 trait;
+    boost::asio::io_service queue;
+
+    server::test::read_plan plan;
+    plan
+        << server::test::read(
+            tools::begin( simple_post_with_missing_body ), tools::end( simple_post_with_missing_body ) -1 )
+        << server::test::disconnect_read();
+
+    socket_t                socket( queue, plan );
+
+    boost::shared_ptr< connection_t > connection( new connection_t( socket, trait ) );
+    connection->start();
+
+    tools::run( queue );
+    BOOST_REQUIRE_EQUAL( 1u, trait.read_bodies_.size() );
+    BOOST_CHECK( get_body( trait.read_bodies_.front() ).has_error() );
+    BOOST_CHECK_EQUAL( 0, get_body( trait.read_bodies_.front() ).body_size() );
+}

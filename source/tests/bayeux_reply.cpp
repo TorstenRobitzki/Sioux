@@ -13,12 +13,19 @@
 
 namespace
 {
+    class stop_server : public std::runtime_error
+    {
+    public:
+        stop_server() : std::runtime_error( "server was asked to stop." ) {}
+    };
+
     class response_factory
     {
     public:
         template < class Context >
         explicit response_factory( const Context& connector )
           : connector_( connector.connector_ )
+          , stopping_( false )
         {
         }
 
@@ -29,6 +36,16 @@ namespace
         {
             if ( header->state() == http::message::ok )
             {
+                if ( header->uri() == "/stop" )
+                {
+                    stopping_ = true;
+                    throw stop_server();
+                }
+
+                if ( header->uri() == "/ping" )
+                    return boost::shared_ptr< server::async_response >(
+                            new server::error_response< Connection >( connection, http::http_ok ) );
+
                 return connector_.create_response( connection, header );
             }
 
@@ -43,8 +60,14 @@ namespace
         {
             return boost::shared_ptr< server::async_response >( new ::server::error_response< Connection >( con, ec ) );
         }
+
+        bool stopping()
+        {
+            return stopping_;
+        }
     private:
-        bayeux::connector<>& connector_;
+        bayeux::connector<>&    connector_;
+        bool                    stopping_;
     };
 
     typedef server::basic_server<
@@ -52,7 +75,7 @@ namespace
             boost::asio::ip::tcp::socket,
             boost::asio::deadline_timer,
             response_factory,
-            bayeux::stream_event_log< server::null_event_logger >,
+            bayeux::stream_event_log< server::stream_event_log >,
             server::stream_error_log > > server_t;
 
     class reply_adapter : public pubsub::adapter
@@ -160,11 +183,15 @@ int main()
     server.add_listener( tcp::endpoint( address( address_v4::any() ), 8080 ) );
     server.add_listener( tcp::endpoint( address( address_v6::any() ), 8080 ) );
 
-    for ( ;; )
+    while ( !server.trait().stopping() )
     {
         try
         {
             queue.run();
+        }
+        catch ( const stop_server& e )
+        {
+            std::cout << e.what() << std::endl;
         }
         catch ( const std::exception& e )
         {

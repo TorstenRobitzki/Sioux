@@ -166,14 +166,23 @@ namespace bayeux
         }
 
         template < class Connection >
+        void bayeux_new_request( Connection& con, const http::request_header& header, const has_logging& )
+        {
+            con.trait().bayeux_new_request( con, header );
+        }
+
+        template < class Connection >
         void bayeux_start_response( Connection&, const no_logging& ) {}
 
         template < class Connection, class Payload >
         void bayeux_handle_requests( Connection&, const Payload&, const no_logging& ) {}
+
+        template < class Connection >
+        void bayeux_new_request( Connection& con, const http::request_header& header, const no_logging& ) {}
 	}
 
 	template < class Connection >
-	response< Connection >::response( const boost::shared_ptr< Connection >& connection, const http::request_header&,
+	response< Connection >::response( const boost::shared_ptr< Connection >& connection, const http::request_header& header,
 			connector< typename Connection::trait_t::timeout_timer_type >& root )
 	  : response_base< typename Connection::trait_t::timeout_timer_type >( root )
 	  , connection_( connection )
@@ -181,6 +190,8 @@ namespace bayeux
 	  , message_parser_()
 	  , timer_( root.queue() )
 	{
+        log::bayeux_new_request( *connection_, header, log::enabled< Connection >( connection_.get() ) );
+	    assert( header.body_expected() );
 	}
 
 	template < class Connection >
@@ -206,7 +217,7 @@ namespace bayeux
 	{
 	    server::close_connection_guard< Connection > guard( *connection_, *this );
 
-		if ( error )
+		if ( error && error != boost::asio::error::eof )
 		{
 		    connection_->trait().log_error( *connection_, "receiving bayeux request body", error, bytes_read_and_decoded );
 		    return;

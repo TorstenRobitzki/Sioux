@@ -169,9 +169,12 @@ namespace server {
 
         void add_listener(const boost::asio::ip::tcp::endpoint&);
         void add_proxy(const char* route, const boost::asio::ip::tcp::endpoint& orgin, const proxy_configuration&);
+
+        typedef Trait                           trait_t;
+        trait_t& trait();
+
     private:
         typedef boost::asio::ip::tcp::socket    socket_t;
-        typedef Trait                           trait_t;
         typedef acceptator<trait_t, socket_t>   acceptor_t;
 
         boost::asio::io_service&                    queue_;
@@ -253,6 +256,12 @@ namespace server {
     void basic_server<Trait>::add_proxy(const char* route, const boost::asio::ip::tcp::endpoint& orgin, const proxy_configuration& config)
     {
         trait_.add_proxy(queue_, route, orgin, config);
+    }
+
+    template <class Trait>
+    typename basic_server<Trait>::trait_t& basic_server<Trait>::trait()
+    {
+        return trait_;
     }
 
 } // namespace server

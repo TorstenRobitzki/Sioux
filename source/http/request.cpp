@@ -150,7 +150,7 @@ namespace http {
         return find_header("Content-Length") != 0 || find_header("Transfer-Encoding");
     }
 
-    bool request_header::body_expected(http_method_code ) const
+    bool request_header::body_expected( http_method_code ) const
     {
     	return body_expected();
     }
