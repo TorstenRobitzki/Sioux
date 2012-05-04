@@ -5,6 +5,7 @@
 require 'net/http/pipeline'
 require 'json'
 require 'minitest/unit'
+require 'thread'
 
 class BayeuxServerProxy
     def initialize
@@ -45,30 +46,63 @@ private
 end
 
 class BayeuxConnection
+    class AsyncResult
+        def initialize
+            extend(MonitorMixin)
+            @result     = nil
+            @condition  = new_cond
+        end
+        
+        def signal_data result
+            synchronize do
+                @result = result
+                @condition.signal 
+            end            
+        end
+        
+        def wait_data
+            synchronize do
+                @condition.wait_while { @result.nil? } 
+                @result
+            end            
+        end
+    end
+    
     def initialize 
-        @net = Net::BufferedIO.new( TCPSocket.new 'localhost', 8080)
-#        @net = Net::HTTP.start( 'localhost', 8080 ) 
+        @net        = Net::BufferedIO.new( TCPSocket.new 'localhost', 8080 )
+        @mutex      = Mutex.new
+        @thread     = Thread.new { receive_loop() }
+        @requests   = Array.new
+        @close = false
     end
     
     def close
         begin
+            @mutex.synchronize { @close = true }
             @net.close
-#            @net.finish
         rescue
         end
     end
     
+    def closed?
+        @mutex.synchronize { return @close }
+    end
+    
     def send text
-        req = Net::HTTP::Post.new('/')
-        req.body = text
-        req[ 'host' ] = 'localhost'
-        req[ 'Content-Type' ] = 'POST';
-        req.exec @net, '1.1', req.path
-        result = Net::HTTPResponse.read_new(@net)
-        result.reading_body(@net, req.response_body_permitted?) {}
+        result = nil
+
+        @mutex.synchronize do
+            req = Net::HTTP::Post.new('/')
+            req.body = text
+            req[ 'host' ] = 'localhost'
+            req[ 'Content-Type' ] = 'POST';
+            req.exec @net, '1.1', req.path
+
+            result = AsyncResult.new
+            @requests.push( result )
+        end
         
-        result
-#        @net.post('/', text, { 'Content-Type' => 'POST' } )
+        result.wait_data
     end
     
     def self.connect
@@ -80,6 +114,33 @@ class BayeuxConnection
             raise
         end
     end
+protected
+    def receive
+        result = Net::HTTPResponse.read_new( @net )
+        result.reading_body( @net, true ) {}
+        result = result.read_body
+    
+        result
+    end
+    
+    def receive_loop
+        begin
+            begin
+                result = JSON.parse( receive() )
+                
+                wake = nil
+                @mutex.synchronize { wake = @requests.shift }
+
+                wake.signal_data result
+            end while true
+        rescue Exception => e 
+            if !closed? 
+                puts "#error: #{e.message}"  
+                close
+                raise
+            end
+        end
+    end
 end
 
 class BayeuxSession
@@ -89,23 +150,17 @@ class BayeuxSession
     
     def send hash
         hash[ 'clientId' ] = @session_id unless @session_id.nil?
-        text = [hash].to_json
-        result = @connection.send text
-        
-        # Raises an HTTP error if the response is not 2xx (success).
-        result.value
-        JSON.parse result.body
+        text = [ hash ].to_json
+        [ @connection.send( text ) ].flatten
     end
     
     def handshake
         result = send( { 'channel' => '/meta/handshake', 'version' => '1.0', 
             'supportedConnectionTypes' => ['long-polling', 'callback-polling'] } )
-            
-        if result.class == Array
-            raise RuntimeError, "unexpected length of handshake result: #{result.length}" if result.length != 1
-            
-            result = result[ 0 ]
-        end 
+
+        raise RuntimeError, "unexpected length of handshake result: #{result.length}" if result.length != 1
+        
+        result = result.shift
 
         if !result.has_key?( 'successful' ) || result[ 'successful' ] != true
             raise RuntimeError, ( result[ 'error' ] || "handshake-error" )
@@ -115,14 +170,14 @@ class BayeuxSession
     end
     
     def self.start connection = nil
-        close_connection = !connection.nil?
+        close_connection = connection.nil?
         connection ||= BayeuxConnection.new
         begin
             session = self.new connection
             session.handshake
             yield session
         ensure
-            connection.close
+            connection.close if close_connection
         end
     end
     
@@ -133,6 +188,7 @@ class BayeuxSession
     end
     
     def publish node, data
+        send( { 'channel' => node, 'data' => data } )
     end
     
     def connect
@@ -162,7 +218,7 @@ class BayeuxProtocolTest < MiniTest::Unit::TestCase
     
     def small_client_server_dialog session
         result = single_message( session.send( { 'channel' => '/foo/bar/chu', 'data' => true } ) )
-        refute_nil( result )
+        refute_nil( result, 'response to published data expected' )
         assert( successful( result ) )
     end
     
@@ -183,9 +239,9 @@ class BayeuxProtocolTest < MiniTest::Unit::TestCase
     def test_mulitple_session_over_single_connection
         BayeuxConnection.connect do | connection |
             Array.new( 4 ) do
-                Thread.new do
+                Thread.new do 
                     BayeuxSession.start( connection ) { | session | small_client_server_dialog session } 
-                end 
+                end
             end.each { | t | t.join } 
         end
     end
