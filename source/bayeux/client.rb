@@ -1,0 +1,154 @@
+require 'net/http/pipeline'
+
+module Bayeux
+    class Connection
+        class AsyncResult
+            def initialize
+                extend(MonitorMixin)
+                @result     = nil
+                @condition  = new_cond
+            end
+            
+            def signal_data result
+                synchronize do
+                    @result = result
+                    @condition.signal 
+                end            
+            end
+            
+            def wait_data
+                synchronize do
+                    @condition.wait_while { @result.nil? } 
+                    @result
+                end            
+            end
+        end
+        
+        def initialize 
+            @net        = Net::BufferedIO.new( TCPSocket.new 'localhost', 8080 )
+            @mutex      = Mutex.new
+            @thread     = Thread.new { receive_loop() }
+            @requests   = Array.new
+            @close = false
+        end
+        
+        def close
+            begin
+                @mutex.synchronize { @close = true }
+                @net.close
+            rescue
+            end
+        end
+        
+        def closed?
+            @mutex.synchronize { return @close }
+        end
+        
+        def send text
+            result = nil
+    
+            @mutex.synchronize do
+                req = Net::HTTP::Post.new('/')
+                req.body = text
+                req[ 'host' ] = 'localhost'
+                req[ 'Content-Type' ] = 'POST';
+                req.exec @net, '1.1', req.path
+    
+                result = AsyncResult.new
+                @requests.push( result )
+            end
+            
+            result.wait_data
+        end
+        
+        def self.connect
+            begin
+                connection = self.new
+                yield connection
+            rescue
+                connection.close 
+                raise
+            end
+        end
+    protected
+        def receive
+            result = Net::HTTPResponse.read_new( @net )
+            result.reading_body( @net, true ) {}
+            result = result.read_body
+        
+            result
+        end
+        
+        def receive_loop
+            begin
+                begin
+                    result = JSON.parse( receive() )
+                    
+                    wake = nil
+                    @mutex.synchronize { wake = @requests.shift }
+    
+                    wake.signal_data result
+                end while true
+            rescue Exception => e 
+                if !closed? 
+                    puts "#error: #{e.message}"  
+                    close
+                    raise
+                end
+            end
+        end
+    end
+
+    class Session
+        def initialize connection
+            @connection = connection || Connection.new
+        end
+        
+        def send hash
+            hash[ 'clientId' ] = @session_id unless @session_id.nil?
+            text = [ hash ].to_json
+            [ @connection.send( text ) ].flatten
+        end
+        
+        def handshake
+            result = send( { 'channel' => '/meta/handshake', 'version' => '1.0', 
+                'supportedConnectionTypes' => ['long-polling', 'callback-polling'] } )
+    
+            raise RuntimeError, "unexpected length of handshake result: #{result.length}" if result.length != 1
+            
+            result = result.shift
+    
+            if !result.has_key?( 'successful' ) || result[ 'successful' ] != true
+                raise RuntimeError, ( result[ 'error' ] || "handshake-error" )
+            end
+    
+            @session_id = result[ 'clientId' ]
+        end
+        
+        def self.start connection = nil
+            close_connection = connection.nil?
+            connection ||= Connection.new
+            begin
+                session = self.new connection
+                session.handshake
+                yield session
+            ensure
+                connection.close if close_connection
+            end
+        end
+        
+        def subscribe node
+        end
+        
+        def unsubscribe node
+        end
+        
+        def publish node, data
+            send( { 'channel' => node, 'data' => data } )
+        end
+        
+        def connect
+            send( { 'channel' => '/meta/subscribe', 'connectionType' => 'long-polling' } )
+        end
+    end
+end
