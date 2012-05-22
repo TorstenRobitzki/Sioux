@@ -138,5 +138,79 @@ class BayeuxProtocolTest < MiniTest::Unit::TestCase
             end
         end ].flatten.each { | t | t.join }
     end
+
+    def test_multiple_publish_multiple_subcribe
+        signal = Queue.new
+        subscriber_count = 100
+        
+        [ (1..subscriber_count).collect do | index | 
+            Thread.new( index ) do | i |
+                Bayeux::Session.start do | session |
+                    subject = "/foo/bar/#{i}"
+                    session.subscribe_and_wait subject
+                    
+                    signal << 42
+    
+                    result = session.connect
+                    assert_equal( 1, result.length )
+                    assert_for_update( result, subject, 'new_value' )
+                end
+            end
+        end,
+        Thread.new do
+            subscriber_count.times { signal.pop }
+
+            Bayeux::Session.start do | session |
+                (1..subscriber_count).collect do | index |
+                    result = session.publish "/foo/bar/#{index}", 'new_value'
+                    assert_equal( 1, result.length )
+                    assert( successful result )
+                end                    
+            end
+        end ].flatten.each { | t | t.join }
+    end
+    
+    # and now, multiple subscriber subscribing to multiple, different subjects
+    def test_multiple_publish_multiple_subjects_subscribed
+        signal = Queue.new
+        subscriber_count = 100
+        subscription_count = 10
+
+        all_subjects = (1..subscriber_count).collect { | i | "/#{i}" }
+
+        [ (1..subscriber_count).collect do | index | 
+            Thread.new( index ) do | index |
+                subjects = all_subjects.rotate( index ).take( subscription_count )
+                
+                Bayeux::Session.start do | session |
+                    subjects.each { | subject | session.subscribe_and_wait subject }
+                    
+                    signal << 42
+
+                    until subjects.empty?
+                        session.connect.each do | update |
+                            data    = update[ 'data' ]
+                            subject = update[ 'channel' ]
+                            raise RuntimeError, "Not an update #{update}" unless data && subject
+                            raise RuntimeError, "Invalid update #{update}" unless data == { 'subject' => subject }
+                            raise RuntimeError, "Update not expected #{update}" unless subjects.delete subject
+                        end
+                    end
+                end
+            end
+        end,
+        Thread.new do
+            subscriber_count.times { signal.pop }
+
+            Bayeux::Session.start do | session |
+                all_subjects.each do | subject |
+                    result = session.publish subject, { 'subject' => subject }
+                    assert_equal( 1, result.length )
+                    assert( successful result )
+                end                    
+            end
+        end ].flatten.each { | t | t.join }
+    end
+    
 end
 

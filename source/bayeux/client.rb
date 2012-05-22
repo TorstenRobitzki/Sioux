@@ -141,6 +141,17 @@ module Bayeux
             send( { 'channel' => '/meta/subscribe', 'subscription' => node } )
         end
         
+        def subscribe_and_wait node, timeout_s = 2
+            end_time = Time.new + timeout_s
+            
+            result = subscribe node
+            result = result.concat connect until result.length >= 1 || Time.new > end_time  
+
+            raise RuntimeError, "timeout while waiting for subscription response #{node}" if result.empty?
+            raise RuntimeError, "unexpected response while subscribing to #{node}" if result.length != 1
+            raise RuntimeError, "failing to subscribe to #{node}, #{result}" if result.shift[ 'successful' ] != true
+        end
+        
         def unsubscribe node
             send( { 'channel' => '/meta/unsubscribe', 'subscription' => node } )
         end
