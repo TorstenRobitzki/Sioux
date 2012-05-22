@@ -172,6 +172,12 @@ namespace bayeux
         }
 
         template < class Connection >
+        void bayeux_blocking_connect( Connection& con, const json::object& blocking_request, const has_logging& )
+        {
+            con.trait().bayeux_blocking_connect( con, blocking_request );
+        }
+
+        template < class Connection >
         void bayeux_start_response( Connection&, const no_logging& ) {}
 
         template < class Connection, class Payload >
@@ -179,6 +185,9 @@ namespace bayeux
 
         template < class Connection >
         void bayeux_new_request( Connection& con, const http::request_header& header, const no_logging& ) {}
+
+        template < class Connection >
+        void bayeux_blocking_connect( Connection& con, const json::object& blocking_request, const no_logging& ) {}
 	}
 
 	template < class Connection >
@@ -288,6 +297,7 @@ namespace bayeux
         {
             assert( this->session_ );
 
+            log::bayeux_blocking_connect( *connection_, this->blocking_connect_, log::enabled< Connection >( connection_.get() ) );
             timer_.expires_from_now( this->session_->long_polling_timeout() );
             timer_.async_wait( boost::bind( &response::connection_time_out, this->shared_from_this(), _1 ) );
         }

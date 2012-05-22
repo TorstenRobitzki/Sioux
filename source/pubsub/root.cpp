@@ -96,33 +96,31 @@ namespace {
                 boost::mutex::scoped_lock   lock(mutex_);
                 const node_list_t::iterator pos = nodes_.find(node_name);
 
-                const boost::shared_ptr<const configuration> config = configurations_.get_configuration(node_name);
-
                 if ( pos != nodes_.end() )
                 {
                 	node = pos->second;
 
-                	if ( config->authorization_required() )
-                		authorizer = create_authorizer(node, node_name, s, queue_, adapter_);
+                	if ( node->authorization_required() )
+                		authorizer = create_authorizer( node, node_name, s, queue_, adapter_ );
                 }
                 else
                 {
-                	node.reset(new subscribed_node(config));
-                	validate = create_validator(node, node_name, s, queue_, adapter_);
-                	nodes_.insert(std::make_pair(node_name, node));
+                	node.reset( new subscribed_node( configurations_.get_configuration( node_name ) ) );
+                	validate = create_validator( node, node_name, s, queue_, adapter_ );
+                	nodes_.insert( std::make_pair( node_name, node ) );
                 }
             }
 
-        	assert(node.get());
-        	node->add_subscriber(s, adapter_, queue_);
+        	assert( node.get() );
+        	node->add_subscriber(s, adapter_, queue_, node_name );
 
         	if ( validate.get() )
         	{
-        		adapter_.validate_node(node_name, validate);
+        		adapter_.validate_node( node_name, validate );
         	}
         	else if ( authorizer.get() )
         	{
-        		adapter_.authorize(s, node_name, authorizer);
+        		adapter_.authorize( s, node_name, authorizer );
         	}
         }
 

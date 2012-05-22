@@ -138,17 +138,29 @@ module Bayeux
         end
         
         def subscribe node
+            send( { 'channel' => '/meta/subscribe', 'subscription' => node } )
         end
         
         def unsubscribe node
+            send( { 'channel' => '/meta/unsubscribe', 'subscription' => node } )
         end
         
         def publish node, data
             send( { 'channel' => node, 'data' => data } )
         end
         
+        # performs a synchronous bayeux 'connect', the result is the payload without the connect response
         def connect
-            send( { 'channel' => '/meta/subscribe', 'connectionType' => 'long-polling' } )
+            result = send( { 'channel' => '/meta/connect', 'connectionType' => 'long-polling' } )
+            connect_result = result.select { | message | message[ 'channel' ] == '/meta/connect' } 
+            
+            raise RuntimeError, "no response to connect request" if connect_result.empty?
+            raise RuntimeError, "multiple responses to connect request: #{connect_result}" unless connect_result.length == 1
+            
+            connect_result = connect_result.shift
+            raise RuntimeError, "connect error: #{connect_result}" unless connect_result[ 'successful' ] == true
+            
+            result.reject { | message | message[ 'channel' ] == '/meta/connect' }
         end
     end
 end

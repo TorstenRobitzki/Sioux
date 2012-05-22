@@ -167,7 +167,7 @@ namespace bayeux
     void session::on_update(const pubsub::node_name& name, const pubsub::node& data)
     {
         // there is no different in receiving the initial data after a subscription,
-	    // of updated data. If there is an entry for the subject, the subscription wasn't
+	    // or updated data. If there is an entry for the subject, the subscription wasn't
 	    // acknowledged yet
         json::array response_list;
 

@@ -169,8 +169,8 @@ namespace pubsub {
 		, data_(node_version(), json::null())
 		, subscribers_()
 		, unauthorized_()
-		, state_(unvalidated)
-		, config_(config)
+		, state_( unvalidated )
+		, config_( config )
 	{
 	}
 
@@ -178,7 +178,7 @@ namespace pubsub {
 	{
 		boost::mutex::scoped_lock lock(mutex_);
 
-		if ( !data_.update(new_data, config_->max_update_size()) )
+		if ( !data_.update (new_data, config_->max_update_size() ) )
 			return;
 
 		if ( state_ == valid_and_initialized )
@@ -191,7 +191,8 @@ namespace pubsub {
 		}
 	}
 
-	void subscribed_node::add_subscriber(const boost::shared_ptr<subscriber>& user, adapter&, boost::asio::io_service&)
+	void subscribed_node::add_subscriber( const boost::shared_ptr<subscriber>& user, adapter&, boost::asio::io_service&,
+	    const node_name& name )
 	{
 		boost::mutex::scoped_lock lock(mutex_);
 
@@ -202,6 +203,9 @@ namespace pubsub {
 		else
 		{
 			subscribers_.insert(user);
+
+			if ( state_ == valid_and_initialized )
+			    user->on_update( name, data_ );
 		}
 	}
 
@@ -212,7 +216,7 @@ namespace pubsub {
 		return subscribers_.erase(user) + unauthorized_.erase(user) != 0;
 	}
 
-	void subscribed_node::validated(const details::node_validator& last_step)
+	void subscribed_node::validated( const details::node_validator& last_step )
 	{
 		boost::mutex::scoped_lock lock(mutex_);
 		assert(state_ == unvalidated);
@@ -264,6 +268,10 @@ namespace pubsub {
 		state_ = invalid;
 	}
 
+    bool subscribed_node::authorization_required() const
+    {
+        return config_->authorization_required();
+    }
 
 	void subscribed_node::authorized_subscriber(const details::user_authorizer& auth)
 	{

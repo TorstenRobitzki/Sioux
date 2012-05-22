@@ -65,6 +65,9 @@ namespace pubsub
 
         /**
          * @brief adds the subscriber to the given node
+         *
+         * The subscriber will be notified with a call to on_update() when the data of the given node changes and
+         * when the subscription was successful.
          */
         void subscribe(const boost::shared_ptr<subscriber>&, const node_name& node_name);
 

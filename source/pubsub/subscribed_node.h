@@ -39,6 +39,8 @@ namespace pubsub
 	public:
 		/**
 		 * @brief a new node starting with a state set to 'unvalidated'
+		 *
+		 * The configuration is constant.
 		 */
 		explicit subscribed_node(const boost::shared_ptr<const configuration>& config);
 
@@ -51,11 +53,9 @@ namespace pubsub
 
 		/**
 		 * @brief adds a new subscriber to the list of subscribers or to the list of unauthorized subscribers.
-		 *
-		 * If the node is invalid, the passed subscriber will be informed synchronous and the passed adapter will be
-		 * informed asynchronous.
 		 */
-		void add_subscriber(const boost::shared_ptr<subscriber>&, adapter&, boost::asio::io_service&);
+		void add_subscriber(const boost::shared_ptr< subscriber >&, adapter&, boost::asio::io_service&,
+		    const node_name& name );
 
 		/**
 		 * @brief removes the given subscriber from the list of authorized or unauthorized subscribers
@@ -72,6 +72,11 @@ namespace pubsub
 		 *  @brief mark this node as invalid node.
 		 */
 		void not_validated(const node_name& node_name);
+
+		/**
+		 * @brief returns true, if authorization is required for subscribing to this node
+		 */
+		bool authorization_required() const;
 
 		/**
 		 * @brief confirm, that a subscriber was authorized to subscribe to the node
@@ -95,7 +100,7 @@ namespace pubsub
 	private:
 		void post_initialization_request(const details::validation_step_data&);
 
-		typedef std::set<boost::shared_ptr<subscriber> > subscriber_list;
+		typedef std::set< boost::shared_ptr< subscriber > > subscriber_list;
 
 		boost::mutex							mutex_;
 		node                                    data_;
@@ -116,7 +121,8 @@ namespace pubsub
 			// failed to get the initial data for this node
 			initialization_failed
 		} 										state_;
-		boost::shared_ptr<const configuration>  config_;
+
+		const boost::shared_ptr<const configuration>  config_;
 	};
 
 	/**

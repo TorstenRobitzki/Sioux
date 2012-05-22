@@ -6,6 +6,7 @@
 #define SIOUX_BAYEUX_LOG_H_
 
 #include "http/request.h"
+#include "json/json.h"
 
 namespace bayeux
 {
@@ -56,6 +57,13 @@ namespace bayeux
         {
             boost::mutex::scoped_lock lock( mutex_ );
             out_ << "bayeux_new_request: " << header.text() << std::endl;
+        }
+
+        template < class Connection >
+        void bayeux_blocking_connect( Connection& con, const json::object& blocking_request )
+        {
+            boost::mutex::scoped_lock lock( mutex_ );
+            out_ << "bayeux_blocking_connect: " << blocking_request << std::endl;
         }
     private:
         boost::mutex    mutex_;

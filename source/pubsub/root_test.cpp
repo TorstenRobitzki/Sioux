@@ -624,3 +624,60 @@ BOOST_AUTO_TEST_CASE( unsubscribe_while_initializing_a_subscription )
     BOOST_CHECK( subscriber.unique() );
     BOOST_CHECK( test_user(subscriber).empty() );
 }
+
+/*!
+ * @test when multiple subscribers subscribe to the very same node, all must be notified
+ */
+BOOST_AUTO_TEST_CASE( second_subscriptions_to_the_very_same_node )
+{
+    boost::asio::io_service                 queue;
+    test::adapter                           adapter;
+    pubsub::root                            root( queue, adapter, configurator().authorization_not_required() );
+
+    adapter.answer_validation_request( random_node_name, true );
+    adapter.answer_initialization_request( random_node_name, json::null() );
+
+    boost::shared_ptr< ::pubsub::subscriber > first_subscriber( new test::subscriber );
+    root.subscribe( first_subscriber, random_node_name );
+
+    tools::run( queue );
+
+    BOOST_CHECK( test_user( first_subscriber ).on_update_called( random_node_name, json::null() ) );
+
+    // and now a second subscriber to the very same node: no validation, nor initialization required
+    boost::shared_ptr< ::pubsub::subscriber > second_subscriber( new test::subscriber );
+    root.subscribe( second_subscriber, random_node_name );
+
+    tools::run( queue );
+
+    BOOST_CHECK( test_user( second_subscriber ).on_update_called( random_node_name, json::null() ) );
+}
+
+BOOST_AUTO_TEST_CASE( second_subscriptions_to_the_very_same_node_with_authorization )
+{
+    boost::asio::io_service                 queue;
+    test::adapter                           adapter;
+    pubsub::root                            root( queue, adapter, configuration() );
+
+    boost::shared_ptr< ::pubsub::subscriber > first_subscriber( new test::subscriber );
+
+    adapter.answer_validation_request( random_node_name, true );
+    adapter.answer_initialization_request( random_node_name, json::null() );
+    adapter.answer_authorization_request( first_subscriber, random_node_name, true );
+
+    root.subscribe( first_subscriber, random_node_name );
+
+    tools::run( queue );
+
+    BOOST_CHECK( test_user( first_subscriber ).on_update_called( random_node_name, json::null() ) );
+
+    // and now a second subscriber to the very same node: no validation, nor initialization required
+    boost::shared_ptr< ::pubsub::subscriber > second_subscriber( new test::subscriber );
+    adapter.answer_authorization_request( second_subscriber, random_node_name, true );
+    root.subscribe( second_subscriber, random_node_name );
+
+    tools::run( queue );
+
+    BOOST_CHECK( test_user( second_subscriber ).on_update_called( random_node_name, json::null() ) );
+
+}
