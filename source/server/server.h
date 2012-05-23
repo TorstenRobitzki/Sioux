@@ -6,84 +6,23 @@
 #define SIOUX_SOURCE_SERVER_SERVER_H
 
 #include "server/traits.h"
-#include "server/ip_proxy.h"
 #include "server/connection.h"
-#include "server/error.h"
 #include "server/log.h"
+#include "server/response_factory.h"
 #include <boost/asio/io_service.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/function.hpp>
+#include <boost/utility.hpp>
+#include <boost/static_assert.hpp>
+#include <boost/type_traits/is_same.hpp>
 
 namespace server {
 
-    template < class Socket >
-    class response_factory
-    {
-    public:
-        response_factory()
-        {
-        }
-
-        template <class T>
-        explicit response_factory(const T&)
-        {
-        }
-
-        template <class Connection>
-        boost::shared_ptr<async_response> create_response(
-            const boost::shared_ptr<Connection>&                    connection,
-            const boost::shared_ptr<const http::request_header>&    header)
-        {
-            if ( proxies_.size() == 1 )
-            {
-                return proxies_.front().second->create_response(connection, header);
-            }
-
-            typename proxy_list_t::const_iterator proxy = proxies_.begin();
-            for ( ; proxy != proxies_.end(); ++proxy )
-            {
-                const std::size_t s = std::min( header->uri().size(), proxy->first.size());
- 
-                if ( s == proxy->first.size() )
-                {
-                    const tools::substring a(header->uri().begin(), header->uri().begin()+s);
-                    const tools::substring b(proxy->first.c_str(), proxy->first.c_str()+s);
-
-                    if ( a == b )
-                        return proxy->second->create_response(connection, header);
-                }
-            }
-
-            return boost::shared_ptr<async_response>();
-        }
-
-        template <class Connection>
-        boost::shared_ptr<async_response> error_response(const boost::shared_ptr<Connection>& con, http::http_error_code ec) const
-        {
-            boost::shared_ptr<async_response> result(new ::server::error_response<Connection>(con, ec));
-            return result;
-        }
-
-        void add_proxy(boost::asio::io_service& q, const std::string& route, const boost::asio::ip::tcp::endpoint& orgin, const proxy_configuration& c)
-        {
-            boost::shared_ptr<ip_proxy<Socket> > proxy(
-                new ip_proxy<Socket>(q, boost::shared_ptr<const proxy_configuration>(new proxy_configuration(c)), orgin));
-
-            proxies_.push_back(std::make_pair(route, proxy));
-        }
-    private:
-        response_factory(const response_factory&);
-        response_factory& operator=(const response_factory&);
-
-        typedef std::vector<std::pair<std::string, boost::shared_ptr<ip_proxy<Socket> > > > proxy_list_t;
-    
-        proxy_list_t proxies_;
-    };
 
     /**
      * @brief accepts incoming connection and creates connection objects from that
      */
-    template <class Trait, class Connection>
+    template < class Trait, class Connection >
     class acceptator
     {
     public:
@@ -167,15 +106,32 @@ namespace server {
 
         virtual ~basic_server();
 
-        void add_listener(const boost::asio::ip::tcp::endpoint&);
+        /**
+         * @brief adds a new tcp::endpoint where the the server will listen for incomming connections
+         */
+        void add_listener( const boost::asio::ip::tcp::endpoint& );
+
+        /**
+         * @brief adds a new route to an orgin server
+         */
         void add_proxy( const char* route, const boost::asio::ip::tcp::endpoint& orgin, const proxy_configuration&);
 
-        typedef boost::function< boost::shared_ptr< async_response > () > action_t;
+        /**
+         * a function taking a connection and a request_header, returning a async_response
+         */
+        typedef boost::function< boost::shared_ptr< async_response > (
+            const boost::shared_ptr< connection< Trait > >&,
+            const boost::shared_ptr<const http::request_header>& ) > action_t;
+
+        /**
+         * @brief adds a new route for a user defined action
+         */
         void add_action( const char* route, const action_t& action );
 
         typedef Trait                           trait_t;
         trait_t& trait();
 
+        typedef connection< Trait >             connection_t;
     private:
         typedef boost::asio::ip::tcp::socket    socket_t;
         typedef acceptator<trait_t, socket_t>   acceptor_t;
@@ -275,6 +231,12 @@ namespace server {
     void basic_server<Trait>::add_proxy(const char* route, const boost::asio::ip::tcp::endpoint& orgin, const proxy_configuration& config)
     {
         trait_.add_proxy(queue_, route, orgin, config);
+    }
+
+    template < class Trait >
+    void basic_server<Trait>::add_action( const char* route, const action_t& action )
+    {
+        trait_.add_action( route, action );
     }
 
     template <class Trait>

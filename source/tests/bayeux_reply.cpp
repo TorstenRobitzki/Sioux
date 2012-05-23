@@ -13,70 +13,37 @@
 
 namespace
 {
+    typedef server::logging_server< bayeux::stream_event_log< server::stream_event_log > > server_t;
+    typedef server_t::connection_t connection_t;
+
     class stop_server : public std::runtime_error
     {
     public:
         stop_server() : std::runtime_error( "server was asked to stop." ) {}
     };
 
-    class response_factory
+    boost::shared_ptr< server::async_response > on_server_stop(
+                const boost::shared_ptr< connection_t >&                ,
+                const boost::shared_ptr< const http::request_header >&     )
     {
-    public:
-        template < class Context >
-        explicit response_factory( const Context& connector )
-          : connector_( connector.connector_ )
-          , stopping_( false )
-        {
-        }
+        throw stop_server();
+    }
 
-        template < class Connection >
-        boost::shared_ptr< server::async_response > create_response(
-            const boost::shared_ptr< Connection >&                    connection,
-            const boost::shared_ptr< const http::request_header >&    header )
-        {
-            if ( header->state() == http::message::ok )
-            {
-                if ( header->uri() == "/stop" )
-                {
-                    stopping_ = true;
-                    throw stop_server();
-                }
+    boost::shared_ptr< server::async_response > on_ping(
+                const boost::shared_ptr< connection_t >&                connection,
+                const boost::shared_ptr< const http::request_header >&     )
+    {
+        return boost::shared_ptr< server::async_response >(
+                new server::error_response< connection_t >( connection, http::http_ok ) );
+    }
 
-                if ( header->uri() == "/ping" )
-                    return boost::shared_ptr< server::async_response >(
-                            new server::error_response< Connection >( connection, http::http_ok ) );
-
-                return connector_.create_response( connection, header );
-            }
-
-            return boost::shared_ptr< server::async_response >(
-                    new server::error_response< Connection >( connection, http::http_bad_request ) );
-        }
-
-        template < class Connection >
-        boost::shared_ptr< server::async_response > error_response(
-            const boost::shared_ptr< Connection >&  con,
-            http::http_error_code                   ec )
-        {
-            return boost::shared_ptr< server::async_response >( new ::server::error_response< Connection >( con, ec ) );
-        }
-
-        bool stopping()
-        {
-            return stopping_;
-        }
-    private:
-        bayeux::connector<>&    connector_;
-        bool                    stopping_;
-    };
-
-    typedef server::basic_server<
-        server::connection_traits<
-            boost::asio::ip::tcp::socket,
-            boost::asio::deadline_timer,
-            response_factory,
-            bayeux::stream_event_log< server::stream_event_log >,
-            server::stream_error_log > > server_t;
+    boost::shared_ptr< server::async_response > on_bayeux_request(
+                      bayeux::connector<>&                              connector,
+                const boost::shared_ptr< connection_t >&                connection,
+                const boost::shared_ptr< const http::request_header >&  request )
+    {
+        return connector.create_response( connection, request );
+    }
 
     class reply_adapter : public pubsub::adapter
     {
@@ -99,25 +66,6 @@ namespace
         {
             result->initial_value( json::null() );
         }
-
-        virtual void invalid_node_subscription(const pubsub::node_name&                     node,
-                                               const boost::shared_ptr<pubsub::subscriber>& )
-        {
-            std::cout << "!!!!invalid_node_subscription: " << node << std::endl;
-        }
-
-        virtual void unauthorized_subscription(const pubsub::node_name& node,
-                                               const boost::shared_ptr<pubsub::subscriber>&)
-        {
-            std::cout << "!!!!unauthorized_subscription: " << node << std::endl;
-        }
-
-
-        virtual void initialization_failed(const pubsub::node_name& node)
-        {
-            std::cout << "!!!!initialization_failed: " << node << std::endl;
-        }
-
     };
 
     struct empty {};
@@ -145,45 +93,35 @@ namespace
             return std::pair< bool, json::string >( true, json::string() );
         }
     };
-
-    struct context
-    {
-        context( boost::asio::io_service& queue, pubsub::root& data, server::session_generator& generator,
-            bayeux_to_pubsub_adapter& adapter )
-            : connector_( queue, data, generator, adapter,
-                bayeux::configuration()
-                    .max_messages_per_client( 1000 )
-                    .max_messages_size_per_client( 1000 * 1000 )
-                    .long_polling_timeout( boost::posix_time::seconds( 60 ) ) )
-        {
-        }
-
-        std::ostream& logstream() const
-        {
-            return std::cout;
-        }
-
-        mutable bayeux::connector<> connector_;
-    };
-
 }
 
 int main()
 {
-    boost::asio::io_service             queue;
     reply_adapter                       pubsub_adapter;
+    bayeux_to_pubsub_adapter            bayeux_adapter;
+    bayeux::configuration               bayeux_configuration =
+        bayeux::configuration()
+            .max_messages_per_client( 1000 )
+            .max_messages_size_per_client( 1000 * 1000 )
+            .long_polling_timeout( boost::posix_time::seconds( 60 ) );
+
+    boost::asio::io_service             queue;
     pubsub::root                        data( queue, pubsub_adapter, pubsub::configurator().authorization_not_required() );
 
     server::test::session_generator     session_generator;
-    bayeux_to_pubsub_adapter            bayeux_adapter;
-    context                             parameters( queue, data, session_generator, bayeux_adapter );
+    bayeux::connector<>                 bayeux_connector( queue, data, session_generator, bayeux_adapter, bayeux_configuration );
 
-    server_t server( queue, 0u, parameters );
+    server_t server( queue, 0u, std::cout );
     using namespace boost::asio::ip;
     server.add_listener( tcp::endpoint( address( address_v4::any() ), 8080 ) );
     server.add_listener( tcp::endpoint( address( address_v6::any() ), 8080 ) );
 
-    while ( !server.trait().stopping() )
+    server.add_action( "/stop", on_server_stop );
+    server.add_action( "/ping", on_ping );
+    server.add_action( "/", boost::bind( on_bayeux_request, boost::ref( bayeux_connector ), _1, _2 ) );
+
+    bool stoppping = false;
+    while ( !stoppping )
     {
         try
         {
@@ -192,6 +130,7 @@ int main()
         catch ( const stop_server& e )
         {
             std::cout << e.what() << std::endl;
+            stoppping = true;
         }
         catch ( const std::exception& e )
         {

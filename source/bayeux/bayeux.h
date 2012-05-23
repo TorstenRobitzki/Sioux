@@ -177,6 +177,9 @@ namespace bayeux
 		const boost::shared_ptr< Connection >&                    connection,
 		const boost::shared_ptr< const http::request_header >&    header )
 	{
+        if ( header->method() != http::http_post || !header->body_expected() )
+            return boost::shared_ptr< server::async_response >();
+
 		return boost::shared_ptr< server::async_response >( new response< Connection >( connection, *header, *this ) );
 	}
 
