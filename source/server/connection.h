@@ -51,8 +51,8 @@ namespace server
 	 */
     template < class Trait,
                class Connection = typename Trait::network_stream_type,
-               class Timer = typename Trait::timeout_timer_type >
-    class connection : public boost::enable_shared_from_this<connection<Trait, Connection> >
+               class Timer      = typename Trait::timeout_timer_type >
+    class connection : public boost::enable_shared_from_this< connection< Trait, Connection, Timer > >
 	{
 	public:
         typedef Connection  socket_t;

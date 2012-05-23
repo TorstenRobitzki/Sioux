@@ -12,10 +12,11 @@
 #include "server/log.h"
 #include <boost/asio/io_service.hpp>
 #include <boost/thread/thread.hpp>
+#include <boost/function.hpp>
 
 namespace server {
 
-    template <class Socket>
+    template < class Socket >
     class response_factory
     {
     public:
@@ -33,7 +34,6 @@ namespace server {
             const boost::shared_ptr<Connection>&                    connection,
             const boost::shared_ptr<const http::request_header>&    header)
         {
-            std::cout << header->uri() << std::endl;
             if ( proxies_.size() == 1 )
             {
                 return proxies_.front().second->create_response(connection, header);
@@ -146,7 +146,7 @@ namespace server {
     /**
      * @brief a http server, listening on given ports
      */
-    template <class Trait>
+    template < class Trait >
     class basic_server
     {
     public:
@@ -168,7 +168,10 @@ namespace server {
         virtual ~basic_server();
 
         void add_listener(const boost::asio::ip::tcp::endpoint&);
-        void add_proxy(const char* route, const boost::asio::ip::tcp::endpoint& orgin, const proxy_configuration&);
+        void add_proxy( const char* route, const boost::asio::ip::tcp::endpoint& orgin, const proxy_configuration&);
+
+        typedef boost::function< boost::shared_ptr< async_response > () > action_t;
+        void add_action( const char* route, const action_t& action );
 
         typedef Trait                           trait_t;
         trait_t& trait();
@@ -187,7 +190,7 @@ namespace server {
         connection_traits<
             boost::asio::ip::tcp::socket,
             boost::asio::deadline_timer,
-            response_factory<boost::asio::ip::tcp::socket> > > http_server;
+            response_factory< boost::asio::ip::tcp::socket > > > http_server;
 
     namespace details {
         class stream_ref_holder
@@ -200,16 +203,32 @@ namespace server {
         };
     }
 
+    /**
+     * @brief server implementation with logging enabled
+     */
     template <class EventLog = stream_event_log, class ErrorLog = stream_error_log>
     class logging_server : 
         public details::stream_ref_holder,
-        public basic_server<connection_traits<boost::asio::ip::tcp::socket, response_factory<boost::asio::ip::tcp::socket>, EventLog,  ErrorLog> >
+        public basic_server<
+            connection_traits<
+                boost::asio::ip::tcp::socket,
+                boost::asio::deadline_timer,
+                response_factory< boost::asio::ip::tcp::socket >,
+                EventLog,
+                ErrorLog > >
     {
     public:
-        logging_server(boost::asio::io_service& queue, unsigned number_of_threads, std::ostream& out)
+        typedef basic_server<
+            connection_traits<
+                boost::asio::ip::tcp::socket,
+                boost::asio::deadline_timer,
+                response_factory< boost::asio::ip::tcp::socket >,
+                EventLog,
+                ErrorLog > > base_t;
+
+        logging_server( boost::asio::io_service& queue, unsigned number_of_threads, std::ostream& out )
             : details::stream_ref_holder(out)
-            , basic_server<connection_traits<boost::asio::ip::tcp::socket, response_factory<boost::asio::ip::tcp::socket>, EventLog, ErrorLog> >(
-                queue, number_of_threads, *this)
+            , base_t( queue, number_of_threads, *this)
         {
         }
     };
@@ -248,7 +267,7 @@ namespace server {
     template <class Trait>
     void basic_server<Trait>::add_listener(const boost::asio::ip::tcp::endpoint& ep)
     {
-        boost::shared_ptr<acceptor_t> accept(new acceptor_t(queue_, trait_, ep));
+        boost::shared_ptr< acceptor_t > accept(new acceptor_t(queue_, trait_, ep));
         acceptors_.push_back(accept);
     }
 
