@@ -137,9 +137,9 @@ namespace server {
         typedef acceptator<trait_t, socket_t>   acceptor_t;
 
         boost::asio::io_service&                    queue_;
-        std::vector<boost::shared_ptr<acceptor_t> > acceptors_;
         trait_t                                     trait_;
         boost::thread_group                         thread_herd_;
+        std::vector<boost::shared_ptr<acceptor_t> > acceptors_;
     };
     
     typedef basic_server<
@@ -194,9 +194,9 @@ namespace server {
     template <class Trait>
     basic_server<Trait>::basic_server(boost::asio::io_service& queue, unsigned number_of_threads)
         : queue_(queue)
-        , acceptors_()
         , trait_()
         , thread_herd_()
+        , acceptors_()
     {
         for (; number_of_threads; --number_of_threads)
             thread_herd_.create_thread(boost::bind(&boost::asio::io_service::run, &queue));
@@ -206,9 +206,9 @@ namespace server {
     template <class TraitParameters>
     basic_server<Trait>::basic_server(boost::asio::io_service& queue, unsigned number_of_threads, const TraitParameters& param)
         : queue_(queue)
-        , acceptors_()
         , trait_(param)
         , thread_herd_()
+        , acceptors_()
     {
         for (; number_of_threads; --number_of_threads)
             thread_herd_.create_thread(boost::bind(&boost::asio::io_service::run, &queue));

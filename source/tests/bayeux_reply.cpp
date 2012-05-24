@@ -105,16 +105,16 @@ int main()
             .max_messages_size_per_client( 1000 * 1000 )
             .long_polling_timeout( boost::posix_time::seconds( 60 ) );
 
-    boost::asio::io_service             queue;
-    pubsub::root                        data( queue, pubsub_adapter, pubsub::configurator().authorization_not_required() );
+    boost::shared_ptr< boost::asio::io_service > queue( new boost::asio::io_service );
+    pubsub::root                        data( *queue, pubsub_adapter, pubsub::configurator().authorization_not_required() );
 
     server::test::session_generator     session_generator;
-    bayeux::connector<>                 bayeux_connector( queue, data, session_generator, bayeux_adapter, bayeux_configuration );
+    bayeux::connector<>                 bayeux_connector( *queue, data, session_generator, bayeux_adapter, bayeux_configuration );
 
-    server_t server( queue, 0u, std::cout );
+    server_t server( *queue, 0u, std::cout );
     using namespace boost::asio::ip;
-    server.add_listener( tcp::endpoint( address( address_v4::any() ), 8080 ) );
-    server.add_listener( tcp::endpoint( address( address_v6::any() ), 8080 ) );
+    server.add_listener( tcp::endpoint( address( address_v4::any() ), 8080u ) );
+    server.add_listener( tcp::endpoint( address( address_v6::any() ), 8080u ) );
 
     server.add_action( "/stop", on_server_stop );
     server.add_action( "/ping", on_ping );
@@ -125,7 +125,7 @@ int main()
     {
         try
         {
-            queue.run();
+            queue->run();
         }
         catch ( const stop_server& e )
         {
@@ -141,5 +141,7 @@ int main()
             std::cerr << "unknown error." << std::endl;
         }
     }
+
+    queue.reset();
 }
 
