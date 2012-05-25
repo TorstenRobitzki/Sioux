@@ -5,6 +5,7 @@
 #include "http/decode_stream.h"
 #include "http/request.h"
 #include "http/response.h"
+#include "tools/asstring.h"
 
 #include <stdexcept>
 
@@ -54,27 +55,6 @@ namespace http
 
 			pos = pos + write_size - header.unparsed_buffer().second;
 		}
-	}
-
-	template < class Message >
-	std::vector< std::pair< boost::shared_ptr< Message >, std::vector< char > > >
-		decode_stream_( const std::vector< char >& stream )
-	{
-		std::vector< std::pair< boost::shared_ptr< Message >, std::vector< char > > > result;
-
-		for ( std::size_t pos = 0; pos != stream.size(); )
-		{
-			const boost::shared_ptr< Message > new_header( new Message );
-			fill_header( stream, *new_header, pos );
-
-			const std::vector< char > new_body = new_header->body_expected( http::http_post )
-				? decode_body( stream, *new_header, pos )
-				: std::vector< char >();
-
-			result.push_back( std::make_pair( new_header, new_body ) );
-		}
-
-		return result;
 	}
 
     template < class Message >
@@ -160,7 +140,7 @@ namespace http
         if ( done )
         {
             if ( header.state() != message::ok )
-                throw std::runtime_error( "error while parsing header" );
+                throw std::runtime_error( "error while parsing header: " + tools::as_string( header.state() ) );
 
             state_ = header.body_expected( http::http_post )
                 ? decoding_body
@@ -171,8 +151,7 @@ namespace http
                 if ( decoder_.start( header ) != http::http_ok )
                     throw std::runtime_error( "error starting to decode message body." );
 
-                if ( remaining_size != 0 )
-                    return decode_body( data + size - remaining_size, remaining_size );
+                return decode_body( data + size - remaining_size, remaining_size );
             }
         }
 
@@ -182,6 +161,12 @@ namespace http
     template < class Message >
     std::pair< bool, std::size_t > stream_decoder< Message >::decode_body( const char* data, std::size_t size )
     {
+        if ( size == 0 )
+        {
+            state_ = idle_state;
+            return std::make_pair( true, size );
+        }
+
         std::vector< char >& out_buffer = current_.second;
         size -= decoder_.feed_buffer( data, size );
 

@@ -17,7 +17,7 @@ namespace {
 }
 
 /** 
- * @test contruct filter with different version of upper lower letters etc.
+ * @test construct filters with different version of upper lower letters etc.
  */
 BOOST_AUTO_TEST_CASE(filter_test)
 {

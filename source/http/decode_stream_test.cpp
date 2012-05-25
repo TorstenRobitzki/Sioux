@@ -53,3 +53,38 @@ BOOST_AUTO_TEST_CASE( multiple_request_with_body_and_header )
 			std::string( body.begin(), body.end() ) );
 	}
 }
+
+BOOST_AUTO_TEST_CASE( decode_message_with_empty_body )
+{
+    static const char response_with_empty_body[] =
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Length : 0\r\n"
+        "\r\n";
+
+    const std::vector< char > stream(
+        tools::begin( response_with_empty_body ), tools::end( response_with_empty_body ) -1 );
+
+    const http::decoded_response_stream_t bodies_and_headers = http::decode_stream< http::response_header >( stream );
+
+    BOOST_REQUIRE_EQUAL( 1u, bodies_and_headers.size() );
+    const std::vector< char > body( bodies_and_headers.front().second );
+
+    BOOST_CHECK( body.empty() );
+}
+
+BOOST_AUTO_TEST_CASE( decode_response_with_body )
+{
+    static const char response_with_body[] =
+        "HTTP/1.1 200\r\n"
+        "Content-Length : 5\r\n\r\n"
+        "12345";
+
+    const std::vector< char > stream( tools::begin( response_with_body ), tools::end( response_with_body ) -1 );
+
+    const http::decoded_response_stream_t bodies_and_headers = http::decode_stream< http::response_header >( stream );
+
+    BOOST_REQUIRE_EQUAL( 1u, bodies_and_headers.size() );
+    const std::vector< char > body( bodies_and_headers.front().second );
+
+    BOOST_CHECK_EQUAL( "12345", std::string( body.begin(), body.end() ) );
+}

@@ -99,3 +99,24 @@ BOOST_AUTO_TEST_CASE( body_decoder_without_length_header )
 	http::body_decoder decoder;
 	BOOST_CHECK_EQUAL( http::http_length_required, decoder.start( http::request_header( http::test::simple_get_11 ) ) );
 }
+
+BOOST_AUTO_TEST_CASE( test_header_with_empty_body )
+{
+    const http::request_header header(
+            "POST / HTTP/1.1\r\n"
+            "Host: google.de\r\n"
+            "Content-Length: 0\r\n"
+            "\r\n\r\n" );
+
+    http::body_decoder decoder;
+    BOOST_CHECK_EQUAL( http::http_ok, decoder.start( header ) );
+
+    BOOST_CHECK_EQUAL( 0, decoder.feed_buffer( header_with_body.unparsed_buffer().first, header_with_body.unparsed_buffer().second ) );
+
+    // first call to decode() must return the feed buffer
+    const std::pair< std::size_t, const char* > decoded = decoder.decode();
+
+    BOOST_CHECK_EQUAL( 0u, decoded.first );
+    BOOST_REQUIRE( decoded.second != 0 );
+}
+
