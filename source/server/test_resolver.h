@@ -20,7 +20,7 @@ namespace test {
     {
     public:
         typedef boost::asio::ip::basic_resolver_query<boost::asio::ip::tcp> query;
-        typedef boost::asio::ip::tcp::resolver_iterator                     iterator;
+        typedef boost::asio::ip::tcp::resolver::iterator                    iterator;
 
         explicit resolver(boost::asio::io_service& q) : queue_(q) {}
 

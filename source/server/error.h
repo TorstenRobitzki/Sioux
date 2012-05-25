@@ -15,8 +15,12 @@
 #include <boost/system/error_code.hpp>
 #include <boost/utility.hpp>
 
-namespace server {
+namespace server
+{
 
+    /**
+     * @brief response with the given http code and with an empty body
+     */
     template <class Connection>
     class error_response : public async_response, 
                            public boost::enable_shared_from_this<error_response<Connection> >, 
@@ -35,7 +39,27 @@ namespace server {
         boost::shared_ptr<Connection>   connection_;
     };
 
+    /**
+     * @brief just calls connection::response_not_possible() with the error code given to the c'tor
+     *
+     * This class is intended to be used by factories called from an response_factory, that want to indicate an
+     * error but want to used the response_factories error response function.
+     */
+    template < class Connection >
+    class defered_error_response :  public async_response,
+                                    private boost::noncopyable
+    {
+    public:
+        explicit defered_error_response(const boost::shared_ptr<Connection>& con, http::http_error_code ec);
 
+    private:
+        void start();
+
+        const boost::shared_ptr< Connection >   connection_;
+        const http::http_error_code             code_;
+    };
+
+    // implementation
     template < class Connection >
     error_response< Connection >::error_response( const boost::shared_ptr<Connection>& con, http::http_error_code ec )
         : buffer_( "HTTP/1.1 "
@@ -63,6 +87,20 @@ namespace server {
     void error_response<Connection>::handle_written(const boost::system::error_code&, std::size_t s)
     {
         connection_->response_completed(*this);
+    }
+
+    template < class Connection >
+    defered_error_response< Connection >::defered_error_response(
+        const boost::shared_ptr< Connection >& con, http::http_error_code ec)
+        : connection_( con )
+        , code_( ec )
+    {
+    }
+
+    template < class Connection >
+    void defered_error_response< Connection >::start()
+    {
+        connection_->response_not_possible( *this, code_ );
     }
 
 } // namespace server
