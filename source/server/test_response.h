@@ -12,6 +12,7 @@
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/asio/buffer.hpp>
 #include <boost/system/error_code.hpp>
+#include <boost/asio/placeholders.hpp>
 #include <string>
 
 namespace http {

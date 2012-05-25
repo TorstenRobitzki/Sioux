@@ -6,6 +6,7 @@
 #define SIOUX_SOURCE_SERVER_TEST_TRAIT_H
 
 #include "server/test_socket.h"
+#include "server/test_timer.h"
 #include "server/test_response.h"
 #include "server/error.h"
 #include "server/traits.h"

@@ -14,4 +14,10 @@ namespace server
         , connection_cnt_( 0 )
     {
     }
+
+    stream_error_log::stream_error_log()
+        : mutex_()
+        , log_( std::cerr )
+    {
+    }
 }
