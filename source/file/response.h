@@ -75,7 +75,7 @@ namespace file
     {
         static std::string response_header =
             "HTTP/1.1 200 OK\r\n"
-            "Content-Length : ";
+            "Content-Length: ";
 
         response_guard guard( *connection_, *this, http::http_not_found );
 

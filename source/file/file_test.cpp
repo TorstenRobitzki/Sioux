@@ -145,3 +145,36 @@ BOOST_AUTO_TEST_CASE( accessing_file_below_root )
     BOOST_CHECK_EQUAL( b_result.first, http::http_ok );
     BOOST_CHECK_EQUAL( b_result.second, "b" );
 }
+
+BOOST_AUTO_TEST_CASE( reading_index_html )
+{
+    const std::pair< http::http_error_code, std::string > result = get_file( test_root(), "/a" );
+
+    BOOST_CHECK_EQUAL( result.first, http::http_ok );
+    BOOST_CHECK_EQUAL( result.second, "ahtml" );
+}
+
+BOOST_AUTO_TEST_CASE( reading_index_htm )
+{
+    const std::pair< http::http_error_code, std::string > result = get_file( test_root(), "/b" );
+
+    BOOST_CHECK_EQUAL( result.first, http::http_ok );
+    BOOST_CHECK_EQUAL( result.second, "bhtm" );
+}
+
+BOOST_AUTO_TEST_CASE( read_index_html_before_index_htm )
+{
+    const std::pair< http::http_error_code, std::string > result = get_file( test_root(), "/" );
+
+    BOOST_CHECK_EQUAL( result.first, http::http_ok );
+    BOOST_CHECK_EQUAL( result.second, "roothtml" );
+}
+
+BOOST_AUTO_TEST_CASE( try_read_from_directory_without_index_html )
+{
+    const std::pair< http::http_error_code, std::string > result = get_file( test_root(), "/empty" );
+
+    BOOST_CHECK_EQUAL( result.first, http::http_not_found );
+    BOOST_CHECK_EQUAL( result.second, "" );
+}
+
