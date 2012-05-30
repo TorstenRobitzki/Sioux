@@ -17,24 +17,24 @@ namespace json
      * @relates value
      *
      * The function calculates an array, that descibes the updates to perform. The encoding depends on
-     * the value types to be compared. For arrays and objectes following update performances are defined:
-     * number(1) : update the element with the name/index of the next value, with the next but one value
+     * the value types to be compared. For arrays and objectes following update actions are defined:
+     * - number(1) : update the element with the name/index of the next value, with the next but one value
      *             example: [1,3, "Nase"] would replace the array element with index 3 with the value "Nase"
-     * number(2) : deletes the element with the name/index of the next value
+     * - number(2) : deletes the element with the name/index of the next value
      *             example: [2,"Nase"] deletes the value with the name "Nase" from an object
      *             example: [2,1] deletes the 2. element from an array or the second character from a string
-     * number(3) : inserts the next but one element at the next index
+     * - number(3) : inserts the next but one element at the next index
      *             example: [3,"Nase",[1]] adds a new element named "Nase" with the value [1] to an object
      *
      * In addition, for arrays following range operations are defined
-     * number(4) : deletes the element from the next to the next but one index
+     * - number(4) : deletes the element from the next to the next but one index
      *             example: [4,6,14] deletes the elements with index 6,14 (exclusiv)
-     * number(5) : updates the range from the second to third index (exclusiv) with the 4th value
+     * - number(5) : updates the range from the second to third index (exclusiv) with the 4th value
      *             example: [5,2,3,[1,2]] replaces parts of an array
      *
      * For array and object, the edit operation applies the next but one array to the element with the name/index 
      * of the next element
-     * number(6) : updates an element
+     * - number(6) : updates an element
      *             example: [6,2,[3,"Nase",[1]]] executes the update(insert) [3,"Nase",[1]] to the element with the index 2
      *
      * For all othere value types, the function returns b. All array, string indixes are ment with 
