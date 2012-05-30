@@ -36,11 +36,22 @@ namespace {
         assert(val < 16);
         return val < 10 ? '0' + val : 'a' + (val - 10);
     }
+
+    unsigned char upper_nibble(unsigned char val)
+    {
+        assert(val < 16);
+        return val < 10 ? '0' + val : 'A' + (val - 10);
+    }
 }
 
 void print_hex(std::ostream& out, unsigned char value)
 {
     out << nibble(value >> 4) << nibble(value & 0xf);
+}
+
+void print_hex_uppercase( std::ostream& out, unsigned char value )
+{
+    out << upper_nibble( value >> 4 ) << upper_nibble( value & 0xf );
 }
 
 void hex_dump(std::ostream& output,const void* object, std::size_t object_size)

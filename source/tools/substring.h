@@ -47,9 +47,20 @@ namespace tools
         template <class Other>
         bool operator!=(const basic_substring<Other>& rhs) const;
 
+        /**
+         * @brief character by character comparison until a difference is found
+         *
+         * @return true, if a character on the left hand side is smaller or, all characters are equal up to the size
+         *         of the left hand argument and the left hand argument is shorter.
+         */
+        template < class Other >
+        bool operator<( const basic_substring< Other >& rhs ) const;
+
         bool operator==(const value_type* rhs) const;
 
         bool operator!=(const value_type* rhs) const;
+
+        bool operator<( const value_type* rhs ) const;
 
         const_iterator begin() const { return begin_; } 
         const_iterator end() const { return end_; }
@@ -76,6 +87,10 @@ namespace tools
          */
         operator boost::asio::const_buffer() const;
     private:
+
+        template < class Iter >
+        bool compare_less( Iter begin, Iter end ) const;
+
         const_iterator  begin_;
         const_iterator  end_;
     };
@@ -127,6 +142,13 @@ namespace tools
         return !(*this == rhs);
     }
 
+    template < class Iterator >
+    template < class Other >
+    bool basic_substring< Iterator >::operator<( const basic_substring< Other >& rhs ) const
+    {
+        return compare_less( rhs.begin(), rhs.end() );
+    }
+
     template <class Iterator>
     bool basic_substring<Iterator>::operator==(const value_type* rhs) const
     {
@@ -145,14 +167,25 @@ namespace tools
         return !(*this == rhs);
     }
 
+    template < class Iterator >
+    bool basic_substring< Iterator >::operator<( const value_type* rhs ) const
+    {
+        assert( rhs );
+        const value_type* end = rhs;
+        for ( ; *end; ++end )
+            ;
+
+        return compare_less( rhs, end );
+    }
+
     template <class Iterator>
     std::size_t basic_substring<Iterator>::size() const
     {
         return std::distance(begin_, end_);
     }
 
-    template <class Iterator>
-    basic_substring<Iterator>& basic_substring<Iterator>::trim_left(value_type to_be_removed)
+    template < class Iterator >
+    basic_substring< Iterator >& basic_substring<Iterator>::trim_left( value_type to_be_removed )
     {
         for (; begin_ != end_ && *begin_ == to_be_removed; ++begin_)
             ;
@@ -160,8 +193,8 @@ namespace tools
         return *this;
     }
 
-    template <class Iterator>
-    basic_substring<Iterator>& basic_substring<Iterator>::trim_right(value_type to_be_removed)
+    template < class Iterator >
+    basic_substring< Iterator >& basic_substring<Iterator>::trim_right( value_type to_be_removed )
     {
         for (; begin_ != end_ && *(end_-1) == to_be_removed; --end_)
             ;
@@ -169,16 +202,30 @@ namespace tools
         return *this;
     }
 
-    template <class Iterator>
-    basic_substring<Iterator>& basic_substring<Iterator>::trim(value_type to_be_removed)
+    template < class Iterator >
+    basic_substring< Iterator >& basic_substring<Iterator>::trim( value_type to_be_removed )
     {
-        return trim_left(to_be_removed).trim_right(to_be_removed);
+        return trim_left( to_be_removed ).trim_right( to_be_removed );
     }
 
     template <class Iterator>
     basic_substring<Iterator>::operator boost::asio::const_buffer() const
     {
         return boost::asio::const_buffer(begin_, size() * sizeof (typename std::iterator_traits<Iterator>::value_type));
+    }
+
+    template < class Iterator >
+    template < class Iter >
+    bool basic_substring< Iterator >::compare_less( Iter begin, Iter end ) const
+    {
+        Iterator i = begin_;
+        for ( ; i != end_ && begin != end; ++i, ++begin )
+        {
+            if ( *i < *begin )
+                return true;
+        }
+
+        return i == end_ && begin != end;
     }
 
     template <class Iterator>

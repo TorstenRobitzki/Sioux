@@ -30,7 +30,7 @@ std::string as_printable(const std::string& input);
 void print_hex(std::ostream& out, char value);
 
 /** @copydoc print_hex(std::ostream&, char) */
-void print_hex(std::ostream& out, unsigned char value);
+void print_hex_uppercase(std::ostream& out, unsigned char value);
 
 /**
  * @brief prints a character sequence as a hex dump
