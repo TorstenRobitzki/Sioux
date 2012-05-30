@@ -11,6 +11,9 @@
 #include <stdexcept>
 #include <limits>
 #include <cctype>
+#include <map>
+
+#include "tools/substring.h"
 
 #ifdef max
 #   undef max
@@ -134,16 +137,55 @@ std::string stripe(Iter1 begin, Iter2 end)
 std::string to_lower(const std::string&);
 void        to_lower(std::string&);
 
+/**
+ * @brief exception that indicates an invalid url
+ */
 class bad_url : public std::runtime_error {
 public:
-	explicit bad_url(const std::string&);
+	explicit bad_url( const std::string& );
 };
 
-// Splits an url into pieces
+/**
+ * @brief Splits an url into pieces
+ */
 void split_url(const std::string& url, std::string& scheme, std::string& authority, std::string& path, std::string& query, std::string& fragment);
 
-// decodes all encoded characters
-std::string url_decode(const std::string&);
+void split_url(const tools::substring& url, tools::substring& scheme, tools::substring& authority,
+    tools::substring& path, tools::substring& query, tools::substring& fragment);
+
+/**
+ * @brief exception that indicates a broken query string
+ */
+class bad_query : public std::runtime_error {
+public:
+    explicit bad_query( const std::string& );
+};
+
+/**
+ * @brief splits the given query into name, value pairs
+ *
+ * All returned substrings point to the same memory as query does.
+ */
+std::map< tools::substring, tools::substring > split_query( const tools::substring& query );
+
+/**
+ * @brief decodes all encoded characters
+ *
+ * see rfc3986 for details
+ * @throw bad_url if no valid hex number follows after a % sign
+ */
+std::string url_decode( const std::string& );
+
+/**
+ * @brief decodes all encoded characters
+ */
+std::string url_decode( const tools::substring& );
+
+/**
+ * @brief encodes the given string
+ * see rfc3986 for details
+ */
+std::string url_encode( const std::string& );
 
 template <class Iter, typename SizeT>
 bool parse_number(Iter begin, Iter end, SizeT& r)

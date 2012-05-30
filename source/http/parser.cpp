@@ -4,7 +4,12 @@
 
 #include "http/parser.h"
 #include "tools/asstring.h"
+#include "tools/hexdump.h"
+#include "tools/iterators.h"
+#include "tools/split.h"
+
 #include <boost/regex.hpp>
+#include <sstream>
 
 namespace http {
 
@@ -21,26 +26,75 @@ void to_lower(std::string& s)
 	to_lower(s.begin(), s.end());
 }
 
+// according to rfc 3986
+static const boost::regex expression("^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?");
+
+namespace {
+
+    template < class String >
+    void split_url_impl(const String& url, String& scheme, String& authority, String& path, String& query, String& fragment)
+    {
+        boost::match_results< typename String::const_iterator > what;
+
+        if ( boost::regex_match( url.begin(), url.end(), what, expression) )
+        {
+            scheme      = String( what[2].first, what[2].second );
+            authority   = String( what[4].first, what[4].second );
+            path        = String( what[5].first, what[5].second );
+            query       = String( what[7].first, what[7].second );
+            fragment    = String( what[9].first, what[9].second );
+        }
+        else
+        {
+            throw bad_url( std::string( url.begin(), url.end() ) );
+        }
+    }
+}
+
 void split_url(const std::string& url, std::string& scheme, std::string& authority, std::string& path, std::string& query, std::string& fragment)
 {
-	// according to rfc 3986
-	static boost::regex expression("^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?");
-	boost::cmatch what;	
-
-	if ( boost::regex_match(url.c_str(), what, expression) )
-	{
-		scheme		= what[2];
-		authority 	= what[4];
-		path 		= what[5];
-		query		= what[7];
-		fragment 	= what[9];
-	}
-	else
-	{
-		throw bad_url(url);
-	}
-	
+    split_url_impl( url, scheme, authority, path, query, fragment );
 }
+
+void split_url(const tools::substring& url, tools::substring& scheme, tools::substring& authority,
+    tools::substring& path, tools::substring& query, tools::substring& fragment)
+{
+    split_url_impl( url, scheme, authority, path, query, fragment );
+}
+
+bad_query::bad_query( const std::string& s ) : std::runtime_error( s )
+{
+}
+
+static void add_name_value( std::map< tools::substring, tools::substring >& result, const tools::substring& name_value )
+{
+    tools::substring name, value;
+    if ( tools::split_to_empty( name_value, '=', name, value ) )
+    {
+        result.insert( std::make_pair( name, value ) );
+    }
+    else
+    {
+        throw bad_query( "bad-query: " + std::string( name_value.begin(), name_value.end() ) );
+    }
+}
+
+std::map< tools::substring, tools::substring > split_query( const tools::substring& query )
+{
+    std::map< tools::substring, tools::substring > result;
+
+    tools::substring second = query;
+    for ( tools::substring first, rest = query; tools::split_to_empty( rest, '&', first, second );  rest = second )
+    {
+        add_name_value( result, first );
+    }
+
+    if ( !second.empty() )
+        add_name_value( result, second );
+
+    return result;
+}
+
 
 namespace {
 	template <class Iter>
@@ -59,27 +113,68 @@ namespace {
 	}
 }
 
+namespace {
+    template < class Iter >
+    std::string url_decode( Iter i, Iter end )
+    {
+        std::string result;
+
+        for ( ; i != end; ++i )
+        {
+            if ( *i != '%' )
+            {
+                result.push_back( *i );
+            }
+            else
+            {
+                int value = read_nibble( ++i, end ) * 16;
+                value += read_nibble( ++i, end );
+
+                result.push_back( static_cast< char >( value ) );
+            }
+        }
+
+        return result;
+    }
+}
+
 std::string url_decode(const std::string& s)
 {
-	std::string result;
-	result.reserve(s.size());
-	
-	for ( std::string::const_iterator i = s.begin(), end = s.end(); i != end; ++i )
-	{
-		if ( *i != '%' )
-		{
-			result.push_back(*i);
-		}
-		else
-		{
-			int value = read_nibble(++i, end) * 16;
-			value += read_nibble(++i, end);
-			
-			result.push_back(static_cast<char>(value));
-		}
-	}
+    return url_decode( s.begin(), s.end() );
+}
 
-	return result;
+std::string url_decode( const tools::substring& s )
+{
+    return url_decode( s.begin(), s.end() );
+}
+
+static bool special( char c )
+{
+    static const char not_encoded_chars[] = "-_.~";
+    static const char * const end = tools::end( not_encoded_chars ) - 1;
+
+    return std::find( tools::begin( not_encoded_chars ), end, c ) != end;
+}
+
+std::string url_encode( const std::string& s )
+{
+    std::stringstream out;
+
+
+    for ( std::string::const_iterator i = s.begin(), end = s.end(); i != end; ++i )
+    {
+        if ( *i >= 'a' && *i<= 'z' || *i >= 'A' && *i <= 'Z' || *i >= '0' && *i <= '9' || special( *i ) )
+        {
+            out << *i;
+        }
+        else
+        {
+            out << '%';
+            tools::print_hex_uppercase( out, *i );
+        }
+    }
+
+    return out.str();
 }
 
 int strcasecmp(const char* begin1, const char* end1, const char* null_terminated_str)
