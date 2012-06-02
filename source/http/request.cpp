@@ -4,6 +4,7 @@
 
 #include "http/request.h"
 #include "http/parser.h"
+#include "http/header_names.h"
 #include "tools/split.h"
 #include "tools/iterators.h"
 
@@ -147,7 +148,7 @@ namespace http {
 
     bool request_header::body_expected() const
     {
-        return find_header("Content-Length") != 0 || find_header("Transfer-Encoding");
+        return find_header( content_length_header ) != 0 || find_header( transfer_encoding_header );
     }
 
     bool request_header::body_expected( http_method_code ) const
