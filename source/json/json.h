@@ -425,13 +425,13 @@ namespace json
     public:
         parser();
 
-        bool parse(const char* begin, const char* end);
+        bool parse( const char* begin, const char* end );
 
         template <class Iter>
-        bool parse(Iter begin, Iter end)
+        bool parse( Iter begin, Iter end )
         {
-            const std::vector<char> buffer(begin, end);
-            return parse(&buffer[0], &buffer[0] + buffer.size());
+            const std::vector< char > buffer( begin, end );
+            return parse( &buffer[0], &buffer[0] + buffer.size() );
         }
 
         /**

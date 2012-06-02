@@ -1189,7 +1189,7 @@ namespace json
 
     parser::parser()
     {
-        state_.push(idle_parsing);
+        state_.push( idle_parsing );
     }
 
     static const char* eat_white_space(const char* begin, const char* end)
@@ -1202,11 +1202,11 @@ namespace json
 
     bool parser::parse(const char* begin, const char* end)
     {
-        assert(!state_.empty());
+        assert( !state_.empty() );
 
         for ( ; begin != end && !state_.empty(); )
         {
-            switch ( main_state(state_.top()) )
+            switch ( main_state( state_.top() ) )
             {
             case idle_parsing:
                 begin = eat_white_space(begin, end);
@@ -1458,7 +1458,7 @@ namespace json
                 }
                 else
                 {
-                    throw parse_error("Object pair must begin with a string");
+                    throw parse_error( "Object pair must begin with a string not a " + tools::as_string( int( *begin ) ) );
                 }
             }
         }

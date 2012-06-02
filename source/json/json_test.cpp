@@ -567,3 +567,8 @@ BOOST_AUTO_TEST_CASE( from_bool_test )
     BOOST_CHECK_EQUAL( json::true_val(), json::from_bool( true ) );
     BOOST_CHECK_EQUAL( json::false_val(), json::from_bool( false ) );
 }
+
+BOOST_AUTO_TEST_CASE( detect_trailing_garbage )
+{
+    BOOST_CHECK_THROW( json::parse( "1{" ), json::parse_error );
+}
