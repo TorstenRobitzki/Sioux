@@ -442,8 +442,8 @@ namespace bayeux
 	{
 		static const char response_header[] =
 			"HTTP/1.1 200 OK\r\n"
-			"Content-Type : application/json\r\n"
-			"Content-Length : ";
+			"Content-Type: application/json\r\n"
+			"Content-Length: ";
 
 		response_buffer_ = tools::as_string( bayeux_response.size() ) + "\r\n\r\n";
 

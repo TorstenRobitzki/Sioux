@@ -16,7 +16,7 @@ namespace bayeux
      * @brief mixin to be mixed into the EventLog parameter of the connection_traits
      *
      * Example:
-     * @begincode
+     * @code
      * typedef server::connection_traits< N, T, R, bayeux::stream_event_log< L > > trait_t;
      * @endcode
      */

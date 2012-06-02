@@ -10,6 +10,47 @@
 #include "http/decode_stream.h"
 #include "tools/io_service.h"
 
+
+
+json::array bayeux::test::adapter::handshakes() const
+{
+    boost::mutex::scoped_lock lock( mutex_ );
+    return handshakes_;
+}
+
+json::array bayeux::test::adapter::publishs() const
+{
+    boost::mutex::scoped_lock lock( mutex_ );
+    return publishs_;
+}
+
+std::pair< bool, json::string > bayeux::test::adapter::handshake( const json::value& ext, json::string& sesson_data )
+{
+    json::object    call;
+    call.add( json::string( "ext" ), ext );
+    call.add( json::string( "sesson_data" ), sesson_data );
+
+    boost::mutex::scoped_lock lock( mutex_ );
+    handshakes_.add( call );
+
+    return std::make_pair( true, json::string() );
+}
+
+std::pair< bool, json::string > bayeux::test::adapter::publish( const json::string& channel, const json::value& data,
+    const json::object& message, json::string& session_data, pubsub::root& root )
+{
+    json::object    call;
+    call.add( json::string( "channel" ), channel );
+    call.add( json::string( "data" ), data );
+    call.add( json::string( "message" ), message );
+    call.add( json::string( "session_data" ), session_data );
+
+    boost::mutex::scoped_lock lock( mutex_ );
+    publishs_.add( call );
+
+    return std::make_pair( true, json::string() );
+}
+
 server::test::read bayeux::test::msg( const std::string& txt )
 {
     std::string body( txt );

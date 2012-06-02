@@ -6,6 +6,7 @@
 #define SIOUX_BAYEUX_TEST_TOOLS_H_
 
 #include <boost/mpl/if.hpp>
+#include <boost/thread.hpp>
 
 #include "bayeux/bayeux.h"
 #include "bayeux/configuration.h"
@@ -64,6 +65,39 @@ namespace bayeux
             }
 
             bayeux::connector< server::test::timer >&   bayeux_connector;
+        };
+
+        /**
+         * @brief test-adapter recording the calls that where made to the abstract interface
+         */
+        class adapter : public bayeux::adapter< json::string >
+        {
+        public:
+            /**
+             * @brief returns the calls that where made to the handshake() function
+             *
+             * The array contains objects with the following structure:
+             *   { "ext" : <ext-parameter>, "session_data" : <session_data-parameter> }
+             */
+            json::array handshakes() const;
+
+            /**
+             * @brief returns the calls that where made to the publish() function
+             *
+             * The array contains objects with the following structure:
+             *   { "channel" : <channel-parameter>, "data" : <data-parameter>, "message" : <message-parameter>,
+             *     "session_data" : <session_data-parameter> }
+             */
+            json::array publishs() const;
+        private:
+            std::pair< bool, json::string > handshake( const json::value& ext, json::string& sesson_data );
+
+            std::pair< bool, json::string > publish( const json::string& channel, const json::value& data,
+                const json::object& message, json::string& session_data, pubsub::root& root );
+
+            mutable boost::mutex    mutex_;
+            json::array             handshakes_;
+            json::array             publishs_;
         };
 
         class trait_data
@@ -138,33 +172,34 @@ namespace bayeux
         struct context
         {
             boost::asio::io_service queue;
-            pubsub::test::adapter   adapter;
+            pubsub::test::adapter   pubsub_adapter;
+            bayeux::test::adapter   bayeux_adapter;
             pubsub::root            data;
             trait_t                 trait;
 
             context()
                 : queue()
-                , adapter()
-                , data( queue, adapter, pubsub::configuration() )
-                , trait( queue, data )
+                , pubsub_adapter()
+                , data( queue, pubsub_adapter, pubsub::configuration() )
+                , trait( queue, data, bayeux_adapter )
             {
                 server::test::reset_time();
             }
 
             explicit context( const pubsub::configuration& config )
                 : queue()
-                , adapter()
-                , data( queue, adapter, config )
-                , trait( queue, data )
+                , pubsub_adapter()
+                , data( queue, pubsub_adapter, config )
+                , trait( queue, data, bayeux_adapter )
             {
                 server::test::reset_time();
             }
 
             context( const pubsub::configuration& config, const bayeux::configuration& bayeux_config )
                 : queue()
-                , adapter()
-                , data( queue, adapter, config )
-                , trait( queue, data, bayeux_config )
+                , pubsub_adapter()
+                , data( queue, pubsub_adapter, config )
+                , trait( queue, data, bayeux_adapter, bayeux_config )
             {
                 server::test::reset_time();
             }
@@ -172,8 +207,8 @@ namespace bayeux
             template < class SessionData >
             explicit context( bayeux::adapter< SessionData >& adapt )
                 : queue()
-                , adapter()
-                , data( queue, adapter, pubsub::configuration() )
+                , pubsub_adapter()
+                , data( queue, pubsub_adapter, pubsub::configuration() )
                 , trait( queue, data, adapt )
             {
                 server::test::reset_time();

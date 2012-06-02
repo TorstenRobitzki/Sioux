@@ -176,8 +176,8 @@ BOOST_AUTO_TEST_CASE( bayeux_simple_handshake_subscribe_connect )
 {
     bayeux::test::context context( pubsub::configurator().authorization_not_required() );
 
-	context.adapter.answer_validation_request( bayeux::node_name_from_channel( "/foo/bar" ), true );
-	context.adapter.answer_initialization_request( bayeux::node_name_from_channel( "/foo/bar" ), json::null() );
+	context.pubsub_adapter.answer_validation_request( bayeux::node_name_from_channel( "/foo/bar" ), true );
+	context.pubsub_adapter.answer_initialization_request( bayeux::node_name_from_channel( "/foo/bar" ), json::null() );
 
 	const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
 		server::test::read_plan()
@@ -350,8 +350,8 @@ BOOST_AUTO_TEST_CASE( unsubscribe_after_subscription )
 {
     bayeux::test::context context( pubsub::configurator().authorization_not_required() );
 
-    context.adapter.answer_validation_request( bayeux::node_name_from_channel( "/foo/bar" ), true );
-    context.adapter.answer_initialization_request( bayeux::node_name_from_channel( "/foo/bar" ), json::number( 41 ) );
+    context.pubsub_adapter.answer_validation_request( bayeux::node_name_from_channel( "/foo/bar" ), true );
+    context.pubsub_adapter.answer_initialization_request( bayeux::node_name_from_channel( "/foo/bar" ), json::number( 41 ) );
 
     const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
         server::test::read_plan()
@@ -640,8 +640,8 @@ BOOST_AUTO_TEST_CASE( bayeux_connect_blocks_until_an_event_happens )
 {
     bayeux::test::context context( pubsub::configurator().authorization_not_required() );
 
-    context.adapter.answer_validation_request( bayeux::node_name_from_channel( "/foo/bar" ), true );
-    context.adapter.answer_initialization_request( bayeux::node_name_from_channel( "/foo/bar" ), json::null() );
+    context.pubsub_adapter.answer_validation_request( bayeux::node_name_from_channel( "/foo/bar" ), true );
+    context.pubsub_adapter.answer_initialization_request( bayeux::node_name_from_channel( "/foo/bar" ), json::null() );
 
     json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
         server::test::read_plan()
@@ -711,8 +711,8 @@ BOOST_AUTO_TEST_CASE( http_connection_get_closed_while_response_is_waiting )
 {
     bayeux::test::context context( pubsub::configurator().authorization_not_required() );
 
-    context.adapter.answer_validation_request( bayeux::node_name_from_channel( "/foo/bar" ), true );
-    context.adapter.answer_initialization_request( bayeux::node_name_from_channel( "/foo/bar" ), json::null() );
+    context.pubsub_adapter.answer_validation_request( bayeux::node_name_from_channel( "/foo/bar" ), true );
+    context.pubsub_adapter.answer_initialization_request( bayeux::node_name_from_channel( "/foo/bar" ), json::null() );
 
     bayeux::test::bayeux_session(
         server::test::read_plan()
@@ -844,8 +844,8 @@ BOOST_AUTO_TEST_CASE( more_than_one_session_in_a_single_connection )
 {
     bayeux::test::context context( pubsub::configurator().authorization_not_required() );
 
-    context.adapter.answer_validation_request( bayeux::node_name_from_channel( "/foo/bar" ), true );
-    context.adapter.answer_initialization_request( bayeux::node_name_from_channel( "/foo/bar" ), json::null() );
+    context.pubsub_adapter.answer_validation_request( bayeux::node_name_from_channel( "/foo/bar" ), true );
+    context.pubsub_adapter.answer_initialization_request( bayeux::node_name_from_channel( "/foo/bar" ), json::null() );
 
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
         server::test::read_plan()
@@ -999,24 +999,281 @@ BOOST_AUTO_TEST_CASE( hurry_bayeux_connection_if_request_is_pipelined )
             "]" ) );
 }
 
+static const server::test::read meta_handshake = bayeux::test::msg(
+    "{"
+    "   'channel' : '/meta/handshake',"
+    "   'version' : '1.0.0',"
+    "   'supportedConnectionTypes' : ['long-polling', 'callback-polling']"
+    "}" );
+
+static server::test::read form_url_encoded_msg( const std::string& body )
+{
+    std::string message =
+        "POST / HTTP/1.1\r\n"
+        "Host: bayeux-server.de\r\n"
+        "Content-Type: application/x-www-form-urlencoded\r\n"
+        "Content-Length: ";
+
+    message += tools::as_string( body.size() ) + "\r\n\r\n" + body;
+
+    return server::test::read( message );
+}
+
 BOOST_AUTO_TEST_CASE( single_valued_containing_a_single_bayeux_message )
 {
+    bayeux::test::context context;
+
+    const std::string body = "message=" + http::url_encode( json::parse_single_quoted(
+        "{"
+        "   'clientId' : '192.168.210.1:9999/0',"
+        "   'channel'  : '/test/a',"
+        "   'data'     : 1"
+        "}" ).to_json() );
+
+    bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
+        server::test::read_plan()
+            << meta_handshake
+            << form_url_encoded_msg( body )
+            << server::test::disconnect_read(),
+        context ) );
+
+    BOOST_CHECK_EQUAL(
+        context.bayeux_adapter.publishs(),
+        json::parse_single_quoted(
+            "["
+            "   { "
+            "       'channel' : '/test/a', "
+            "       'data' : 1, "
+            "       'message' : { 'clientId' : '192.168.210.1:9999/0', 'channel' : '/test/a', 'data' : 1}, "
+            "       'session_data' : '' "
+            "   }"
+            "]") );
 }
 
 BOOST_AUTO_TEST_CASE( single_valued_containing_an_array_of_bayeux_messages )
 {
+    bayeux::test::context context;
+
+    const std::string body = "message=" + http::url_encode( json::parse_single_quoted(
+        "[{"
+        "   'clientId' : '192.168.210.1:9999/0',"
+        "   'channel'  : '/test/a',"
+        "   'data'     : 1"
+        "},"
+        "{"
+        "   'clientId' : '192.168.210.1:9999/0',"
+        "   'channel'  : '/test/a',"
+        "   'data'     : 2"
+        "}]").to_json() );
+
+    bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
+        server::test::read_plan()
+            << meta_handshake
+            << form_url_encoded_msg( body )
+            << server::test::disconnect_read(),
+        context ) );
+
+    BOOST_CHECK_EQUAL(
+        context.bayeux_adapter.publishs(),
+        json::parse_single_quoted(
+            "["
+            "   {"
+            "       'channel' : '/test/a', "
+            "       'data' : 1, "
+            "       'message' : { 'clientId' : '192.168.210.1:9999/0', 'channel' : '/test/a', 'data' : 1}, "
+            "       'session_data' : '' "
+            "   },"
+            "   {"
+            "       'channel' : '/test/a', "
+            "       'data' : 2, "
+            "       'message' : { 'clientId' : '192.168.210.1:9999/0', 'channel' : '/test/a', 'data' : 2}, "
+            "       'session_data' : '' "
+            "   }"
+            "]") );
 }
 
 BOOST_AUTO_TEST_CASE( multi_valued_containing_a_several_invidiual_bayeux_message )
 {
+    bayeux::test::context context;
+
+    const std::string body =
+        "message=" + http::url_encode( json::parse_single_quoted(
+            "{"
+            "   'clientId' : '192.168.210.1:9999/0',"
+            "   'channel'  : '/test/a',"
+            "   'data'     : 1"
+            "}" ).to_json() )
+      + "&message=" + http::url_encode( json::parse_single_quoted(
+            "{"
+            "   'clientId' : '192.168.210.1:9999/0',"
+            "   'channel'  : '/test/a',"
+            "   'data'     : 2"
+            "}").to_json() );
+
+    bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
+        server::test::read_plan()
+            << meta_handshake
+            << form_url_encoded_msg( body )
+            << server::test::disconnect_read(),
+        context ) );
+
+    BOOST_CHECK_EQUAL(
+        context.bayeux_adapter.publishs(),
+        json::parse_single_quoted(
+            "["
+            "   {"
+            "       'channel' : '/test/a', "
+            "       'data' : 1, "
+            "       'message' : { 'clientId' : '192.168.210.1:9999/0', 'channel' : '/test/a', 'data' : 1}, "
+            "       'session_data' : '' "
+            "   },"
+            "   {"
+            "       'channel' : '/test/a', "
+            "       'data' : 2, "
+            "       'message' : { 'clientId' : '192.168.210.1:9999/0', 'channel' : '/test/a', 'data' : 2}, "
+            "       'session_data' : '' "
+            "   }"
+            "]") );
 }
 
 BOOST_AUTO_TEST_CASE( multi_valued_containing_a_several_arrays_of_bayeux_messages )
 {
+    bayeux::test::context context;
+
+    const std::string body =
+        "message=" + http::url_encode( json::parse_single_quoted(
+            "[{"
+            "   'clientId' : '192.168.210.1:9999/0',"
+            "   'channel'  : '/test/a',"
+            "   'data'     : 1"
+            "}]" ).to_json() )
+      + "&message=" + http::url_encode( json::parse_single_quoted(
+            "[{"
+            "   'clientId' : '192.168.210.1:9999/0',"
+            "   'channel'  : '/test/a',"
+            "   'data'     : 2"
+            "}]").to_json() );
+
+    bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
+        server::test::read_plan()
+            << meta_handshake
+            << form_url_encoded_msg( body )
+            << server::test::disconnect_read(),
+        context ) );
+
+    BOOST_CHECK_EQUAL(
+        context.bayeux_adapter.publishs(),
+        json::parse_single_quoted(
+            "["
+            "   {"
+            "       'channel' : '/test/a', "
+            "       'data' : 1, "
+            "       'message' : { 'clientId' : '192.168.210.1:9999/0', 'channel' : '/test/a', 'data' : 1}, "
+            "       'session_data' : '' "
+            "   },"
+            "   {"
+            "       'channel' : '/test/a', "
+            "       'data' : 2, "
+            "       'message' : { 'clientId' : '192.168.210.1:9999/0', 'channel' : '/test/a', 'data' : 2}, "
+            "       'session_data' : '' "
+            "   }"
+            "]") );
 }
 
 BOOST_AUTO_TEST_CASE( multi_valued_containing_a_mix_of_invidiual_bayeux_messages_and_array )
 {
+    bayeux::test::context context;
+
+    const std::string body =
+        "message=" + http::url_encode( json::parse_single_quoted(
+            "{"
+            "   'clientId' : '192.168.210.1:9999/0',"
+            "   'channel'  : '/test/a',"
+            "   'data'     : 1"
+            "}" ).to_json() )
+      + "&message=" + http::url_encode( json::parse_single_quoted(
+            "[{"
+            "   'clientId' : '192.168.210.1:9999/0',"
+            "   'channel'  : '/test/a',"
+            "   'data'     : 2"
+            "}]").to_json() );
+
+    bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
+        server::test::read_plan()
+            << meta_handshake
+            << form_url_encoded_msg( body )
+            << server::test::disconnect_read(),
+        context ) );
+
+    BOOST_CHECK_EQUAL(
+        context.bayeux_adapter.publishs(),
+        json::parse_single_quoted(
+            "["
+            "   {"
+            "       'channel' : '/test/a', "
+            "       'data' : 1, "
+            "       'message' : { 'clientId' : '192.168.210.1:9999/0', 'channel' : '/test/a', 'data' : 1}, "
+            "       'session_data' : '' "
+            "   },"
+            "   {"
+            "       'channel' : '/test/a', "
+            "       'data' : 2, "
+            "       'message' : { 'clientId' : '192.168.210.1:9999/0', 'channel' : '/test/a', 'data' : 2}, "
+            "       'session_data' : '' "
+            "   }"
+            "]") );
+}
+
+/**
+ * @test the specification doesn't state that it is possible, but the cometd/jQuery client uses a HTTP GET with the
+ *       body beeing embedded in the url.
+ */
+BOOST_AUTO_TEST_CASE( body_transported_by_url )
+{
+    const std::string body =
+        "message=" + http::url_encode( json::parse_single_quoted(
+            "{"
+            "   'clientId' : '192.168.210.1:9999/0',"
+            "   'channel'  : '/test/a',"
+            "   'data'     : 1"
+            "}" ).to_json() )
+      + "&message=" + http::url_encode( json::parse_single_quoted(
+            "[{"
+            "   'clientId' : '192.168.210.1:9999/0',"
+            "   'channel'  : '/test/a',"
+            "   'data'     : 2"
+            "}]").to_json() );
+
+    std::string message =
+        "GET /?" + body + " HTTP/1.1\r\n"
+        "Host: bayeux-server.de\r\n"
+        "\r\n";
+
+    bayeux::test::context context;
+    bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
+        server::test::read_plan()
+            << meta_handshake
+            << server::test::read( message )
+            << server::test::disconnect_read(),
+        context ) );
+
+    BOOST_CHECK_EQUAL(
+        context.bayeux_adapter.publishs(),
+        json::parse_single_quoted(
+            "["
+            "   {"
+            "       'channel' : '/test/a', "
+            "       'data' : 1, "
+            "       'message' : { 'clientId' : '192.168.210.1:9999/0', 'channel' : '/test/a', 'data' : 1}, "
+            "       'session_data' : '' "
+            "   },"
+            "   {"
+            "       'channel' : '/test/a', "
+            "       'data' : 2, "
+            "       'message' : { 'clientId' : '192.168.210.1:9999/0', 'channel' : '/test/a', 'data' : 2}, "
+            "       'session_data' : '' "
+            "   }"
+            "]") );
 }
 
 /**
@@ -1027,8 +1284,8 @@ BOOST_AUTO_TEST_CASE( single_http_request_with_connect_not_beeing_the_last_eleme
     bayeux::test::context context( pubsub::configurator().authorization_not_required() );
     const boost::posix_time::ptime   start_time = server::test::current_time();
 
-    context.adapter.answer_validation_request( bayeux::node_name_from_channel( "/foo/bar" ), true );
-    context.adapter.answer_initialization_request( bayeux::node_name_from_channel( "/foo/bar" ), json::null() );
+    context.pubsub_adapter.answer_validation_request( bayeux::node_name_from_channel( "/foo/bar" ), true );
+    context.pubsub_adapter.answer_initialization_request( bayeux::node_name_from_channel( "/foo/bar" ), json::null() );
 
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
         server::test::read_plan()

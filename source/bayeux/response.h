@@ -12,6 +12,8 @@
 
 #include "bayeux/session.h"
 #include "http/request.h"
+#include "http/header_names.h"
+#include "http/parser.h"
 #include "json/json.h"
 #include "server/response.h"
 #include "server/timeout.h"
@@ -95,7 +97,7 @@ namespace bayeux
 	{
 	public:
 		response( const boost::shared_ptr< Connection >&                            connection,
-		          const http::request_header&                                       request,
+		          const boost::shared_ptr< const http::request_header >&            request,
 				  connector< typename Connection::trait_t::timeout_timer_type >&    root );
 
 	private:
@@ -109,6 +111,7 @@ namespace bayeux
 			std::size_t bytes_read_and_decoded );
 
 		void handle_requests( const json::value& );
+		void handle_form_requests( const std::string& );
 
         // response_interface implementation
         void second_connection_detected();
@@ -122,15 +125,22 @@ namespace bayeux
 
         void connection_time_out( const boost::system::error_code& error );
 
-		boost::shared_ptr< Connection >				connection_;
-		bool										parsed_;
-        json::parser								message_parser_;
+		boost::shared_ptr< Connection >				            connection_;
+		const boost::shared_ptr< const http::request_header >   request_;
+
+		// used when the message is application/json encoded
+		bool										            parsed_;
+        json::parser								            message_parser_;
+
+        // used when the message is application/x-www-form-urlencoded
+        bool                                                    form_encoded_;
+        std::vector< char >                                     form_body_;
 
 		// a concatenated list of snippets that form the http response
-        std::vector< boost::asio::const_buffer > 	response_;
+        std::vector< boost::asio::const_buffer > 	            response_;
 
         typedef typename Connection::trait_t::timeout_timer_type timer_t;
-        timer_t                                     timer_;
+        timer_t                                                 timer_;
 	};
 
 
@@ -191,16 +201,21 @@ namespace bayeux
 	}
 
 	template < class Connection >
-	response< Connection >::response( const boost::shared_ptr< Connection >& connection, const http::request_header& header,
-			connector< typename Connection::trait_t::timeout_timer_type >& root )
+	response< Connection >::response(
+	    const boost::shared_ptr< Connection >&                          connection,
+	    const boost::shared_ptr< const http::request_header >&          header,
+	    connector< typename Connection::trait_t::timeout_timer_type >&  root )
 	  : response_base< typename Connection::trait_t::timeout_timer_type >( root )
 	  , connection_( connection )
+	  , request_( header )
 	  , parsed_( false )
 	  , message_parser_()
+	  , form_encoded_( false )
+	  , form_body_()
+	  , response_()
 	  , timer_( root.queue() )
 	{
-        log::bayeux_new_request( *connection_, header, log::enabled< Connection >( connection_.get() ) );
-	    assert( header.body_expected() );
+        log::bayeux_new_request( *connection_, *header, log::enabled< Connection >( connection_.get() ) );
 	}
 
 	template < class Connection >
@@ -213,9 +228,22 @@ namespace bayeux
 	template < class Connection >
     void response< Connection >::start()
 	{
-	    log::bayeux_start_response( *connection_, log::enabled< Connection >( connection_.get() ) );
-	    connection_->async_read_body( boost::bind( &response::body_read_handler, this->shared_from_this(), _1, _2, _3
-				) );
+        log::bayeux_start_response( *connection_, log::enabled< Connection >( connection_.get() ) );
+
+        if ( request_->body_expected() )
+        {
+            form_encoded_ = request_->option_available( http::content_type_header, http::application_x_www_from_urlencded );
+
+            connection_->async_read_body( boost::bind( &response::body_read_handler, this->shared_from_this(), _1, _2, _3
+                    ) );
+        }
+        else
+        {
+            tools::substring scheme, authority, path, query, fragment;
+            // lets see, if the query contains a bayeux message
+            http::split_url( request_->uri(), scheme, authority, path, query, fragment );
+            handle_form_requests( http::url_decode( query ) );
+        }
 	}
 
 	template < class Connection >
@@ -232,22 +260,37 @@ namespace bayeux
 		    return;
 		}
 
-        if ( bytes_read_and_decoded == 0 && parsed_ )
-        {
-            message_parser_.flush();
-            handle_requests( message_parser_.result() );
-            guard.dismiss();
-        }
-        else if ( bytes_read_and_decoded != 0 && !parsed_ )
-        {
-            parsed_ = message_parser_.parse( buffer, buffer + bytes_read_and_decoded );
-            guard.dismiss();
-        }
-        else
-        {
-            connection_->trait().log_error( *connection_, "unexpected state while reading body:",
-                bytes_read_and_decoded, parsed_ );
-        }
+		if ( form_encoded_ )
+		{
+		    form_body_.insert( form_body_.end(), buffer, buffer + bytes_read_and_decoded );
+
+		    if ( bytes_read_and_decoded == 0 )
+		    {
+		        handle_form_requests(
+		            http::form_decode( tools::substring( &form_body_[ 0 ], &form_body_[ 0 ] + form_body_.size() ) ) );
+		    }
+
+		    guard.dismiss();
+		}
+		else
+		{
+            if ( bytes_read_and_decoded == 0 && parsed_ )
+            {
+                message_parser_.flush();
+                handle_requests( message_parser_.result() );
+                guard.dismiss();
+            }
+            else if ( bytes_read_and_decoded != 0 && !parsed_ )
+            {
+                parsed_ = message_parser_.parse( buffer, buffer + bytes_read_and_decoded );
+                guard.dismiss();
+            }
+            else
+            {
+                connection_->trait().log_error( *connection_, "unexpected state while reading body:",
+                    bytes_read_and_decoded, parsed_ );
+            }
+		}
 	}
 
 	template < class Connection >
@@ -302,6 +345,27 @@ namespace bayeux
             timer_.async_wait( boost::bind( &response::connection_time_out, this->shared_from_this(), _1 ) );
         }
 	}
+
+    template < class Connection >
+    void response< Connection >::handle_form_requests( const std::string& body )
+    {
+        const std::vector< std::pair< tools::substring, tools::substring > > messages =
+            http::split_query( tools::substring( body.c_str(), body.c_str() + body.size() ) );
+
+        unsigned message_cnt = 0;
+        for ( std::vector< std::pair< tools::substring, tools::substring > >::const_iterator msg = messages.begin();
+            msg != messages.end(); ++msg )
+        {
+            if ( msg->first == "message" )
+            {
+                handle_requests( json::parse( msg->second.begin(), msg->second.end() ) );
+                ++message_cnt;
+            }
+        }
+
+        if ( message_cnt == 0 )
+            throw std::runtime_error( "form/url encoded bayeux message body without message" );
+    }
 
     template < class Connection >
     void response< Connection >::second_connection_detected()
