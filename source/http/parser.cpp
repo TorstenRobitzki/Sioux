@@ -66,12 +66,12 @@ bad_query::bad_query( const std::string& s ) : std::runtime_error( s )
 {
 }
 
-static void add_name_value( std::map< tools::substring, tools::substring >& result, const tools::substring& name_value )
+static void add_name_value( std::vector< std::pair< tools::substring, tools::substring > >& result, const tools::substring& name_value )
 {
     tools::substring name, value;
     if ( tools::split_to_empty( name_value, '=', name, value ) )
     {
-        result.insert( std::make_pair( name, value ) );
+        result.push_back( std::make_pair( name, value ) );
     }
     else
     {
@@ -79,9 +79,9 @@ static void add_name_value( std::map< tools::substring, tools::substring >& resu
     }
 }
 
-std::map< tools::substring, tools::substring > split_query( const tools::substring& query )
+std::vector< std::pair< tools::substring, tools::substring > > split_query( const tools::substring& query )
 {
-    std::map< tools::substring, tools::substring > result;
+    std::vector< std::pair< tools::substring, tools::substring > > result;
 
     tools::substring second = query;
     for ( tools::substring first, rest = query; tools::split_to_empty( rest, '&', first, second );  rest = second )
@@ -97,19 +97,19 @@ std::map< tools::substring, tools::substring > split_query( const tools::substri
 
 
 namespace {
-	template <class Iter>
-	int read_nibble(Iter begin, Iter end) {
+	template < class Iter >
+	int read_nibble( Iter begin, Iter end ) {
 		if ( begin == end )
-			throw bad_url("Value missing after %");
+			throw bad_url( "Value missing after %" );
 		
 		if ( *begin >= '0' && *begin <= '9' )
-			return static_cast<int>(*begin) - static_cast<int>('0');
+			return static_cast< int >( *begin ) - static_cast< int >( '0' );
 		else if ( *begin >= 'a' && *begin <= 'f' )
-			return static_cast<int>(*begin) - static_cast<int>('a') + 10;
+			return static_cast< int >( *begin ) - static_cast< int >( 'a' ) + 10;
 		else if ( *begin >= 'A' && *begin <= 'F' )
-			return static_cast<int>(*begin) - static_cast<int>('A') + 10; 
+			return static_cast< int >( *begin ) - static_cast< int >( 'A' ) + 10;
 
-		throw bad_url(tools::as_string(static_cast<int>(*begin)) + " is not a hexdigit.");
+		throw bad_url( tools::as_string( static_cast< int >( *begin ) ) + " is not a hexdigit." );
 	}
 }
 
@@ -175,6 +175,28 @@ std::string url_encode( const std::string& s )
     }
 
     return out.str();
+}
+
+namespace {
+
+    template < class Iter >
+    std::string form_decode_impl( Iter begin, Iter end )
+    {
+        std::string result( begin, end );
+        std::replace( result.begin(), result.end(), '+', ' ' );
+
+        return url_decode( result.begin(), result.end() );
+    }
+}
+
+std::string form_decode( const std::string& s )
+{
+    return form_decode_impl( s.begin(), s.end() );
+}
+
+std::string form_decode( const tools::substring& s )
+{
+    return form_decode_impl( s.begin(), s.end() );
 }
 
 int strcasecmp(const char* begin1, const char* end1, const char* null_terminated_str)

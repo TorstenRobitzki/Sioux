@@ -11,7 +11,8 @@
 #include <stdexcept>
 #include <limits>
 #include <cctype>
-#include <map>
+#include <vector>
+#include <utility>
 
 #include "tools/substring.h"
 
@@ -162,11 +163,17 @@ public:
 };
 
 /**
- * @brief splits the given query into name, value pairs
+ * @brief splits the given query into name, value pairs.
  *
- * All returned substrings point to the same memory as query does.
+ * Splits the given query at & into name value pairs. The first member of the returned std::pair<> is the name.
+ * The pairs are returned in the same order they appear in query, from left to right.
+ *
+ * So "a=1&a=2&b=d" becomes { { "a", "1" }, { "a" , "2" }, { "b", "d" } }. No percent nor "+-sign to space" decodings
+ * are done.
+ *
+ * @attention The returned substrings point into the very same memory, that is given by the input parameter.
  */
-std::map< tools::substring, tools::substring > split_query( const tools::substring& query );
+std::vector< std::pair< tools::substring, tools::substring > > split_query( const tools::substring& query );
 
 /**
  * @brief decodes all encoded characters
@@ -186,6 +193,18 @@ std::string url_decode( const tools::substring& );
  * see rfc3986 for details
  */
 std::string url_encode( const std::string& );
+
+/**
+ * @brief decodes all encoded characters
+ *
+ * All '+' are replaced by ' ' and the result is decoded by url_decode()
+ */
+std::string form_decode( const std::string& );
+
+/**
+ * @copydoc form_decode( const std::string& );
+ */
+std::string form_decode( const tools::substring& );
 
 template <class Iter, typename SizeT>
 bool parse_number(Iter begin, Iter end, SizeT& r)

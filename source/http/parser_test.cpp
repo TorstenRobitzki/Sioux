@@ -8,7 +8,7 @@
 
 #include <boost/test/unit_test.hpp>
 
-// hack to get the ff into the string literal
+// hack to get the 0xff into the string literal
 static const unsigned char expected_raw_text[] = { 0x20, 'a', 'b', 'c', 0xff, 0, 0x7f };
 static const char*         as_char_array = static_cast< const char* >( static_cast< const void* >( &expected_raw_text[ 0 ] ) );
 static const std::string   expected_text( as_char_array, as_char_array + sizeof expected_raw_text );
@@ -100,19 +100,40 @@ namespace {
 
 BOOST_AUTO_TEST_CASE( split_query )
 {
-    const char query[] = "action=%20foo%20&message=abs&key=";
+    const char query[] = "action=%20foo%20&message=a+bs&key=&name=foobar";
 
-    std::map< tools::substring, tools::substring > result =
-        http::split_query( tools::substring( tools::begin( query ), tools::end( query ) -1 ) );
+    std::vector< std::pair< tools::substring, tools::substring > > result =
+        http::split_query( substr( query ) );
 
-    const char action[] = "action";
-    const char message[] = "message";
-    const char key[] = "key";
+    BOOST_CHECK_EQUAL( result.size(), 4u );
+    BOOST_CHECK_EQUAL( result[ 0 ].first, "action" );
+    BOOST_CHECK_EQUAL( result[ 0 ].second, "%20foo%20" );
+    BOOST_CHECK_EQUAL( result[ 1 ].first, "message" );
+    BOOST_CHECK_EQUAL( result[ 1 ].second, "a+bs" );
+    BOOST_CHECK_EQUAL( result[ 2 ].first, "key" );
+    BOOST_CHECK_EQUAL( result[ 2 ].second, "" );
+    BOOST_CHECK_EQUAL( result[ 3 ].first, "name" );
+    BOOST_CHECK_EQUAL( result[ 3 ].second, "foobar" );
+}
 
-    BOOST_CHECK_EQUAL( result.size(), 3u );
-    BOOST_CHECK_EQUAL( result[ substr( action ) ], "%20foo%20" );
-    BOOST_CHECK_EQUAL( result[ substr( message ) ], "abs" );
-    BOOST_CHECK_EQUAL( result[ substr( key ) ], "" );
+BOOST_AUTO_TEST_CASE( split_query_with_mulitple_names )
+{
+    const char query[] = "p3=f&p1=a&p1=b&p2=c&p3=f";
+
+    std::vector< std::pair< tools::substring, tools::substring > > result =
+        http::split_query( substr( query ) );
+
+    BOOST_CHECK_EQUAL( result.size(), 5u );
+    BOOST_CHECK_EQUAL( result[ 0 ].first, "p3" );
+    BOOST_CHECK_EQUAL( result[ 0 ].second, "f" );
+    BOOST_CHECK_EQUAL( result[ 1 ].first, "p1" );
+    BOOST_CHECK_EQUAL( result[ 1 ].second, "a" );
+    BOOST_CHECK_EQUAL( result[ 2 ].first, "p1" );
+    BOOST_CHECK_EQUAL( result[ 2 ].second, "b" );
+    BOOST_CHECK_EQUAL( result[ 3 ].first, "p2" );
+    BOOST_CHECK_EQUAL( result[ 3 ].second, "c" );
+    BOOST_CHECK_EQUAL( result[ 4 ].first, "p3" );
+    BOOST_CHECK_EQUAL( result[ 4 ].second, "f" );
 }
 
 BOOST_AUTO_TEST_CASE( split_empty_query )
@@ -127,4 +148,13 @@ BOOST_AUTO_TEST_CASE( split_buggy_query )
 
     BOOST_CHECK_THROW( http::split_query( substr( query1 ) ), http::bad_query );
     BOOST_CHECK_THROW( http::split_query( substr( query2 ) ), http::bad_query );
+}
+
+BOOST_AUTO_TEST_CASE( form_decode_test )
+{
+    const char query[] = "+%20%4A%4b%2B";
+
+    const std::string result = http::form_decode( substr( query ) );
+
+    BOOST_CHECK_EQUAL( result, "  JK+");
 }
