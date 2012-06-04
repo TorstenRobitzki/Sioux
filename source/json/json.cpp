@@ -1200,7 +1200,7 @@ namespace json
         return begin;
     }
 
-    bool parser::parse(const char* begin, const char* end)
+    std::pair< bool, bool > parser::parse(const char* begin, const char* end)
     {
         assert( !state_.empty() );
 
@@ -1238,7 +1238,11 @@ namespace json
             }
         }
 
-        return state_.empty();
+        // consume trailing whitespaces
+        if ( state_.empty() )
+            begin = eat_white_space(begin, end);
+
+        return std::make_pair( begin == end, state_.empty() );
     }
 
     int parser::parse_idle(char c)

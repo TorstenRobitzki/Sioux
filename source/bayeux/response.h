@@ -282,7 +282,7 @@ namespace bayeux
             }
             else if ( bytes_read_and_decoded != 0 && !parsed_ )
             {
-                parsed_ = message_parser_.parse( buffer, buffer + bytes_read_and_decoded );
+                parsed_ = message_parser_.parse( buffer, buffer + bytes_read_and_decoded ).second;
                 guard.dismiss();
             }
             else

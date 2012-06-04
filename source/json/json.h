@@ -425,10 +425,17 @@ namespace json
     public:
         parser();
 
-        bool parse( const char* begin, const char* end );
+        /**
+         * @brief tries to parse a json value by consuming the sequence [begin, end)
+         *
+         * @return a pair of booleans. The first bool is set to true, if the entire sequence was
+         *         consumed. The second bool is set to true, if a valid json value was parsed.
+         * @post for result = parse( b, e ); result.first || result.second holds true
+         */
+        std::pair< bool, bool > parse( const char* begin, const char* end );
 
         template <class Iter>
-        bool parse( Iter begin, Iter end )
+        std::pair< bool, bool > parse( Iter begin, Iter end )
         {
             const std::vector< char > buffer( begin, end );
             return parse( &buffer[0], &buffer[0] + buffer.size() );
@@ -492,8 +499,17 @@ namespace json
     {
         parser p;
 
-        if ( !p.parse(begin, end) )
-            p.flush();
+        const std::pair< bool, bool > parse_result = p.parse( begin, end );
+
+        if ( parse_result.first )
+        {
+            if ( !parse_result.second )
+                p.flush();
+        }
+        else
+        {
+            throw parse_error( "extra characters after JSON expression." );
+        }
 
         return p.result();
     }

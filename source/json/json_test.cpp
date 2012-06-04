@@ -200,7 +200,7 @@ BOOST_AUTO_TEST_CASE( json_special_test )
 static bool split_parse( const std::string& json )
 {
     assert(!json.empty());
-    const json::value expected = json::parse(json.begin(), json.end());
+    const json::value expected = json::parse( json.begin(), json.end() );
 
     if ( json.size() == 1 )
         return true;
@@ -571,4 +571,5 @@ BOOST_AUTO_TEST_CASE( from_bool_test )
 BOOST_AUTO_TEST_CASE( detect_trailing_garbage )
 {
     BOOST_CHECK_THROW( json::parse( "1{" ), json::parse_error );
+    BOOST_CHECK_EQUAL( json::parse( "1 \t\r\n" ), json::number( 1 ) );
 }
