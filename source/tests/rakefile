@@ -11,4 +11,9 @@ test_util 'hello_world',
     :libraries => ['file', 'server', 'http', 'tools'], 
     :extern_libs => ['boost_filesystem', 'boost_date_time', 'boost_regex', 'boost_system', 'boost_thread'], 
     :sources =>  FileList['./source/tests/hello_world.cpp'] 
+
+test_util 'chat', 
+    :libraries => ['file', 'server', 'bayeux', 'json', 'pubsub', 'http', 'tools'], 
+    :extern_libs => ['boost_filesystem', 'boost_date_time', 'boost_regex', 'boost_system', 'boost_thread'], 
+    :sources =>  FileList['./source/tests/chat.cpp'] 
     

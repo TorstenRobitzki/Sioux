@@ -1,0 +1,117 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!--
+Design by Free CSS Templates
+http://www.freecsstemplates.org
+Released for free under a Creative Commons Attribution 2.5 License
+
+Name       : FruityBlue 
+Description: A two-column, fixed-width design with dark color scheme.
+Version    : 1.0
+Released   : 20120307
+
+-->
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta name="keywords" content="" />
+<meta name="description" content="" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<title>Sioux Chat</title>
+
+<link href="http://fonts.googleapis.com/css?family=Arvo" rel="stylesheet" type="text/css" />
+<link href="style.css" rel="stylesheet" type="text/css" media="screen" />
+
+<script src="jquery/json2.js"></script>
+<script src="org/cometd.js"></script>
+<script src="jquery/jquery-1.6.2.js"></script>
+<script src="jquery/jquery.cometd.js"></script>
+<script type="text/javascript">
+
+    var ChatPrivate = {
+        ChatReplaces : [
+            { exp : /(\/b)(\S*)/g, replace : '<b>$2</b>' },
+            { exp : /(\/D)/g,      replace : '@Drakanus deBorger:' },
+            { exp : /(\/J)/g,      replace : 'Hallo Jan' },
+            { exp : /(\/e)(\S*)/g, replace : '<em>$2</em>' },
+            { exp : /(\/u)(\S*)/g, replace : '<span style="text-decoration:underline">$2</span>' },
+            { exp : /(\/me)/,      replace : '' }
+        ],
+        
+        ChatDecoration : function(line) { 
+            jQuery.each( ChatPrivate.ChatReplaces, function( i, l ) { 
+                line = line.replace(l.exp, l.replace); 
+            } );
+
+            return line;
+        },
+        
+        UpdateChat : function(data) {
+            if (!data) return;
+
+            var text = '<p>' + jQuery.map( data, function( ele, i ){
+                var me = ele.text.search(/\s*\/me/) == -1 ? '&gt;' : ''; 
+                return '<b>' + ele.head + me + '</b> ' + ChatPrivate.ChatDecoration(ele.text); 
+            }).join('<br>') + '</p>';
+
+            var w = $('#chat_text');
+            w.html( text );
+            w.attr( 'scrollTop', w.attr( 'scrollHeight' ) );
+        }
+    };
+
+    $(document).ready( function(){
+        $.cometd.init( { url: 'http://localhost:8080/bayeux' } );
+        $.cometd.subscribe( '/chat', function( data ) 
+        { 
+            ChatPrivate.UpdateChat( data.data );
+        });
+    });
+    
+    var on_enter = function( text ) {
+        $.cometd.publish( '/say', text ); 
+    }
+    
+</script>
+</head>
+<body>
+<div id="wrapper">
+	<div id="wrapper2">
+		<div id="header" class="container">
+			<div id="logo">
+				<h1><a href="#">Sioux Chat </a></h1>
+				<p>a C++ / JavaScript bayeux chat example</a></p>
+			</div>
+		</div>
+		<!-- end #header -->
+		<div id="page">
+			<div id="content">
+				<div class="post">
+					<h2 class="title">Come in and speak friendly</h2>
+					<div style="clear: both;">&nbsp;</div>
+					<div class="entry" id="chat_text">
+
+					</div>
+				</div>
+                <div id="search" >
+                    <form method="post" action="say" autocomplete="off" onsubmit="on_enter( $('#chat-input').val() ); $('#chat-input').val(''); return false;">
+                        <div>
+                            <input type="text" name="s" id="chat-input" value="" />
+                            <input type="submit" id="chat-submit" value="Say"/>
+                        </div>
+                    </form>
+                </div>
+
+				<div style="clear: both;">&nbsp;</div>
+			</div>
+			<div style="clear: both;">&nbsp;</div>
+		</div>
+		<!-- end #page -->
+	</div>
+</div>
+<div id="footer-content">
+	<div id="footer">
+		<p>Design by <a href="http://www.freecsstemplates.org/">Free CSS Templates</a>.</p>
+	</div>
+</div>
+<!-- end #footer -->
+</body>
+</html>
