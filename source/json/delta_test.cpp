@@ -5,6 +5,7 @@
 #define BOOST_TEST_MAIN
 
 #include <boost/test/unit_test.hpp>
+#include <boost/timer/timer.hpp>
 #include "json/json.h"
 #include "json/delta.h"
 #include "tools/asstring.h"
@@ -166,4 +167,22 @@ BOOST_AUTO_TEST_CASE(object_delta)
     BOOST_CHECK_EQUAL("[6,\"A\",[2,0]]", delta("{\"A\":[1,2,3,4,5,6,7,8,9,1,2,3,4]}", "{\"A\":[2,3,4,5,6,7,8,9,1,2,3,4]}"));
     BOOST_CHECK_EQUAL("[2,\"A\",3,\"B\",1]", delta("{\"A\":1}", "{\"B\":1}"));
     BOOST_CHECK_EQUAL("[2,\"A\",1,\"B\",2,2,\"C\",3,\"D\",1]", delta("{\"A\":1,\"B\":1,\"C\":1}", "{\"B\":2,\"D\":1}"));
+}
+
+BOOST_AUTO_TEST_CASE( delta_performance_test )
+{
+    static const unsigned array_size = 10 * 1000 * 1000;
+    json::array array1;
+    for ( int i = 0; i != array_size; ++i )
+        array1.add( json::number( i ) );
+
+    const json::array array2 = array1.copy();
+
+    array1.insert( array_size / 2u, json::string( "foo" ) );
+
+    boost::timer::auto_cpu_timer t;
+    std::pair< bool, json::value > result = json::delta( array1, array2, 100 );
+
+    BOOST_CHECK( result.first );
+    BOOST_CHECK_EQUAL( result.second, json::parse( "[2,5000000]" ) );
 }

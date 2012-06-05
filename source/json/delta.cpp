@@ -23,41 +23,12 @@ namespace json {
             edit_at   =6
         };
 
-        const number& update_at_operation()
-        {
-            static const number result(update_at);
-            return result;
-        }
-
-        const number& delete_at_operation()
-        {
-            static const number result(delete_at);
-            return result;
-        }
-
-        const number& insert_at_operation()
-        {
-            static const number result(insert_at);
-            return result;
-        }
-
-        const number& delete_range_operation()
-        {
-            static const number result(delete_range);
-            return result;
-        }
-
-        const number& update_range_operation()
-        {
-            static const number result(update_range);
-            return result;
-        }
-
-        const number& edit_at_operation()
-        {
-            static const number result(edit_at);
-            return result;
-        }
+        static const number update_at_operation( update_at );
+        static const number delete_at_operation( delete_at );
+        static const number insert_at_operation( insert_at );
+        static const number delete_range_operation( delete_range );
+        static const number update_range_operation( update_range );
+        static const number edit_at_operation( edit_at );
 
         int to_int(const value& val)
         {
@@ -234,7 +205,7 @@ namespace json {
             bool operator()(vertex_list_t::const_iterator lhs, vertex_list_t::const_iterator rhs) const;
         };
 
-        typedef std::multiset<vertex_list_t::const_iterator, v_compare> cost_list_t;
+        typedef std::multiset< vertex_list_t::const_iterator, v_compare > cost_list_t;
 
         struct vertex
         {
@@ -251,7 +222,7 @@ namespace json {
             std::size_t                     total_costs;
             std::size_t                     costs;
 
-            bool operator<(const vertex& rhs) const
+            bool operator<( const vertex& rhs ) const
             {
                 return length < rhs.length
                     || length == rhs.length && index < rhs.index
@@ -283,15 +254,29 @@ namespace json {
             }
         }
 
-        /// @todo implement hystereses
-        std::size_t hysterese(const array& /*a*/, const array& /*b*/, int /*a_index*/, int /*b_index*/)
+        // this function should never ever overestimate the costs of updating a to be equal to b
+        std::size_t heuristic(const array& a, const array& b, int a_index, int b_index)
         {
+            assert( a_index <= a.length() );
+            assert( b_index <= b.length() );
+
+            const int a_length = a.length() - a_index;
+            const int b_length = b.length() - b_index;
+
+            // applying an array delete
+            if ( a_length > b_length )
+                return 2;
+
+            // array - insert possible
+            if ( a_length < b_length )
+                return ( b_length - a_length ) * 2;
+
             return 0;
         }
 
-        std::size_t hysterese(const array& a, const array& b)
+        std::size_t heuristic(const array& a, const array& b)
         {
-            return hysterese(a, b, 0, 0);
+            return heuristic(a, b, 0, 0);
         }
 
         array assemble_result(vertex_list_t::const_iterator goal, const vertex_list_t& vertices)
@@ -319,18 +304,18 @@ namespace json {
             vertex_list_t::const_iterator   prev        = ptr->previous;
             const array                     last_update = ptr->operation;
 
-            if ( prev_op == update_at_operation() )
+            if ( prev_op == update_at_operation )
             {
                 // combine a previous update with this update to a range update
                 array new_elements;
                 new_elements.add(last_update.at(2)).add(b);
 
-                result.add(update_range_operation())
+                result.add(update_range_operation)
                       .add(last_update.at(1))
                       .add(number(index+1))
                       .add(new_elements);
             }
-            else if ( prev_op == insert_at_operation() )
+            else if ( prev_op == insert_at_operation )
             {
                 // combine a previous insert with this update to a range update
                 array new_elements(last_update.at(2));
@@ -338,41 +323,41 @@ namespace json {
 
                 assert(index > 0);
 
-                result.add(update_range_operation())
+                result.add(update_range_operation)
                       .add(number(index-1))
                       .add(number(index+1))
                       .add(new_elements);
             }
-            else if ( prev_op == delete_at_operation() )
+            else if ( prev_op == delete_at_operation )
             {
             	// combine a previous delete with this update to a range update
-                result.add(update_range_operation())
+                result.add(update_range_operation)
                       .add(number(index))
                       .add(number(index+2))
                       .add(array(b));
             }
-            else if ( prev_op == delete_range_operation() )
+            else if ( prev_op == delete_range_operation )
             {
                 // combine a previous range delete with this update to a range update
-                result.add(update_range_operation())
+                result.add(update_range_operation)
                       .add(last_update.at(1))
                       .add(increment(last_update.at(2)))
                       .add(array(b));
             }
-            else if ( prev_op == update_range_operation() )
+            else if ( prev_op == update_range_operation )
             {
                 array new_elements(last_update.at(3).upcast<array>().copy());
                 new_elements.add(b);
 
                 // combine a previous update with this update to a range update
-                result.add(update_range_operation())
+                result.add(update_range_operation)
                       .add(last_update.at(1))
                       .add(increment(last_update.at(2)))
                       .add(new_elements);
             }
             else
             {
-                result.add(update_at_operation()).add(number(index)).add(b);
+                result.add( update_at_operation ).add( number( index ) ).add( b );
                 prev = ptr;
             }
 
@@ -385,7 +370,7 @@ namespace json {
             if ( edit_operation.first )
             {
                 array edit_result;
-                edit_result.add(edit_at_operation())
+                edit_result.add(edit_at_operation)
                            .add(number(index))
                            .add(edit_operation.second);
 
@@ -414,41 +399,41 @@ namespace json {
             // a combination of a delete/range delete with an insert to an range update is 
             // not implemented, because an update should be considered too
 
-            if ( prev_op == update_at_operation() )
+            if ( prev_op == update_at_operation )
             {
             	array new_elements(last_update.at(2));
                 new_elements.add(b);
 
-                result.add(update_range_operation())
+                result.add(update_range_operation)
                       .add(last_update.at(1))
                       .add(number(index))
                       .add(new_elements);
             }
-            else if ( prev_op == insert_at_operation() )
+            else if ( prev_op == insert_at_operation )
             {
                 array new_elements(last_update.at(2));
                 new_elements.add(b);
 
                 // combine a previous insert to a range update
-                result.add(update_range_operation())
+                result.add(update_range_operation)
                       .add(number(index-1))
                       .add(number(index-1))
                       .add(new_elements);
             }
-            else if ( prev_op == update_range_operation() )
+            else if ( prev_op == update_range_operation )
             {
                 array new_elements(last_update.at(3).upcast<array>().copy());
                 new_elements.add(b);
 
                 // or combine a range update with this insert to an range update
-                result.add(update_range_operation())
+                result.add(update_range_operation)
                       .add(last_update.at(1))
                       .add(last_update.at(2))
                       .add(new_elements);
             }
             else
             {
-                result.add(insert_at_operation())
+                result.add(insert_at_operation)
                       .add(number(index))
                       .add(b);
 
@@ -470,38 +455,38 @@ namespace json {
 
             const array last_update = ptr->operation;
 
-            if ( prev_op == update_at_operation() )
+            if ( prev_op == update_at_operation )
             {
-                result.add(update_range_operation())
+                result.add(update_range_operation)
                       .add(number(index-1))
                       .add(number(index+1))
                       .add(array(last_update.at(2)));
             }
-            else if ( prev_op == delete_at_operation() )
+            else if ( prev_op == delete_at_operation )
             {
                 // combine a previous delete with this delete to a range delete
-                result.add(delete_range_operation())
+                result.add(delete_range_operation)
                       .add(number(index))
                       .add(number(index+2));
             }
-            else if ( prev_op == delete_range_operation() )
+            else if ( prev_op == delete_range_operation )
             {
                 // extend a previous range delete to this element
-                result.add(delete_range_operation())
+                result.add(delete_range_operation)
                       .add(last_update.at(1))
                       .add(increment(last_update.at(2)));
             }
-            else if ( prev_op == update_range_operation() )
+            else if ( prev_op == update_range_operation )
             {
                 // we can extend a range update and thus delete this element too
-                result.add(update_range_operation())
+                result.add(update_range_operation)
                       .add(last_update.at(1))
                       .add(increment(last_update.at(2)))
                       .add(last_update.at(3));
             }
             else
             {
-                result.add(delete_at_operation())
+                result.add(delete_at_operation)
                       .add(number(index));
 
                 prev = ptr;
@@ -536,7 +521,7 @@ namespace json {
             if ( index != int(b.length()) && index != int(current_state->length) )
             {
             	const vertex new_change = change_element(current_state, index, a.at(index-inserts_so_far), b.at(index),
-                    last_op, hysterese(a,b,index-inserts_so_far+1,index+1));
+                    last_op, heuristic( a, b, index - inserts_so_far + 1, index + 1 ) );
 
                 if ( new_change.costs <= max_size )
                     add_open(new_change, vertices, open_list);
@@ -546,7 +531,7 @@ namespace json {
             if ( index != int(b.length()))
             {
                 const vertex new_insert = insert_element(current_state, index, b.at(index), 
-                    last_op, hysterese(a,b,index-inserts_so_far,index+1));
+                    last_op, heuristic(a,b,index-inserts_so_far,index+1));
 
                 if ( new_insert.costs <= max_size )
                 	add_open(new_insert, vertices, open_list);
@@ -556,7 +541,7 @@ namespace json {
             if ( index != int(current_state->length) )
             {
                 const vertex new_delete = delete_element(current_state, index, 
-                    last_op, hysterese(a,b,index-inserts_so_far+1,index));
+                    last_op, heuristic(a,b,index-inserts_so_far+1,index));
 
                 if ( new_delete.costs <= max_size )
                     add_open(new_delete, vertices, open_list);
@@ -574,7 +559,7 @@ namespace json {
                     : std::make_pair(false, b);
             }
 
-            const std::size_t first_costs = hysterese(a, b) +1; // plus brackets - comma
+            const std::size_t first_costs = heuristic(a, b) +1; // plus brackets - comma
 
             if ( first_costs <= max_size )
             {
@@ -612,39 +597,39 @@ namespace json {
             {
                 if ( pb == bkeys.end() || pa != akeys.end() && *pa < *pb )
                 {
-                    result.add(delete_at_operation())
-                          .add(*pa);
+                    result.add( delete_at_operation )
+                          .add( *pa );
 
                     ++pa;
                 }
                 else if ( pa == akeys.end() || pb != bkeys.end() && *pb < *pa )
                 {
-                    result.add(insert_at_operation())
-                          .add(*pb)
-                          .add(b.at(*pb));
+                    result.add( insert_at_operation )
+                          .add( *pb )
+                          .add( b.at( *pb ) );
 
                     ++pb;
                 }
                 else
                 {
-                    assert(*pa == *pb);
-                    const value b_element = b.at(*pb);
+                    assert( *pa == *pb );
+                    const value b_element = b.at( *pb );
 
                     std::pair<bool, value> edit_op = delta(a.at(*pa), b_element, max_size - result.size());
 
                     // use edit, if possible and shorter
                     if ( edit_op.first && edit_op.second.size() < b_element.size() )
                     {
-                        result.add(edit_at_operation())
-                              .add(*pa)
-                              .add(edit_op.second);
+                        result.add( edit_at_operation )
+                              .add( *pa )
+                              .add( edit_op.second );
 
                     }
                     else
                     {
-                        result.add(update_at_operation())
-                              .add(*pa)
-                              .add(b_element);
+                        result.add( update_at_operation )
+                              .add( *pa)
+                              .add( b_element );
                     }
 
                     ++pa;

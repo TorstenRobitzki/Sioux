@@ -2,4 +2,7 @@
 # Please note that the content of this file is confidential or protected by law.
 # Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
-test 'json_test', :libraries => ['json', 'tools'], :extern_libs => ['boost_test_exec_monitor'], :sources =>  FileList['./source/json/*_test.cpp'] 
+test 'json_test', 
+    :libraries      => [ 'json', 'tools' ], 
+    :extern_libs    => [ 'boost_timer', 'boost_test_exec_monitor', 'boost_chrono', 'boost_system' ],
+    :sources        =>  FileList[ './source/json/*_test.cpp' ] 
