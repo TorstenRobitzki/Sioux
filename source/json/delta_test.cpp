@@ -83,7 +83,7 @@ namespace
         return apply_delta_and_update(json::parse(a), json::parse(b));
     }
 
-    std::string delta(const std::string& a, const std::string& b)
+    std::string delta( const std::string& a, const std::string& b )
     {
         const json::value av = json::parse(a);
         const json::value bv = json::parse(b);

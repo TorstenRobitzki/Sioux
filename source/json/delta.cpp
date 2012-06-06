@@ -6,8 +6,7 @@
 #include "json/json.h"
 #include "tools/asstring.h"
 #include <stdexcept>
-#include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/astar_search.hpp>
+#include <set>
 
 namespace json {
 
@@ -35,62 +34,62 @@ namespace json {
             return val.upcast<number>().to_int();
         }
 
-        value update_impl(const array& data, const array& update_operations)
+        value update_impl( const array& data, const array& update_operations )
         {
-            array result(data.copy());
+            array result( data.copy() );
 
             for ( std::size_t index = 0; index < update_operations.length(); )
             {
-                const int command = to_int(update_operations.at(index++));
+                const int command = to_int( update_operations.at( index++ ) );
 
                 switch ( command )
                 {
                 case update_at:
                     {
-                        const int update_idx = to_int(update_operations.at(index++));
-                        result.at(update_idx) = update_operations.at(index++);
+                        const int update_idx = to_int( update_operations.at( index++ ) );
+                        result.at( update_idx ) = update_operations.at( index++ );
                     }
                     break;
                 case delete_at:
                     {
-                        const int delete_idx = to_int(update_operations.at(index++));
-                        result.erase(delete_idx, 1u);
+                        const int delete_idx = to_int( update_operations.at( index++ ) );
+                        result.erase( delete_idx, 1u );
                     }
                     break;
                 case insert_at:
                     {
-                        const int insert_idx = to_int(update_operations.at(index++));
-                        result.insert(insert_idx, update_operations.at(index++));
+                        const int insert_idx = to_int( update_operations.at( index++ ) );
+                        result.insert( insert_idx, update_operations.at( index++ ) );
                     }
                     break;
                 case delete_range:
                     {
-                        const int start_idx = to_int(update_operations.at(index++));
-                        const int end_idx = to_int(update_operations.at(index++));
+                        const int start_idx = to_int( update_operations.at( index++ ) );
+                        const int end_idx   = to_int( update_operations.at( index++ ) );
                         result.erase(start_idx, end_idx-start_idx);
                     }
                     break;
                 case update_range:
                     {
-                        int start_idx = to_int(update_operations.at(index++));
-                        const int end_idx = to_int(update_operations.at(index++));
-                        result.erase(start_idx, end_idx-start_idx);
+                              int start_idx = to_int( update_operations.at( index++ ) );
+                        const int end_idx   = to_int( update_operations.at( index++ ) );
+                        result.erase( start_idx, end_idx - start_idx );
 
-                        const array& fill = update_operations.at(index++).upcast<array>();
+                        const array& fill = update_operations.at( index++ ).upcast< array >();
                         for ( int i = 0, end = fill.length(); i != end; ++i, ++start_idx )
-                            result.insert(start_idx, fill.at(i));
+                            result.insert( start_idx, fill.at( i ) );
                     }
                     break;
                 case edit_at:
                     {
-                        const int update_idx = to_int(update_operations.at(index++));
-                        const value& update_operation  = update_operations.at(index++);
+                        const int update_idx = to_int( update_operations.at( index++ ) );
+                        const value& update_operation  = update_operations.at( index++ );
 
-                        result.at(update_idx) = update(result.at(update_idx), update_operation);
+                        result.at( update_idx ) = update( result.at( update_idx ), update_operation );
                     }
                     break;
                 default:
-                    throw std::runtime_error("invalid update operation: " + tools::as_string(command));
+                    throw std::runtime_error( "invalid update operation: " + tools::as_string( command ) );
                 }
             }
 
@@ -296,7 +295,8 @@ namespace json {
             return number(v.upcast<number>().to_int()+1);
         }
 
-        vertex change_element(vertex_list_t::const_iterator ptr, int index, const value& a, const value& b, const value& prev_op, std::size_t hysteresis) 
+        vertex change_element( vertex_list_t::const_iterator ptr, int index, const value& a, const value& b,
+            const value& prev_op, std::size_t heuristic )
         {
             assert(a != b);
 
@@ -308,52 +308,52 @@ namespace json {
             {
                 // combine a previous update with this update to a range update
                 array new_elements;
-                new_elements.add(last_update.at(2)).add(b);
+                new_elements.add( last_update.at( 2 ) ).add( b );
 
-                result.add(update_range_operation)
-                      .add(last_update.at(1))
-                      .add(number(index+1))
-                      .add(new_elements);
+                result.add( update_range_operation )
+                      .add( last_update.at( 1 ) )
+                      .add( number( index + 1 ) )
+                      .add( new_elements );
             }
             else if ( prev_op == insert_at_operation )
             {
                 // combine a previous insert with this update to a range update
-                array new_elements(last_update.at(2));
-                new_elements.add(b);
+                array new_elements( last_update.at( 2 ) );
+                new_elements.add( b );
 
-                assert(index > 0);
+                assert( index > 0 );
 
-                result.add(update_range_operation)
-                      .add(number(index-1))
-                      .add(number(index+1))
-                      .add(new_elements);
+                result.add( update_range_operation )
+                      .add( number( index - 1 ) )
+                      .add( number( index ) )
+                      .add( new_elements );
             }
             else if ( prev_op == delete_at_operation )
             {
             	// combine a previous delete with this update to a range update
-                result.add(update_range_operation)
-                      .add(number(index))
-                      .add(number(index+2))
-                      .add(array(b));
+                result.add( update_range_operation )
+                      .add( number( index ) )
+                      .add( number( index + 2 ) )
+                      .add( array( b ) );
             }
             else if ( prev_op == delete_range_operation )
             {
                 // combine a previous range delete with this update to a range update
-                result.add(update_range_operation)
-                      .add(last_update.at(1))
-                      .add(increment(last_update.at(2)))
-                      .add(array(b));
+                result.add( update_range_operation )
+                      .add( last_update.at( 1 ) )
+                      .add( increment( last_update.at( 2 ) ) )
+                      .add( array( b ) );
             }
             else if ( prev_op == update_range_operation )
             {
-                array new_elements(last_update.at(3).upcast<array>().copy());
-                new_elements.add(b);
+                array new_elements( last_update.at( 3 ).upcast< array >().copy() );
+                new_elements.add( b );
 
                 // combine a previous update with this update to a range update
-                result.add(update_range_operation)
-                      .add(last_update.at(1))
-                      .add(increment(last_update.at(2)))
-                      .add(new_elements);
+                result.add( update_range_operation )
+                      .add( last_update.at( 1 ) )
+                      .add( increment( last_update.at( 2 ) ) )
+                      .add( new_elements );
             }
             else
             {
@@ -361,18 +361,18 @@ namespace json {
                 prev = ptr;
             }
 
-            assert(!result.empty());
+            assert( !result.empty() );
             size_t costs = prev->costs + result.size() -2 +1; // minus bracket plus a comma
 
             // lets try, if we can do better with an edit
-            std::pair<bool, value> edit_operation = delta(a, b, costs-5 /* the minimum costs of the edit framing (,6,0,) */);
+            const std::pair< bool, value > edit_operation = delta( a, b, costs-5 /* the minimum costs of the edit framing (,6,0,) */ );
 
             if ( edit_operation.first )
             {
                 array edit_result;
-                edit_result.add(edit_at_operation)
-                           .add(number(index))
-                           .add(edit_operation.second);
+                edit_result.add( edit_at_operation )
+                           .add( number( index ) )
+                           .add( edit_operation.second );
 
                 const std::size_t edit_costs = prev->costs + edit_result.size() -2 +1;
 
@@ -384,12 +384,13 @@ namespace json {
                 }
             }
 
-            const vertex newv  = {ptr->length, index+1, result, prev, costs + hysteresis, costs};
+            const vertex newv  = { ptr->length, index+1, result, prev, costs + heuristic, costs };
 
             return newv;
         }
 
-        vertex insert_element(vertex_list_t::const_iterator ptr, int index, const value& b, const value& prev_op, std::size_t hysterese)
+        vertex insert_element( vertex_list_t::const_iterator ptr, int index, const value& b, const value& prev_op,
+            std::size_t heuristic )
         {
             array result;
             vertex_list_t::const_iterator prev = ptr->previous;
@@ -401,54 +402,54 @@ namespace json {
 
             if ( prev_op == update_at_operation )
             {
-            	array new_elements(last_update.at(2));
-                new_elements.add(b);
+            	array new_elements( last_update.at( 2 ) );
+                new_elements.add( b );
 
-                result.add(update_range_operation)
-                      .add(last_update.at(1))
-                      .add(number(index))
-                      .add(new_elements);
+                result.add( update_range_operation )
+                      .add( last_update.at( 1 ) )
+                      .add( number( index ) )
+                      .add( new_elements );
             }
             else if ( prev_op == insert_at_operation )
             {
-                array new_elements(last_update.at(2));
-                new_elements.add(b);
+                array new_elements( last_update.at( 2 ) );
+                new_elements.add( b );
 
                 // combine a previous insert to a range update
-                result.add(update_range_operation)
-                      .add(number(index-1))
-                      .add(number(index-1))
-                      .add(new_elements);
+                result.add( update_range_operation )
+                      .add( number( index-1 ) )
+                      .add( number( index-1 ) )
+                      .add( new_elements );
             }
             else if ( prev_op == update_range_operation )
             {
-                array new_elements(last_update.at(3).upcast<array>().copy());
-                new_elements.add(b);
+                array new_elements( last_update.at( 3 ).upcast< array >().copy() );
+                new_elements.add( b );
 
                 // or combine a range update with this insert to an range update
-                result.add(update_range_operation)
-                      .add(last_update.at(1))
-                      .add(last_update.at(2))
-                      .add(new_elements);
+                result.add( update_range_operation )
+                      .add( last_update.at( 1 ) )
+                      .add( last_update.at( 2 ) )
+                      .add( new_elements );
             }
             else
             {
-                result.add(insert_at_operation)
-                      .add(number(index))
-                      .add(b);
+                result.add( insert_at_operation )
+                      .add( number(index) )
+                      .add( b );
 
                 prev = ptr;
             }
 
-            assert(result.size() > 3);
+            assert( result.size() > 3 );
 
             const size_t costs = prev->costs + result.size() -2 +1; // minus bracket plus a comma
-            const vertex newv  = {ptr->length+1, index+1, result, prev, costs + hysterese, costs};
+            const vertex newv  = { ptr->length + 1, index + 1, result, prev, costs + heuristic, costs };
 
             return newv;
         }
 
-        vertex delete_element(vertex_list_t::const_iterator ptr, int index, const value& prev_op, std::size_t hysterese)
+        vertex delete_element( vertex_list_t::const_iterator ptr, int index, const value& prev_op, std::size_t heuristic )
         {
             array result;
             vertex_list_t::const_iterator prev = ptr->previous;
@@ -457,45 +458,45 @@ namespace json {
 
             if ( prev_op == update_at_operation )
             {
-                result.add(update_range_operation)
-                      .add(number(index-1))
-                      .add(number(index+1))
-                      .add(array(last_update.at(2)));
+                result.add( update_range_operation )
+                      .add( number( index - 1 ) )
+                      .add( number( index + 1 ) )
+                      .add( array( last_update.at( 2 ) ) );
             }
             else if ( prev_op == delete_at_operation )
             {
                 // combine a previous delete with this delete to a range delete
-                result.add(delete_range_operation)
-                      .add(number(index))
-                      .add(number(index+2));
+                result.add( delete_range_operation )
+                      .add( number( index ) )
+                      .add( number( index + 2 ) );
             }
             else if ( prev_op == delete_range_operation )
             {
                 // extend a previous range delete to this element
-                result.add(delete_range_operation)
-                      .add(last_update.at(1))
-                      .add(increment(last_update.at(2)));
+                result.add( delete_range_operation )
+                      .add( last_update.at( 1 ) )
+                      .add( increment( last_update.at( 2 ) ) );
             }
             else if ( prev_op == update_range_operation )
             {
                 // we can extend a range update and thus delete this element too
-                result.add(update_range_operation)
-                      .add(last_update.at(1))
-                      .add(increment(last_update.at(2)))
-                      .add(last_update.at(3));
+                result.add( update_range_operation )
+                      .add( last_update.at( 1 ) )
+                      .add( increment( last_update.at( 2 ) ) )
+                      .add( last_update.at( 3 ) );
             }
             else
             {
-                result.add(delete_at_operation)
-                      .add(number(index));
+                result.add( delete_at_operation )
+                      .add( number( index ) );
 
                 prev = ptr;
             }
 
-            assert(!result.empty());
+            assert( !result.empty() );
 
             const size_t costs = prev->costs + result.size() -2 +1; // minus bracket plus a comma
-            const vertex newv  = {ptr->length-1, index, result, prev,costs + hysterese, costs};
+            const vertex newv  = { ptr->length - 1, index, result, prev, costs + heuristic, costs };
 
             return newv;
         }

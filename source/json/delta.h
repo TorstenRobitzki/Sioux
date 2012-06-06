@@ -30,7 +30,7 @@ namespace json
      * - number(4) : deletes the element from the next to the next but one index
      *             example: [4,6,14] deletes the elements with index 6,14 (exclusiv)
      * - number(5) : updates the range from the second to third index (exclusiv) with the 4th value
-     *             example: [5,2,3,[1,2]] replaces parts of an array
+     *             example: [5,2,3,[1,2]] replaces one element with two elements (1 and 2)
      *
      * For array and object, the edit operation applies the next but one array to the element with the name/index 
      * of the next element
