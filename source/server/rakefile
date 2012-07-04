@@ -4,5 +4,5 @@
 
 test 'server_test', 
     :libraries => ['server', 'http', 'tools'], 
-    :extern_libs => ['boost_date_time', 'boost_regex', 'boost_system', 'boost_thread', 'boost_test_exec_monitor'], 
+    :extern_libs => ['boost_date_time', 'boost_regex', 'boost_random', 'boost_system', 'boost_thread', 'boost_test_exec_monitor'], 
     :sources =>  FileList['./source/server/*_test.cpp'] 

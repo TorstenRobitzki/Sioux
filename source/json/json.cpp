@@ -1110,11 +1110,13 @@ namespace json
     value::value(impl* p)
         : pimpl_(p)
     {
+        assert( p );
     }
 
     value::value(const boost::shared_ptr<impl>& impl)
         : pimpl_(impl)
     {
+        assert( pimpl_.get() );
     }
 
     template <class Type>

@@ -26,14 +26,15 @@ void to_lower(std::string& s)
 	to_lower(s.begin(), s.end());
 }
 
-// according to rfc 3986
-static const boost::regex expression("^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?");
 
 namespace {
 
     template < class String >
     void split_url_impl(const String& url, String& scheme, String& authority, String& path, String& query, String& fragment)
     {
+        // according to rfc 3986
+        static const boost::regex expression("^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?");
+
         boost::match_results< typename String::const_iterator > what;
 
         if ( boost::regex_match( url.begin(), url.end(), what, expression) )

@@ -16,10 +16,12 @@ DOCUMENTATION_FOLDER = File.expand_path 'documentation'
 
 OBJECT_FILE_EXT = 'o'
 DEPENDS_FILE_EXT = 'd'
+SHARED_LIBRARY_FILE_EXT = 'bundle'
 
 INCLUDE_PATH = ['.', INCLUDE_FOLDER]
 
-FLAVORS = ['debug', 'release', 'coverage']
+FLAVORS = %w{debug release coverage}
+
 COMPILER_FLAGS = "-Wall -pedantic -Wno-parentheses -Wno-sign-compare -c -pipe -I#{INCLUDE_FOLDER}"
 COMPILER_FLAGS_BY_FLAVORS = {
 	'debug' => '-ggdb -O0',
@@ -27,17 +29,22 @@ COMPILER_FLAGS_BY_FLAVORS = {
 	'coverage' => '-ggdb -O0 -fno-inline -fprofile-arcs -ftest-coverage',
 }
 
-LINK_FLAGS = '-ggdb'
+LINK_FLAGS = "-ggdb"
 LINK_FLAGS_BY_FLAVORS = {
 	'debug' => '',
 	'release' => '',
 	'coverage' => '-fprofile-arcs -ftest-coverage -lgcov',
 }
 
+SHARED_LINK_FLAGS = "-shared -flat_namespace #{LINK_FLAGS}"
+SHARED_LINK_FLAGS_BY_FLAVORS = LINK_FLAGS_BY_FLAVORS
+
+RUBY_EXTENSION_LINK_FLAGS = '-static'
+
 BOOST_LIBRARY_POST_FIX_BY_FLAVOR = {
-	'debug' => '-mt-sd',
-	'release' => '-mt-s',
-	'coverage' => '-mt-sd'
+	'debug' => '-mt',
+	'release' => '-mt-d',
+	'coverage' => '-mt'
 }
 
 GCOV_PATTERN = ['*.gcda', '*.gcov', '*.gcno']
@@ -48,6 +55,7 @@ DEVICE_NULL = '/dev/null'
 
 executables = []
 ALL_TEST_NAMES = []
+SHARED_LIBARARIES = []
 
 def library_name_from_path path
 	Pathname.new(path).basename.to_s
@@ -57,8 +65,13 @@ def library_file_name lib, flavor
 	File.expand_path(File.join(LIBRARY_FOLDER, flavor, 'lib' + lib)) + '.a'
 end
 
+def shared_library_file_name lib, flavor
+    File.expand_path(File.join(LIBRARY_FOLDER, flavor, lib)) + '.' + SHARED_LIBRARY_FILE_EXT
+end
+
 def external_library_file_name lib, flavor
-	"#{lib}#{BOOST_LIBRARY_POST_FIX_BY_FLAVOR[flavor]}"
+    lib.start_with?('boost') ? 
+        "#{lib}#{BOOST_LIBRARY_POST_FIX_BY_FLAVOR[flavor]}" : lib
 end
 
 def exe_file_name exe, flavor
@@ -147,9 +160,26 @@ def build_library library_file, object_files, flavor
 	sh "ar -q #{library_file} #{object_files.join(' ')}"
 end
 
+# OSX initialize objects in the revers order as they appear on the linker command, so libaries are listed first
+# object files are listed second
+def build_ruby_extension shared_lib, objects, libraries, external_libraries, flavor
+    File.delete( shared_lib ) if File.exist?(shared_lib)
+    sh "g++ -o #{shared_lib} #{SHARED_LINK_FLAGS} #{SHARED_LINK_FLAGS_BY_FLAVORS[flavor]} " + 
+       "-L#{File.join(LIBRARY_FOLDER, flavor)} " + 
+       "#{external_libraries.reverse.collect{ | lib | "-l#{lib}" }.join(' ')} " +
+       "#{libraries.collect{|l| '-l' +l }.join(' ')} " +
+       "#{objects.join(' ')} "
+end
+
+# OSX initialize objects in the revers order as they appear on the linker command, so libaries are listed first
+# object files are listed second
 def build_executable executable, objects, libraries, external_libraries, flavor
 	File.delete(executable) if File.exist?(executable)
-	sh "g++ -o #{executable} #{LINK_FLAGS} #{LINK_FLAGS_BY_FLAVORS[flavor]} #{objects.join(' ')} -L#{File.join(LIBRARY_FOLDER, flavor)} #{libraries.collect{|l| '-l' +l }.join(' ')} #{external_libraries.collect{|l| '-l' + l }.join(' ')}"
+	sh "g++ -o #{executable} #{LINK_FLAGS} #{LINK_FLAGS_BY_FLAVORS[flavor]} " + 
+	   "-L#{File.join(LIBRARY_FOLDER, flavor)} " +
+       "#{external_libraries.reverse.collect{ | lib | "-l#{lib}" }.join(' ')} " +
+	   "#{libraries.reverse.collect{|l| '-l' +l }.join(' ')} " +
+	   "#{objects.join(' ')}"
 end
 
 # List of libraries in the source folder
@@ -288,6 +318,43 @@ def component_test test_name, *dependencies
     end
 end
 
+# build tasks for a ruby extension
+def ruby_extension lib_name, *dependencies
+    SHARED_LIBARARIES << lib_name 
+
+    params = { :libraries => [], :extern_libs => [], :sources => [] }
+    dependencies.each { | p | params.merge! p }
+    sources       = params.delete( :sources )
+    libraries     = params.delete( :libraries )
+    external_libs = params.delete( :extern_libs )
+
+    raise "unrecongnized parameters to 'shared_library': #{params}" unless params.empty?
+    
+    FLAVORS.each do | flavor |
+        lib_file    = shared_library_file_name lib_name, flavor
+        lib_dir     = File.dirname lib_file
+        
+        object_files       = create_object_to_source_dependencies sources, flavor
+        libraries_files    = libraries.collect {|l| library_file_name l, flavor }
+        external_lib_files = external_libs.collect {|e| external_library_file_name e, flavor }
+
+        directory lib_dir
+        file lib_file => lib_dir
+
+
+        file lib_file => object_files + libraries_files do | args |
+            build_ruby_extension lib_file, object_files, libraries, external_lib_files, flavor
+        end 
+    end     
+
+    task lib_name.to_sym, [ :flavor ] do |t, args|
+        args.with_defaults( :flavor => 'debug' )
+        check_flavor args.flavor
+    
+        Rake::Task[ shared_library_file_name lib_name, args.flavor ].invoke
+    end
+end
+ 
 # include sub rake files (this will populate ALL_TEST_NAMES)
 libraries.each do |library_name|
     rakefile = File.join(SOURCE_FOLDER, library_name, 'rakefile')
