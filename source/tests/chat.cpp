@@ -132,7 +132,7 @@ int main()
     server.add_listener( tcp::endpoint( address( address_v4::any() ), 8080u ) );
     server.add_listener( tcp::endpoint( address( address_v6::any() ), 8080u ) );
 
-    std::cout << "browse for \"http://127.0.0.1:8080/\"" << std::endl;
+    std::cout << "browse for \"http://localhost:8080/\"" << std::endl;
 
     for ( ;; )
     {
