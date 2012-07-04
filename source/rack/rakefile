@@ -1,0 +1,21 @@
+# Copyright (c) Torrox GmbH & Co KG. All rights reserved.
+# Please note that the content of this file is confidential or protected by law.
+# Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
+
+ruby_extension 'rack/bayeux',
+    :sources        => [ './source/rack/bayeux.cpp' ],
+    :libraries      => [ 'bayeux', 'server', 'pubsub', 'http', 'json', 'tools' ], 
+    :extern_libs    => [ 'boost_regex', 'boost_date_time', 'boost_system', 'boost_thread', 'ruby' ]
+
+task :all_rack_bayeux do
+    FLAVORS.each do | flavor |
+        Rake::Task[ 'rack/bayeux' ].execute( Rake::TaskArguments.new( [ :flavor ], [ flavor ] ) )
+    end
+end
+
+# rack_test is using different flavors of the shared library, so all used have to be used    
+task :rack_test => :all_rack_bayeux
+
+component_test 'rack_test',
+    :sources => FileList['./source/rack/rack_test.rb']
+    
