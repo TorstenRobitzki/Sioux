@@ -9,7 +9,7 @@
 #include <boost/bind.hpp>
 
 #include "server/server.h"
-#include "server/test_session_generator.h"
+#include "server/secure_session_generator.h"
 #include "bayeux/bayeux.h"
 #include "bayeux/log.h"
 #include "pubsub/pubsub.h"
@@ -90,13 +90,12 @@ namespace
         std::pair< bool, json::string > publish( const json::string& channel, const json::value& data,
             const json::object& message, VALUE& session, pubsub::root& root );
 
-        boost::asio::io_service         queue_;
-        const VALUE                     app_;
-        pubsub::root                    root_;
-        /// @todo add a decent implementation here
-        server::test::session_generator session_generator_;
-        bayeux::connector<>             connector_;
-        server_t                        server_;
+        boost::asio::io_service             queue_;
+        const VALUE                         app_;
+        pubsub::root                        root_;
+        server::secure_session_generator    session_generator_;
+        bayeux::connector<>                 connector_;
+        server_t                            server_;
     };
 
     bayeux_server::bayeux_server( VALUE application, VALUE configuration )

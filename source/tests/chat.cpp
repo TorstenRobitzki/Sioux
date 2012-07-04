@@ -3,7 +3,7 @@
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 #include "server/server.h"
-#include "server/test_session_generator.h"
+#include "server/secure_session_generator.h"
 #include "http/parser.h"
 #include "file/file.h"
 #include "pubsub/root.h"
@@ -119,8 +119,7 @@ int main()
     chat_adapter                        adapter;
     pubsub::root                        data( queue, adapter, pubsub::configurator().authorization_not_required() );
 
-    /// @todo add a decent implementation here
-    server::test::session_generator     session_generator;
+    server::secure_session_generator    session_generator;
     bayeux::connector<>                 bayeux( queue, data, session_generator, adapter, bayeux::configuration() );
 
     server::logging_server<>            server( queue, 0, std::cout );

@@ -14,7 +14,7 @@ test_util 'hello_world',
 
 test_util 'chat', 
     :libraries => ['file', 'server', 'bayeux', 'json', 'pubsub', 'http', 'tools'], 
-    :extern_libs => ['boost_filesystem', 'boost_date_time', 'boost_regex', 'boost_system', 'boost_thread'], 
+    :extern_libs => ['boost_filesystem', 'boost_date_time', 'boost_regex', 'boost_random', 'boost_system', 'boost_thread'], 
     :sources =>  FileList['./source/tests/chat.cpp'] 
 
 task :rack_chat => :all_rack_bayeux
