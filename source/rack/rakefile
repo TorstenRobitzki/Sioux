@@ -3,9 +3,9 @@
 # Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 ruby_extension 'rack/bayeux',
-    :sources        => [ './source/rack/bayeux.cpp' ],
+    :sources        => [ './source/rack/bayeux.cpp', './source/rack/ruby_tools.cpp' ],
     :libraries      => [ 'bayeux', 'server', 'pubsub', 'http', 'json', 'tools' ], 
-    :extern_libs    => [ 'boost_regex', 'boost_date_time', 'boost_system', 'boost_thread', 'ruby' ]
+    :extern_libs    => [ 'boost_regex', 'boost_date_time', 'boost_system', 'boost_random', 'boost_thread', 'ruby' ]
 
 task :all_rack_bayeux do
     FLAVORS.each do | flavor |

@@ -1,12 +1,22 @@
-require 'thread'
+# Copyright (c) Torrox GmbH & Co KG. All rights reserved.
+# Please note that the content of this file is confidential or protected by law.
+# Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
+require 'thread'
+require 'net/http'
 
 class BayeuxServerProxy
     def initialize
+
         @server_thread = Thread.new do 
-            Rake::Task['bayeux_reply'].execute()
+            if block_given?
+                yield
+            else
+                Rake::Task['bayeux_reply'].execute()
+            end    
         end
-        
+
+                
         while !server_is_running() do
             puts "waiting for reply server...." 
         end

@@ -17,20 +17,20 @@ namespace server
      *
      * This scope guard takes a reference to 
      */
-    template <class Connection>
+    template < class Connection >
     class report_error_guard
     {
     public:
-        report_error_guard(Connection& con, async_response& resp) 
-            : con_(&con)
-            , response_(&resp) 
-            , error_code_(http::http_internal_server_error)
+        report_error_guard( Connection& con, async_response& resp )
+            : con_( &con )
+            , response_( &resp )
+            , error_code_( http::http_internal_server_error )
         {}
 
-        report_error_guard(Connection& con, async_response& resp, http::http_error_code ec)
-            : con_(&con)
-            , response_(&resp) 
-            , error_code_(ec)
+        report_error_guard( Connection& con, async_response& resp, http::http_error_code ec )
+            : con_( &con )
+            , response_( &resp )
+            , error_code_( ec )
         {}
 
         ~report_error_guard()

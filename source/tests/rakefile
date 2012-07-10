@@ -17,8 +17,7 @@ test_util 'chat',
     :extern_libs => ['boost_filesystem', 'boost_date_time', 'boost_regex', 'boost_random', 'boost_system', 'boost_thread'], 
     :sources =>  FileList['./source/tests/chat.cpp'] 
 
-task :rack_chat => :all_rack_bayeux
 
-task 'rack_chat' do 
+task :rack_chat => :all_rack_bayeux do 
     ruby './source/tests/rack_chat.rb'
 end

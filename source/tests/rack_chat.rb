@@ -1,5 +1,10 @@
+# Copyright (c) Torrox GmbH & Co KG. All rights reserved.
+# Please note that the content of this file is confidential or protected by law.
+# Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
+
 require_relative '../rack/sioux'
 require 'rack'
+require 'rack/debug'
 
 puts "starting rack_chat...."
 
@@ -36,6 +41,8 @@ end
 
 app = Rack::Builder.new do
     use RackHandler
+    use Rack::Lint
+    use Rack::Debug
 end
 
 # Currently under OSX, only the debug version is working

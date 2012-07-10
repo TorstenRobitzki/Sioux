@@ -148,6 +148,20 @@ public:
 
 /**
  * @brief Splits an url into pieces
+ *
+ * Example from rfc3986
+ *
+ * @code
+ *
+ *  foo://example.com:8042/over/there?name=ferret#nose
+ *  \_/   \______________/\_________/ \_________/ \__/
+ *   |           |            |            |        |
+ * scheme     authority       path        query   fragment
+ *   |   _____________________|__
+ *  / \ /                        \
+ *  urn:example:animal:ferret:nose
+ *
+ * @endcode
  */
 void split_url(const std::string& url, std::string& scheme, std::string& authority, std::string& path, std::string& query, std::string& fragment);
 

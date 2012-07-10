@@ -4,6 +4,23 @@
 
 module Rack
     module Handler
+        class ApplicationWrapper
+            def initialize app
+                raise ArgumentError if app.nil?
+                @app = app
+            end
+             
+            def call environment
+                puts "environment: #{environment.inspect}"
+                
+                begin
+                    @app.call environment
+                rescue StopIteration
+                    []
+                end
+            end
+        end
+        
         class Sioux
             POSSIBLE_ENVIRONMENTS = %w{release debug converage}
             DEFAULTS = { 
@@ -22,7 +39,7 @@ module Rack
                 raise "unsupported environment #{}" unless POSSIBLE_ENVIRONMENTS.detect environment
                 require_relative "../../lib/#{environment}/rack/bayeux"
                 
-                SiouxRubyImplementation.run app, options
+                SiouxRubyImplementation.run ApplicationWrapper.new( app ), options
             end
 
             def self.valid_options

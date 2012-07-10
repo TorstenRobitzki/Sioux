@@ -6,6 +6,8 @@ require 'pathname'
 require 'rake/clean'
 require 'yaml'
 
+CPP = ENV["SIOUX_CPP"] || ENV["CPP"] || 'g++'
+
 SOURCE_FOLDER = File.expand_path 'source'
 INCLUDE_FOLDER = SOURCE_FOLDER 
 SOURCE_FOLDER_PATHNAME = Pathname.new SOURCE_FOLDER
@@ -41,10 +43,11 @@ SHARED_LINK_FLAGS_BY_FLAVORS = LINK_FLAGS_BY_FLAVORS
 
 RUBY_EXTENSION_LINK_FLAGS = '-static'
 
+BOOST_LIBRARY_PREFIX=ENV['SIOUX_BOOST_VERSION_PREFIX'].nil? ? '' : "-#{ENV['SIOUX_BOOST_VERSION_PREFIX']}"
 BOOST_LIBRARY_POST_FIX_BY_FLAVOR = {
-	'debug' => '-mt',
-	'release' => '-mt-d',
-	'coverage' => '-mt'
+	'debug' => "-mt#{BOOST_LIBRARY_PREFIX}",
+	'release' => "-mt-d#{BOOST_LIBRARY_PREFIX}",
+	'coverage' => "-mt#{BOOST_LIBRARY_PREFIX}"
 }
 
 GCOV_PATTERN = ['*.gcda', '*.gcov', '*.gcno']
@@ -144,7 +147,7 @@ def build_dependencies source_file, dependency_file, flavor
 end
 
 def build_object source_file, object_file, flavor, dependency_file
-	sh "g++ #{source_file} -o #{object_file} #{COMPILER_FLAGS} #{COMPILER_FLAGS_BY_FLAVORS[flavor]}"
+	sh "#{CPP} #{source_file} -o #{object_file} #{COMPILER_FLAGS} #{COMPILER_FLAGS_BY_FLAVORS[flavor]}"
 end
 
 def read_dependencies dependency_file
@@ -164,7 +167,7 @@ end
 # object files are listed second
 def build_ruby_extension shared_lib, objects, libraries, external_libraries, flavor
     File.delete( shared_lib ) if File.exist?(shared_lib)
-    sh "g++ -o #{shared_lib} #{SHARED_LINK_FLAGS} #{SHARED_LINK_FLAGS_BY_FLAVORS[flavor]} " + 
+    sh "#{CPP} -o #{shared_lib} #{SHARED_LINK_FLAGS} #{SHARED_LINK_FLAGS_BY_FLAVORS[flavor]} " + 
        "-L#{File.join(LIBRARY_FOLDER, flavor)} " + 
        "#{external_libraries.reverse.collect{ | lib | "-l#{lib}" }.join(' ')} " +
        "#{libraries.collect{|l| '-l' +l }.join(' ')} " +
@@ -175,7 +178,7 @@ end
 # object files are listed second
 def build_executable executable, objects, libraries, external_libraries, flavor
 	File.delete(executable) if File.exist?(executable)
-	sh "g++ -o #{executable} #{LINK_FLAGS} #{LINK_FLAGS_BY_FLAVORS[flavor]} " + 
+	sh "#{CPP} -o #{executable} #{LINK_FLAGS} #{LINK_FLAGS_BY_FLAVORS[flavor]} " + 
 	   "-L#{File.join(LIBRARY_FOLDER, flavor)} " +
        "#{external_libraries.reverse.collect{ | lib | "-l#{lib}" }.join(' ')} " +
 	   "#{libraries.reverse.collect{|l| '-l' +l }.join(' ')} " +
