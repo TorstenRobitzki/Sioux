@@ -2,7 +2,43 @@
 # Please note that the content of this file is confidential or protected by law.
 # Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
+require 'stringio'
+require 'rack'
+
 module Rack
+    module Sioux
+        class Validate
+            def initialize app, &block
+                @app    = app
+            end
+            
+            def call env
+                @app.call env
+            end
+        end
+        
+        
+        class Authorize
+            def initialize app, &block
+                @app    = app
+            end
+            
+            def call env
+                @app.call env
+            end
+        end
+        
+        class Initialize
+            def initialize app, &block
+                @app    = app
+            end
+            
+            def call env
+                @app.call env
+            end
+        end
+    end
+    
     module Handler
         class ApplicationWrapper
             def initialize app
@@ -11,10 +47,30 @@ module Rack
             end
              
             def call environment
-                puts "environment: #{environment.inspect}"
+                error_log = StringIO.new '', 'w'
                 
+                # patch the environment
+                environment[ 'SERVER_PORT' ] = environment[ 'SERVER_PORT' ].to_s 
+                environment[ 'rack.input' ]  = StringIO.new environment[ 'rack.input' ], 'r'
+                environment[ 'rack.errors' ] = error_log 
+                environment[ 'rack.version' ] = Rack::VERSION
+                                
                 begin
-                    @app.call environment
+                    status, headers, body = @app.call environment
+    
+                    # patch the result to be more convenience for the c++ part
+                    body_text = ""
+                    body.each { | line | body_text = body_text + line }
+                                        
+                    if !body_text.empty? && !headers.include?( 'Content-Length' )
+                        headers[ 'Content-Length' ] = body_text.length 
+                    end
+                    
+                    header_text = headers.inject( "" ) do | sum, ( header, value ) | 
+                        sum + "#{header}: #{value}\r\n"
+                    end + "\r\n"
+                    
+                    [ status, header_text, body_text, error_log.string ]
                 rescue StopIteration
                     []
                 end

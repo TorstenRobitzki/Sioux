@@ -24,3 +24,8 @@ VALUE rack::rb_str_new_sub( const tools::substring& s )
 {
     return rb_str_new( s.begin(), s.size() );
 }
+
+tools::substring rack::rb_str_to_sub( VALUE str )
+{
+    return tools::substring( RSTRING_PTR( str ), RSTRING_PTR( str ) + RSTRING_LEN( str ) );
+}

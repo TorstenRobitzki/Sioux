@@ -15,7 +15,7 @@
 
 namespace
 {
-    typedef typename server::logging_server<>::connection_t connection_t;
+    typedef server::logging_server<>::connection_t connection_t;
 
     boost::shared_ptr< server::async_response > on_bayeux_request(
                       bayeux::connector<>&                              connector,

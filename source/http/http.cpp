@@ -104,7 +104,7 @@ std::ostream& operator<<(std::ostream& out, http_error_code ec)
 
 std::string status_line(const std::string& version, http_error_code ec)
 {
-	return version + " " + tools::as_string(ec) + " " + reason_phrase(ec) + "\r\n";
+	return "HTTP/" + version + " " + tools::as_string( static_cast< int >( ec ) ) + " " + reason_phrase(ec) + "\r\n";
 }
 
 std::string status_line(const char* version, http_error_code ec)

@@ -59,11 +59,6 @@ namespace rack
             {
                 call_queue_.push( this->shared_from_this() );
             }
-            else
-            {
-                connection_->async_read_body(
-                    boost::bind( &response::body_read_handler, this->shared_from_this(), _1, _2, _3 ) );
-            }
 
             error_guard.dismiss();
         }

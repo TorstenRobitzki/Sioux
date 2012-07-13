@@ -39,7 +39,7 @@ namespace http
     /**
      * @brief base class for request_header and response_header
      */
-    template <class Type>
+    template < class Type >
     class message_base : public message
     {
     public:
@@ -99,7 +99,7 @@ namespace http
          *
          * The returned object will become invalid, when the request_header, where the pointer 
          * is obtained from, becomes invalid. When searching for the corresponding header, is 
-         * not case sensitiv. 
+         * not case sensitive.
          * Trailing and leading \\r\n and tabs and spaces are removed in the returned value. If 
          * the header values spawns multiple lines, \\r\n within the value are _not_ removed.
          */
@@ -122,6 +122,13 @@ namespace http
          */
         bool empty() const;
 
+        typedef std::vector<header> header_list_t;
+        typedef header_list_t::const_iterator const_iterator;
+
+        const header_list_t& headers() const;
+
+        const_iterator begin() const;
+        const_iterator end() const;
     protected:
         message_base();
 
@@ -153,6 +160,7 @@ namespace http
         // searchs the header parsed to far
         const header* find_header_impl(const char* header_name) const;
 
+
     private:
         message_base(const message_base&);
         message_base& operator=(const message_base&);
@@ -177,7 +185,6 @@ namespace http
             expect_header
         } parser_state_;
 
-        typedef std::vector<header> header_list_t;
         header_list_t               headers_;
     };
 

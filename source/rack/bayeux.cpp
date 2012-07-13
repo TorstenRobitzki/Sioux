@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <iostream>
 #include <boost/bind.hpp>
+#include <boost/utility.hpp>
 
 #include "rack/response.h"
 #include "rack/response.inc"
@@ -37,12 +38,12 @@ namespace
     typedef server_t::connection_t connection_t;
     typedef rack::response< connection_t > response_t;
 
-    extern "C" void* call_ruby_application( void* that );
-
-    class bayeux_server : private pubsub::adapter, bayeux::adapter< VALUE >, rack::call_back_interface
+    class bayeux_server : private pubsub::adapter, bayeux::adapter< VALUE >, rack::call_back_interface, boost::noncopyable
     {
     public:
         bayeux_server( VALUE application, VALUE configuration );
+
+        ~bayeux_server();
 
         void run();
 
@@ -69,22 +70,23 @@ namespace
 
         virtual std::vector< char > call( const std::vector< char >& body, const http::request_header& request );
 
-        boost::asio::io_service             queue_;
+        // a pointer is used to destroy the queue_ and thus the contained response-objects before the server and
+        // thus accessed objects like the logging-trait
+        boost::asio::io_service*            queue_;
         const VALUE                         app_;
         pubsub::root                        root_;
         server::secure_session_generator    session_generator_;
         bayeux::connector<>                 connector_;
         rack::call_queue< response_t >      response_queue_;
         server_t                            server_;
-
     };
 
     bayeux_server::bayeux_server( VALUE application, VALUE configuration )
-        : queue_()
+        : queue_( new boost::asio::io_service )
         , app_( application )
-        , root_( queue_, *this, pubsub_config( configuration ) )
-        , connector_( queue_, root_, session_generator_, *this, bayeux::configuration() )
-        , server_( queue_, 0, std::cout )
+        , root_( *queue_, *this, pubsub_config( configuration ) )
+        , connector_( *queue_, root_, session_generator_, *this, bayeux::configuration() )
+        , server_( *queue_, 0, std::cout )
     {
         server_.add_action( "/bayeux", boost::bind( &bayeux_server::on_bayeux_request, this, _1, _2 ) );
         server_.add_action( "/", boost::bind( &bayeux_server::on_request, this, _1, _2 ) );
@@ -96,11 +98,16 @@ namespace
         server_.add_listener( tcp::endpoint( address( address_v6::any() ), port ) );
     }
 
+    bayeux_server::~bayeux_server()
+    {
+       delete queue_;
+    }
+
     void bayeux_server::run_queue()
     {
         try
         {
-            queue_.run();
+            queue_->run();
         }
         catch ( ... )
         {
@@ -114,7 +121,7 @@ namespace
 
         response_queue_.process_request( *this );
 
-        queue_.stop();
+        queue_->stop();
         queue_runner.join();
     }
 
@@ -131,7 +138,7 @@ namespace
                 const boost::shared_ptr< const http::request_header >&  request )
     {
         const boost::shared_ptr< server::async_response > result(
-            new rack::response< connection_t >( connection, request, queue_, response_queue_ ) );
+            new rack::response< connection_t >( connection, request, *queue_, response_queue_ ) );
 
         return result;
     }
@@ -166,13 +173,24 @@ namespace
         return std::pair< bool, json::string >();
     }
 
+    static void fill_http_headers( VALUE environment, const http::request_header& request )
+    {
+        for ( http::request_header::const_iterator header = request.begin(), end = request.end(); header != end; ++header )
+        {
+            static const ID upcase = rb_intern( "upcase!" );
+
+            VALUE header_name = rb_str_concat( rb_str_new2( "HTTP_" ), rack::rb_str_new_sub( header->name() ) );
+            header_name = rb_funcall( header_name, upcase, 0 );
+
+            rb_hash_aset( environment, header_name, rack::rb_str_new_sub( header->value() ) );
+        }
+    }
+
     static void fill_header( VALUE environment, const http::request_header& request )
     {
         using namespace rack;
 
-        rb_hash_aset( environment,
-            rb_str_new2( "REQUEST_METHOD" ),
-            rb_str_new2( tools::as_string( request.method() ).c_str() ) );
+        rb_hash_aset( environment, rb_str_new2( "REQUEST_METHOD" ), rb_str_new2( tools::as_string( request.method() ).c_str() ) );
 
         tools::substring scheme, authority, path, query, fragment;
         http::split_url( request.uri(), scheme, authority, path, query, fragment );
@@ -185,41 +203,91 @@ namespace
 
         rb_hash_aset( environment, rb_str_new2( "SERVER_NAME" ), rb_str_new_sub( request.host() ) );
         rb_hash_aset( environment, rb_str_new2( "SERVER_PORT" ), INT2FIX( request.port() ) );
+
+        rb_hash_aset( environment, rb_str_new2( "rack.url_scheme" ), rb_str_new2( "http" ) );
+        rb_hash_aset( environment, rb_str_new2( "rack.multithread" ), Qfalse );
+        rb_hash_aset( environment, rb_str_new2( "rack.multiprocess" ), Qfalse );
+        rb_hash_aset( environment, rb_str_new2( "rack.run_once" ), Qfalse );
+
+        fill_http_headers( environment, request );
+    }
+
+    extern "C"
+    {
+        static VALUE call_ruby_cb( VALUE* params )
+        {
+            static const ID func_name = rb_intern("call");
+
+            assert( TYPE( params[ 1 ] ) == T_HASH );
+            return rb_funcall( params[ 0 ], func_name, 1, params[ 1 ] );
+        }
+
+        static VALUE rescue_ruby( VALUE /* arg */, VALUE exception )
+        {
+            VALUE error_msg = rb_str_new2( "error calling application: " );
+            error_msg = rb_str_concat( error_msg, rb_funcall( exception, rb_intern( "message" ), 0 ) );
+            error_msg = rb_str_concat( error_msg, rb_str_new2( "\n" ) );
+
+            VALUE back_trace = rb_funcall( exception, rb_intern( "backtrace" ), 0 );
+            back_trace = rb_funcall( back_trace, rb_intern( "join" ), 1, rb_str_new2( "\n" ) );
+
+            error_msg = rb_str_concat( error_msg, back_trace );
+
+            return error_msg;
+        }
     }
 
     std::vector< char > bayeux_server::call( const std::vector< char >& body, const http::request_header& request )
     {
         VALUE hash = rb_hash_new();
 
-        // call the application callback
         fill_header( hash, request );
-        static const ID func_name = rb_intern("call");
+        rb_hash_aset( hash, rb_str_new2( "rack.input" ), rb_str_new( &body[ 0 ], body.size() ) );
 
-        assert( func_name );
-        VALUE ruby_result = rb_funcall( app_, func_name, 1, hash );
+        VALUE func_args[ 2 ] = { app_, hash };
 
-        if ( TYPE( ruby_result ) == T_ARRAY )
+        // call the application callback
+        VALUE ruby_result = rb_rescue2(
+            reinterpret_cast< VALUE (*)( ANYARGS ) >( &call_ruby_cb ), reinterpret_cast< VALUE >( &func_args[ 0 ] ),
+            reinterpret_cast< VALUE (*)( ANYARGS ) >( &rescue_ruby ), Qnil,
+            rb_eException, static_cast< VALUE >( 0 ) );
+
+        if ( TYPE( ruby_result ) == T_STRING )
         {
-            const int result_size = RARRAY_LEN( ruby_result );
-std::cout << "result ist array: "            << result_size << std::endl;
-            if ( result_size  == 0 )
-            {
-std::cout << "stopping..." << std::endl;
-                response_queue_.stop();
-            }
-            else if ( result_size == 3 )
-            {
-
-            }
-            else
-            {
-
-            }
+            std::cerr << rack::rb_str_to_sub( ruby_result ) << std::endl;
+            return std::vector< char >();
         }
-        // contruct a response header
 
-        // deliver the result
-        return std::vector< char >();
+        assert ( TYPE( ruby_result ) == T_ARRAY );
+        const int result_size = RARRAY_LEN( ruby_result );
+
+        if ( result_size  == 0 )
+        {
+            response_queue_.stop();
+            return std::vector< char >();
+        }
+
+        assert( result_size == 4 );
+        VALUE ruby_error   = rb_ary_pop( ruby_result );
+        VALUE ruby_body    = rb_ary_pop( ruby_result );
+        VALUE ruby_headers = rb_ary_pop( ruby_result );
+        VALUE ruby_status  = rb_ary_pop( ruby_result );
+
+        assert( TYPE( ruby_error ) == T_STRING );
+        assert( TYPE( ruby_body ) == T_STRING );
+        assert( TYPE( ruby_headers ) == T_STRING );
+        assert( TYPE( ruby_status ) == T_FIXNUM );
+
+        const std::string status_line = http::status_line( "1.1", static_cast< http::http_error_code >( NUM2INT( ruby_status ) ) );
+
+        VALUE result = rb_str_new( status_line.data(), status_line.size() );
+        result = rb_str_plus( result, ruby_headers );
+        result = rb_str_plus( result, ruby_body );
+
+        if ( RSTRING_LEN( ruby_error ) )
+            std::cerr << rack::rb_str_to_sub( ruby_error ) << std::endl;
+
+        return std::vector< char >( RSTRING_PTR( result ), RSTRING_PTR( result ) + RSTRING_LEN( result ) );
     }
 }
 

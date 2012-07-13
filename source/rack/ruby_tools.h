@@ -12,6 +12,7 @@ namespace rack
 {
     int from_hash( VALUE hash, const char* entry );
     VALUE rb_str_new_sub( const tools::substring& s );
+    tools::substring rb_str_to_sub( VALUE );
 }
 
 #endif /* RACK_RUBY_TOOLS_H_ */

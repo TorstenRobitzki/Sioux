@@ -3,47 +3,45 @@
 # Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 require_relative '../rack/sioux'
+require_relative '../rack/bayeux'
 require 'rack'
 require 'rack/debug'
+require 'rack/static'
 
 puts "starting rack_chat...."
+messages = []
 
-class RackHandler
-    def initialze( app )
-        @chat = []
-        @app  = app
-    end
-    
-    def call( environment )
-        @app.call( environment )
-    end
-    
-    # Bayeux specific interface
-    def handshake()
-    end
-    
-    def publish()
-    end
-    
-    # PubSub specific interface
-    def validate_node node_name
-        node_name == { 'p1' => 'chat' }
-    end
-    
-    def node_init node_name
-        @chat
-    end
-    
-    def set_root root
-        @root = root
-    end
-end
+ROOT = File.expand_path(File.dirname(__FILE__))
 
 app = Rack::Builder.new do
-    use RackHandler
     use Rack::Lint
-    use Rack::Debug
+
+    use Rack::Bayeux::Handshake do | env, ext, session |
+    end
+    
+    use Rack::Bayeux::Publish do | env, channel, data, whole_message, session_data, root |
+        return [ false, 'invalid channel' ] unless channel == '/chat'
+        root[ { 'P1' => 'chat' } ] = messages
+        [ true, '' ]
+    end
+    
+    use Rack::Sioux::Validate do | env, node |
+        node == { 'P1' => 'chat' } 
+    end
+    
+    use Rack::Sioux::Authorize do | env, node |
+        true
+    end
+     
+    use Rack::Sioux::Initialize do | env, node |
+        messages
+    end
+
+    use Rack::Lint
+    use Rack::Static, :urls => [ '/jquery' ], :root => ROOT
+    use Rack::Static, :urls => [ '/' ], :index => '/index.html', :root => File.join( ROOT, 'chat' )
+    run lambda { | env | [ 404, { 'Content-Type' => 'text/html' }, [] ] }
 end
 
-# Currently under OSX, only the debug version is working
 Rack::Handler::Sioux.run( app, 'Environment' => 'debug', 'Host' => 'localhost', 'Port' => 8080 )
+

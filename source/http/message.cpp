@@ -334,6 +334,24 @@ namespace http {
         return read_ptr_ == 0;
     }
 
+    template <class Type>
+    const typename message_base< Type >::header_list_t&  message_base< Type >::headers() const
+    {
+        return headers_;
+    }
+
+    template <class Type>
+    typename message_base< Type >::const_iterator message_base< Type >::begin() const
+    {
+        return headers_.begin();
+    }
+
+    template <class Type>
+    typename message_base< Type >::const_iterator message_base< Type >::end() const
+    {
+        return headers_.end();
+    }
+
     // explizit instanziating
     template class message_base<request_header>;
     template class message_base<response_header>;
