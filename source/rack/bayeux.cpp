@@ -38,7 +38,11 @@ namespace
     typedef server_t::connection_t connection_t;
     typedef rack::response< connection_t > response_t;
 
-    class bayeux_server : private pubsub::adapter, bayeux::adapter< VALUE >, rack::call_back_interface, boost::noncopyable
+    class bayeux_server :
+        private pubsub::adapter,
+        private bayeux::adapter< VALUE >,
+        private rack::application_interface,
+        private boost::noncopyable
     {
     public:
         bayeux_server( VALUE application, VALUE configuration );
@@ -58,17 +62,21 @@ namespace
 
         static pubsub::configuration pubsub_config( VALUE configuration );
 
+        // pubsub::adapter implementation
         void validate_node( const pubsub::node_name& node_name, const boost::shared_ptr< pubsub::validation_call_back>& );
         void authorize( const boost::shared_ptr< pubsub::subscriber >&, const pubsub::node_name& node_name, const boost::shared_ptr< pubsub::authorization_call_back >&);
         void node_init( const pubsub::node_name& node_name, const boost::shared_ptr< pubsub::initialization_call_back >&);
 
+        // bayeux::adapter implementation
         std::pair< bool, json::string > handshake( const json::value& ext, VALUE& session );
         std::pair< bool, json::string > publish( const json::string& channel, const json::value& data,
             const json::object& message, VALUE& session, pubsub::root& root );
 
-        void run_queue();
+        // rack::application_interface implementation
+        std::vector< char > call( const std::vector< char >& body, const http::request_header& request );
 
-        virtual std::vector< char > call( const std::vector< char >& body, const http::request_header& request );
+        // run the C++-land io queue
+        void run_queue();
 
         // a pointer is used to destroy the queue_ and thus the contained response-objects before the server and
         // thus accessed objects like the logging-trait
@@ -77,7 +85,7 @@ namespace
         pubsub::root                        root_;
         server::secure_session_generator    session_generator_;
         bayeux::connector<>                 connector_;
-        rack::call_queue< response_t >      response_queue_;
+        rack::ruby_land_queue               ruby_land_queue_;
         server_t                            server_;
     };
 
@@ -119,7 +127,7 @@ namespace
     {
         boost::thread queue_runner( boost::bind( &bayeux_server::run_queue, this ) );
 
-        response_queue_.process_request( *this );
+        ruby_land_queue_.process_request( *this );
 
         queue_->stop();
         queue_runner.join();
@@ -138,7 +146,7 @@ namespace
                 const boost::shared_ptr< const http::request_header >&  request )
     {
         const boost::shared_ptr< server::async_response > result(
-            new rack::response< connection_t >( connection, request, *queue_, response_queue_ ) );
+            new rack::response< connection_t >( connection, request, *queue_, ruby_land_queue_ ) );
 
         return result;
     }
@@ -263,7 +271,7 @@ namespace
 
         if ( result_size  == 0 )
         {
-            response_queue_.stop();
+            ruby_land_queue_.stop();
             return std::vector< char >();
         }
 
