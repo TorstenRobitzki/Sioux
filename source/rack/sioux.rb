@@ -41,9 +41,10 @@ module Rack
     
     module Handler
         class ApplicationWrapper
-            def initialize app
+            def initialize app, options
                 raise ArgumentError if app.nil?
-                @app = app
+                @app     = app
+                @options = options
             end
              
             def call environment
@@ -82,7 +83,8 @@ module Rack
             DEFAULTS = { 
                 'Environment'   => POSSIBLE_ENVIRONMENTS[ 0 ],
                 'Host'          => 'localhost',
-                'Port'          => 8080
+                'Port'          => 8080,
+                'Adapter'       => nil
             }
             
             def self.run app, options = {}
@@ -94,15 +96,17 @@ module Rack
                 environment = options.delete 'Environment' 
                 raise "unsupported environment #{}" unless POSSIBLE_ENVIRONMENTS.detect environment
                 require_relative "../../lib/#{environment}/rack/bayeux"
-                
-                SiouxRubyImplementation.run ApplicationWrapper.new( app ), options
+
+                server = Rack::Sioux::SiouxRubyImplementation.new
+                server.run ApplicationWrapper.new( app, options ), options 
             end
 
             def self.valid_options
                 {
                     "Environment=#{POSSIBLE_ENVIRONMENTS.join('|')}" => "build flavor of the sioux server (default: #{DEFAULTS['Environment']})",
-                    "Host=hostname|ip-address" => "address of a single IP endpoint to bind to (default: 'localhost')",
-                    "Port=ip-port" => "port of a single IP endpoint to bind to (default: 8080)"
+                    "Host=hostname|ip-address" => "address of a single IP endpoint to bind to (default: #{DEFAULTS['localhost']})",
+                    "Port=ip-port" => "port of a single IP endpoint to bind to (default: #{DEFAULTS['Port']})",
+                    'Adapter=object' => 'object validate and authorize reading access to the root-data object. (default: nil)' 
                 }
             end
         end

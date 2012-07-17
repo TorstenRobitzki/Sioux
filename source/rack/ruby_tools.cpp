@@ -4,28 +4,45 @@
 
 #include "rack/ruby_tools.h"
 
-int rack::from_hash( VALUE hash, const char* entry )
+namespace rack
 {
-    static const ID func_name = rb_intern("[]");
-    assert( func_name );
+    int from_hash( VALUE hash, const char* entry )
+    {
+        static const ID func_name = rb_intern("[]");
+        assert( func_name );
 
-    VALUE ruby_result = rb_funcall( hash, func_name, 1, rb_str_new2( entry ) );
+        VALUE ruby_result = rb_funcall( hash, func_name, 1, rb_str_new2( entry ) );
 
-    if ( !ruby_result )
-        rb_raise( rb_eArgError, "no entry named: %s found", entry );
+        if ( !ruby_result )
+            rb_raise( rb_eArgError, "no entry named: %s found", entry );
 
-    if ( TYPE( ruby_result ) != T_FIXNUM )
-        rb_raise( rb_eTypeError, "expected Fixnum for %s", entry );
+        if ( TYPE( ruby_result ) != T_FIXNUM )
+            rb_raise( rb_eTypeError, "expected Fixnum for %s", entry );
 
-    return FIX2INT( ruby_result );
-}
+        return FIX2INT( ruby_result );
+    }
 
-VALUE rack::rb_str_new_sub( const tools::substring& s )
-{
-    return rb_str_new( s.begin(), s.size() );
-}
+    VALUE rb_str_new_sub( const tools::substring& s )
+    {
+        return rb_str_new( s.begin(), s.size() );
+    }
 
-tools::substring rack::rb_str_to_sub( VALUE str )
-{
-    return tools::substring( RSTRING_PTR( str ), RSTRING_PTR( str ) + RSTRING_LEN( str ) );
+
+    VALUE rb_str_new_std( const std::string& s )
+    {
+        return rb_str_new( s.data(), s.size() );
+    }
+
+    tools::substring rb_str_to_sub( VALUE str )
+    {
+        Check_Type( str, T_STRING );
+        return tools::substring( RSTRING_PTR( str ), RSTRING_PTR( str ) + RSTRING_LEN( str ) );
+    }
+
+    std::string rb_str_to_std( VALUE str )
+    {
+        Check_Type( str, T_STRING );
+        return std::string( RSTRING_PTR( str ), RSTRING_PTR( str ) + RSTRING_LEN( str ) );
+    }
+
 }

@@ -24,18 +24,6 @@ app = Rack::Builder.new do
         root[ { 'P1' => 'chat' } ] = messages
         [ true, '' ]
     end
-    
-    use Rack::Sioux::Validate do | env, node |
-        node == { 'P1' => 'chat' } 
-    end
-    
-    use Rack::Sioux::Authorize do | env, node |
-        true
-    end
-     
-    use Rack::Sioux::Initialize do | env, node |
-        messages
-    end
 
     use Rack::Lint
     use Rack::Static, :urls => [ '/jquery' ], :root => ROOT
@@ -43,5 +31,23 @@ app = Rack::Builder.new do
     run lambda { | env | [ 404, { 'Content-Type' => 'text/html' }, [] ] }
 end
 
-Rack::Handler::Sioux.run( app, 'Environment' => 'debug', 'Host' => 'localhost', 'Port' => 8080 )
+class Adapter
+
+    def init root 
+    end
+    
+    def validate_node node
+        node == { 'P1' => 'chat' } 
+    end
+    
+    def authorize subscriber, node
+        true
+    end
+     
+    def node_init node
+        messages
+    end
+end
+
+Rack::Handler::Sioux.run( app, 'Environment' => 'debug', 'Host' => 'localhost', 'Port' => 8080, 'Adapter' => Adapter.new )
 

@@ -48,6 +48,7 @@ namespace rack
 
         /**
          * @brief this function can be called without having the gvl (global vm lock) at hand
+         *
          * @return true, if the callback was stored for latter executing
          */
         bool push( const call_back_t& );
@@ -61,6 +62,7 @@ namespace rack
          * @brief this function blocks and releases the gvl while waiting for new work to come
          *
          * If new work is processed, the glv is reacquired
+         * @attention it's expected that this function is only called by threads, that are created by ruby.
          */
         void process_request( application_interface& application );
 

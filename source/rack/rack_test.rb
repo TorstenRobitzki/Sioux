@@ -8,7 +8,7 @@ require 'net/http'
 
 require 'minitest/unit'
 require_relative 'sioux'
-require_relative '../tests/bayeux_reply'
+require_relative '../bayeux/client'
 
 class RackTestHandler
     attr_reader :environment
@@ -29,7 +29,7 @@ class RackTestHandler
     end
 end
 
-class RackIntegrationTest < MiniTest::Unit::TestCase
+module SetupRackserver
     @@HOST = 'localhost'
     @@PORT = 8080
     @@URI  = URI( "http://#{@@HOST}:#{@@PORT}" )
@@ -50,13 +50,14 @@ class RackIntegrationTest < MiniTest::Unit::TestCase
         raise "Timeout waiting for sever!" unless stop
     end
     
-    def setup
+    def setup adapter = nil
         @app = RackTestHandler.new
         @server_loop = Thread.new do
             begin
-                Rack::Handler::Sioux.run( Rack::Lint.new( @app ), 'Environment' => 'debug', 'Host' => @@HOST, 'Port' => @@PORT )
-            rescue
-                @answer = @app.answer
+                Rack::Handler::Sioux.run( Rack::Lint.new( @app ), 'Environment' => 'debug', 'Host' => @@HOST, 'Port' => @@PORT, 'Adapter' => adapter )
+            rescue => error
+                puts "Error Rack::Handler::Sioux.run() #{error.message}"
+                puts error.backtrace.join("\n")        
             end
          end
 
@@ -75,8 +76,11 @@ class RackIntegrationTest < MiniTest::Unit::TestCase
         
         @server_loop.join
     end
-    
+end
 
+class RackIntegrationTest < MiniTest::Unit::TestCase
+    include SetupRackserver
+    
     def test_get_method
         assert_equal "Hello Rack!", Net::HTTP.get( @@URI )
 
@@ -153,6 +157,57 @@ class RackIntegrationTest < MiniTest::Unit::TestCase
 
         assert_equal '', @app.environment[ 'QUERY_STRING' ]
     end
+
+end
+
+class RackIntegrationTest < MiniTest::Unit::TestCase
+    include SetupRackserver
+
+    def test_bayeux_handshake
+        # Start a bayeux client, handshake, update a node 
+        
+        # observe the validation, authorization and initialization request
+    end
+end
+
+class RackPublishIntegrationTest < MiniTest::Unit::TestCase
+
+    # adapter implementation    
+    def init root
+        @root = root
+    end
     
+    def validate_node node
+        @validated_node = node
+        true
+    end
+    
+    class Init
+        include SetupRackserver
+    end
+
+    def setup
+        @root = nil
+        @init = Init.new  
+        @init.setup self
+    end
+    
+    def teardown
+        @init.teardown
+    end
+    
+    def test_initial_root
+        refute_nil @root, "No initial root"
+    end
+
+    def test_root_assignable
+        @root[ { 'node' => 'name' } ] = 'Foo'; 
+    end
+    
+    def test_validation_requested
+        @root.subscribe_for_testing( { 'node' => 'name', 'param' => '42' } )
+        sleep 1 
+        assert_equal( { 'node' => 'name', 'param' => '42' }, @validated_node )
+    end
 end
 

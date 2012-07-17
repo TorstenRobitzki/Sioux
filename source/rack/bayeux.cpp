@@ -12,6 +12,7 @@
 #include "rack/response.h"
 #include "rack/response.inc"
 #include "rack/ruby_tools.h"
+#include "rack/adapter.h"
 #include "server/server.h"
 #include "server/secure_session_generator.h"
 #include "bayeux/bayeux.h"
@@ -21,6 +22,15 @@
 #include "tools/split.h"
 #include "tools/iterators.h"
 
+/* Design:
+ * - For easier testing the server should only bind to it's listen-ports, when the function Rack::Handler::Sioux.run()
+ *   runs. This implies that the server is created locally at the stack of that function.
+ * - All ruby objects passed to Rack::Handler::Sioux.run() must be marked as referenced from the outside, so that there
+ *   is no need to additional mark them during the GC mark phase.
+ * - Notification callbacks must be executed from a ruby thread context. For reacquiring the global vm lock (gvl) there
+ *   is currently no API function. So the C++ server run's in it's own thread, while the ruby threads wait for callback
+ *   function to be executed.
+ */
 
 namespace
 {
@@ -39,17 +49,18 @@ namespace
     typedef rack::response< connection_t > response_t;
 
     class bayeux_server :
-        private pubsub::adapter,
         private bayeux::adapter< VALUE >,
         private rack::application_interface,
         private boost::noncopyable
     {
     public:
-        bayeux_server( VALUE application, VALUE configuration );
+        bayeux_server( VALUE application, VALUE ruby_self, VALUE configuration );
 
         ~bayeux_server();
 
         void run();
+
+        void subscribe_test( const pubsub::node_name& );
 
     private:
         boost::shared_ptr< server::async_response > on_bayeux_request(
@@ -62,11 +73,6 @@ namespace
 
         static pubsub::configuration pubsub_config( VALUE configuration );
 
-        // pubsub::adapter implementation
-        void validate_node( const pubsub::node_name& node_name, const boost::shared_ptr< pubsub::validation_call_back>& );
-        void authorize( const boost::shared_ptr< pubsub::subscriber >&, const pubsub::node_name& node_name, const boost::shared_ptr< pubsub::authorization_call_back >&);
-        void node_init( const pubsub::node_name& node_name, const boost::shared_ptr< pubsub::initialization_call_back >&);
-
         // bayeux::adapter implementation
         std::pair< bool, json::string > handshake( const json::value& ext, VALUE& session );
         std::pair< bool, json::string > publish( const json::string& channel, const json::value& data,
@@ -75,6 +81,10 @@ namespace
         // rack::application_interface implementation
         std::vector< char > call( const std::vector< char >& body, const http::request_header& request );
 
+        // calls an optional configurated call back: configuration['Adapter'].init(self)
+        // it's important, that
+        void call_init_hook();
+
         // run the C++-land io queue
         void run_queue();
 
@@ -82,17 +92,25 @@ namespace
         // thus accessed objects like the logging-trait
         boost::asio::io_service*            queue_;
         const VALUE                         app_;
+        const VALUE                         self_;
+        const VALUE                         configuration_;
+        const VALUE                         ruby_adapter_;
+        rack::ruby_land_queue               ruby_land_queue_;
+        rack::adapter                       adapter_;
         pubsub::root                        root_;
         server::secure_session_generator    session_generator_;
         bayeux::connector<>                 connector_;
-        rack::ruby_land_queue               ruby_land_queue_;
         server_t                            server_;
     };
 
-    bayeux_server::bayeux_server( VALUE application, VALUE configuration )
+    bayeux_server::bayeux_server( VALUE application, VALUE ruby_self, VALUE configuration )
         : queue_( new boost::asio::io_service )
         , app_( application )
-        , root_( *queue_, *this, pubsub_config( configuration ) )
+        , self_( ruby_self )
+        , configuration_( configuration )
+        , ruby_adapter_( rb_hash_lookup( configuration_, rb_str_new2( "Adapter" ) ) )
+        , adapter_( ruby_adapter_, ruby_land_queue_ )
+        , root_( *queue_, adapter_, pubsub_config( configuration ) )
         , connector_( *queue_, root_, session_generator_, *this, bayeux::configuration() )
         , server_( *queue_, 0, std::cout )
     {
@@ -111,6 +129,19 @@ namespace
        delete queue_;
     }
 
+    void bayeux_server::call_init_hook()
+    {
+        VALUE adapter = rb_hash_lookup( configuration_, rb_str_new2( "Adapter" ) );
+
+        if ( adapter != Qnil )
+        {
+            static const ID call = rb_intern( "init" );
+
+            if ( rb_respond_to( adapter, call ) )
+                rb_funcall( adapter, call, 1, self_ );
+        }
+    }
+
     void bayeux_server::run_queue()
     {
         try
@@ -125,6 +156,7 @@ namespace
 
     void bayeux_server::run()
     {
+        call_init_hook();
         boost::thread queue_runner( boost::bind( &bayeux_server::run_queue, this ) );
 
         ruby_land_queue_.process_request( *this );
@@ -133,6 +165,18 @@ namespace
         queue_runner.join();
     }
 
+
+    void bayeux_server::subscribe_test( const pubsub::node_name& name )
+    {
+        class subs_t : public pubsub::subscriber
+        {
+            void on_update(const pubsub::node_name& name, const pubsub::node& data) {}
+        };
+
+        root_.subscribe(
+            boost::shared_ptr< pubsub::subscriber >( static_cast< pubsub::subscriber* >( new subs_t ) ),
+            name );
+    }
 
     boost::shared_ptr< server::async_response > bayeux_server::on_bayeux_request(
                 const boost::shared_ptr< connection_t >&                connection,
@@ -154,18 +198,6 @@ namespace
     pubsub::configuration bayeux_server::pubsub_config( VALUE /* configuration */ )
     {
         return pubsub::configuration();
-    }
-
-    void bayeux_server::validate_node( const pubsub::node_name& node_name, const boost::shared_ptr< pubsub::validation_call_back>& )
-    {
-    }
-
-    void bayeux_server::authorize( const boost::shared_ptr< pubsub::subscriber >&, const pubsub::node_name& node_name, const boost::shared_ptr< pubsub::authorization_call_back >&)
-    {
-    }
-
-    void bayeux_server::node_init( const pubsub::node_name& node_name, const boost::shared_ptr< pubsub::initialization_call_back >&)
-    {
     }
 
     std::pair< bool, json::string > bayeux_server::handshake( const json::value& /* ext */, VALUE& session )
@@ -299,34 +331,79 @@ namespace
     }
 }
 
-extern "C" VALUE run_bayeux( int argc, VALUE *argv, VALUE obj )
+extern "C" VALUE assign_node_bayeux( VALUE self, VALUE index, VALUE value )
 {
-    assert( argc == 2 );
+    std::cout << "assign_node_bayeux" << std::endl;
+
+    return self;
+}
+
+extern "C" VALUE run_bayeux( VALUE self, VALUE application, VALUE configuration )
+{
 
     VALUE result = Qfalse;
 
     try
     {
-        bayeux_server server( *argv, *( argv  +1 ) );
+        bayeux_server server( application, self, configuration );
 
+        rack::local_data_ptr local_ptr( self, server );
         server.run();
+
         result = Qtrue;
     }
     catch ( const std::exception& e )
     {
-        rb_raise( rb_eRuntimeError, "exception calling Sioux.run(): %s", e.what() );
+        rb_raise( rb_eRuntimeError, "exception calling Rack::Handler::Sioux.run(): %s", e.what() );
     }
     catch ( ... )
     {
-        rb_raise( rb_eRuntimeError, "unknown exception calling Sioux.run()" );
+        rb_raise( rb_eRuntimeError, "unknown exception calling Rack::Handler::Sioux.run()" );
     }
 
     return result;
 }
 
+extern "C" VALUE alloc_bayeux( VALUE klass )
+{
+    return Data_Wrap_Struct( klass, 0, 0, 0 );
+}
+
+extern "C" int each_subriber_hash_value( VALUE key, VALUE value, VALUE node_ptr )
+{
+    pubsub::node_name& node = *reinterpret_cast< pubsub::node_name* >( node_ptr );
+
+    std::string k = rack::rb_str_to_std( StringValue( key ) );
+    std::string v = rack::rb_str_to_std( StringValue( value ) );
+
+    node.add( pubsub::key( pubsub::key_domain( k ), v ) );
+    return ST_CONTINUE;
+}
+
+extern "C" VALUE subscribe_bayeux( VALUE self, VALUE ruby_node )
+{
+    VALUE hash = rb_check_convert_type( ruby_node, T_HASH, "Hash", "to_hash" );
+
+    pubsub::node_name node;
+    rb_hash_foreach( hash, reinterpret_cast< int (*)(...) >( each_subriber_hash_value ), reinterpret_cast< VALUE >( &node ) );
+
+    bayeux_server* server_ptr = 0;
+    Data_Get_Struct( self, bayeux_server, server_ptr );
+
+    if ( server_ptr )
+        server_ptr->subscribe_test( node );
+
+    return self;
+}
+
 extern "C" void Init_bayeux()
 {
-    VALUE class_ = rb_define_class( "SiouxRubyImplementation", rb_cObject );
-    rb_define_singleton_method( class_, "run", RUBY_METHOD_FUNC( run_bayeux ), -1 );
+    const VALUE mod_sioux = rb_define_module_under( rb_define_module( "Rack" ), "Sioux" );
+    VALUE class_    = rb_define_class_under( mod_sioux, "SiouxRubyImplementation", rb_cObject );
+
+    rb_define_alloc_func( class_, alloc_bayeux );
+    rb_define_method( class_, "run", RUBY_METHOD_FUNC( run_bayeux ), 2 );
+    rb_define_method( class_, "[]=", RUBY_METHOD_FUNC( assign_node_bayeux ), 2 );
+    rb_define_method( class_, "subscribe_for_testing", RUBY_METHOD_FUNC( subscribe_bayeux ), 1 );
 }
 
