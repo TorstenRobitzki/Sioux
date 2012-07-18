@@ -182,6 +182,17 @@ class RackPublishIntegrationTest < MiniTest::Unit::TestCase
         true
     end
     
+    def authorize user, node
+        @authorized_user = user
+        @authorized_node = node
+        true
+    end
+    
+    def node_init node
+        @initialized_node = node
+        [{ 'value' => 42 }, true, nil ]
+    end
+    
     class Init
         include SetupRackserver
     end
@@ -208,6 +219,18 @@ class RackPublishIntegrationTest < MiniTest::Unit::TestCase
         @root.subscribe_for_testing( { 'node' => 'name', 'param' => '42' } )
         sleep 1 
         assert_equal( { 'node' => 'name', 'param' => '42' }, @validated_node )
+    end
+    
+    def test_authorization_requested
+        @root.subscribe_for_testing( { 'node' => 'name', 'param' => '42' } )
+        sleep 1 
+        assert_equal( { 'node' => 'name', 'param' => '42' }, @authorized_node )
+    end
+
+    def test_initialization_requested
+        @root.subscribe_for_testing( { 'node' => 'name', 'param' => '42' } )
+        sleep 1 
+        assert_equal( { 'node' => 'name', 'param' => '42' }, @initialized_node )
     end
 end
 

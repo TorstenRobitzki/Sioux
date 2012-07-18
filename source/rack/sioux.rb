@@ -3,6 +3,7 @@
 # Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 require 'stringio'
+require 'json'
 require 'rack'
 
 module Rack

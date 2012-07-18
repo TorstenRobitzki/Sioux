@@ -11,6 +11,21 @@ require 'rack/static'
 puts "starting rack_chat...."
 messages = []
 
+class Adapter
+
+    def validate_node node
+        node == { 'P1' => 'chat' } 
+    end
+    
+    def authorize subscriber, node
+        true
+    end
+     
+    def node_init node
+        messages
+    end
+end
+
 ROOT = File.expand_path(File.dirname(__FILE__))
 
 app = Rack::Builder.new do
@@ -29,24 +44,6 @@ app = Rack::Builder.new do
     use Rack::Static, :urls => [ '/jquery' ], :root => ROOT
     use Rack::Static, :urls => [ '/' ], :index => '/index.html', :root => File.join( ROOT, 'chat' )
     run lambda { | env | [ 404, { 'Content-Type' => 'text/html' }, [] ] }
-end
-
-class Adapter
-
-    def init root 
-    end
-    
-    def validate_node node
-        node == { 'P1' => 'chat' } 
-    end
-    
-    def authorize subscriber, node
-        true
-    end
-     
-    def node_init node
-        messages
-    end
 end
 
 Rack::Handler::Sioux.run( app, 'Environment' => 'debug', 'Host' => 'localhost', 'Port' => 8080, 'Adapter' => Adapter.new )

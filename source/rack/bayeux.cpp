@@ -13,6 +13,7 @@
 #include "rack/response.inc"
 #include "rack/ruby_tools.h"
 #include "rack/adapter.h"
+#include "rack/log.h"
 #include "server/server.h"
 #include "server/secure_session_generator.h"
 #include "bayeux/bayeux.h"
@@ -21,6 +22,8 @@
 #include "pubsub/configuration.h"
 #include "tools/split.h"
 #include "tools/iterators.h"
+#include "tools/log.h"
+#include "tools/exception_handler.h"
 
 /* Design:
  * - For easier testing the server should only bind to it's listen-ports, when the function Rack::Handler::Sioux.run()
@@ -114,6 +117,10 @@ namespace
         , connector_( *queue_, root_, session_generator_, *this, bayeux::configuration() )
         , server_( *queue_, 0, std::cout )
     {
+        logging::add_output( std::cout );
+
+        LOG_INFO( rack::log_context << "starting bayeux_server...." );
+
         server_.add_action( "/bayeux", boost::bind( &bayeux_server::on_bayeux_request, this, _1, _2 ) );
         server_.add_action( "/", boost::bind( &bayeux_server::on_request, this, _1, _2 ) );
 
@@ -150,7 +157,7 @@ namespace
         }
         catch ( ... )
         {
-            std::cout << "exception in run_queue()" << std::endl;
+            LOG_ERROR( rack::log_context << "in bayeux_server::run_queue(): "  << tools::exception_text() );
         }
     }
 
