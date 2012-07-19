@@ -10,6 +10,17 @@
 
 #include "tools/substring.h"
 
+namespace pubsub
+{
+    class node_name;
+}
+
+namespace json
+{
+    class value;
+    class string;
+}
+
 namespace rack
 {
     int from_hash( VALUE hash, const char* entry );
@@ -21,6 +32,29 @@ namespace rack
      */
     tools::substring rb_str_to_sub( VALUE );
     std::string rb_str_to_std( VALUE );
+    json::string rb_str_to_json( VALUE );
+
+    /**
+     * @brief converts a node_name into a ruby hash
+     */
+    VALUE node_to_hash( const pubsub::node_name& node_name );
+
+    /**
+     * @brief converts a ruby hash to a node name
+     */
+    pubsub::node_name hash_to_node( VALUE hash );
+
+    /**
+     * @brief converts a json value into a corresponding ruby object
+     */
+    VALUE json_to_ruby( const json::value& data );
+
+    /**
+     * @brief converts a ruby object into a json value
+     *
+     * In case of an error, the node_name is use to produce a meaningful error message.
+     */
+    json::value ruby_to_json( VALUE data, const pubsub::node_name& node_name );
 
 
     /**

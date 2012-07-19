@@ -78,57 +78,14 @@ namespace json
         class string_impl : public value::impl
         {
         public:
-            explicit string_impl(std::vector<char>& v)
+            explicit string_impl( std::vector<char>& v )
             {
-                data_.swap(v);
+                data_.swap( v );
             }
 
-            explicit string_impl( const char* s ) : data_()
+            string_impl( const char* begin, const char* end )
             {
-                data_.push_back('\"');
-                
-                for ( ; *s; ++s )
-                {
-                    switch ( *s )
-                    {
-                    case '\"' : 
-                        data_.push_back('\\');
-                        data_.push_back('\"');
-                        break;
-                    case '\\' : 
-                        data_.push_back('\\');
-                        data_.push_back('\\');
-                        break;
-/* @todo Until the compare bug is fixed                    case '/' :
-                        data_.push_back('\\');
-                        data_.push_back('/');
-                        break;*/
-                    case '\b' : 
-                        data_.push_back('\\');
-                        data_.push_back('b');
-                        break;
-                    case '\f' : 
-                        data_.push_back('\\');
-                        data_.push_back('f');
-                        break;
-                    case '\n' : 
-                        data_.push_back('\\');
-                        data_.push_back('n');
-                        break;
-                    case '\r' : 
-                        data_.push_back('\\');
-                        data_.push_back('r');
-                        break;
-                    case '\t' : 
-                        data_.push_back('\\');
-                        data_.push_back('t');
-                        break;
-                    default:
-                        data_.push_back(*s);
-                    }
-                }
-
-                data_.push_back('\"');
+                init( begin, end );
             }
 
             bool empty() const
@@ -177,6 +134,61 @@ namespace json
             	return result;
             }
         private:
+            static bool cont( const char* begin, const char* end )
+            {
+                return end
+                    ? begin != end
+                    : begin != 0 && *begin != 0;
+            }
+
+            void init( const char* s, const char* end )
+            {
+                data_.push_back('\"');
+
+                for ( ; cont( s, end ); ++s )
+                {
+                    switch ( *s )
+                    {
+                    case '\"' :
+                        data_.push_back('\\');
+                        data_.push_back('\"');
+                        break;
+                    case '\\' :
+                        data_.push_back('\\');
+                        data_.push_back('\\');
+                        break;
+/* @todo Until the compare bug is fixed                    case '/' :
+                        data_.push_back('\\');
+                        data_.push_back('/');
+                        break;*/
+                    case '\b' :
+                        data_.push_back('\\');
+                        data_.push_back('b');
+                        break;
+                    case '\f' :
+                        data_.push_back('\\');
+                        data_.push_back('f');
+                        break;
+                    case '\n' :
+                        data_.push_back('\\');
+                        data_.push_back('n');
+                        break;
+                    case '\r' :
+                        data_.push_back('\\');
+                        data_.push_back('r');
+                        break;
+                    case '\t' :
+                        data_.push_back('\\');
+                        data_.push_back('t');
+                        break;
+                    default:
+                        data_.push_back(*s);
+                    }
+                }
+
+                data_.push_back('\"');
+            }
+
             void visit(const impl_visitor& v) const 
             {
                 v.visit(*this);
@@ -630,14 +642,20 @@ namespace json
     ////////////////
     // class string
     string::string()
-        : value(new string_impl(""))
+        : value( new string_impl( 0, 0 ) )
     {
     }
 
-    string::string(const char* s)
-        : value(new string_impl(s))
+    string::string( const char* s )
+        : value( new string_impl(s, 0) )
     {
     }
+
+    string::string( const char* begin, const char* end )
+        : value( new string_impl( begin, end ) )
+    {
+    }
+
 
     bool string::empty() const
     {

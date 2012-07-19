@@ -8,6 +8,7 @@
 #include <iostream>
 #include <boost/bind.hpp>
 #include <boost/utility.hpp>
+#include <boost/thread/future.hpp>
 
 #include "rack/response.h"
 #include "rack/response.inc"
@@ -18,6 +19,7 @@
 #include "server/secure_session_generator.h"
 #include "bayeux/bayeux.h"
 #include "bayeux/log.h"
+#include "bayeux/node_channel.h"
 #include "pubsub/pubsub.h"
 #include "pubsub/configuration.h"
 #include "tools/split.h"
@@ -33,10 +35,12 @@
  * - Notification callbacks must be executed from a ruby thread context. For reacquiring the global vm lock (gvl) there
  *   is currently no API function. So the C++ server run's in it's own thread, while the ruby threads wait for callback
  *   function to be executed.
+ * - Calls to the ruby API can not be made from the native, not-ruby threads.
  */
 
 namespace
 {
+    using namespace rack;
 
     typedef
 #       ifdef NDEBUG
@@ -64,6 +68,16 @@ namespace
         void run();
 
         void subscribe_test( const pubsub::node_name& );
+
+        /**
+         * This functions marks all references to ruby objects that are stored by the server
+         */
+        void mark_ruby_references();
+
+        /**
+         * @brief update the given node to the given value
+         */
+        void update_node(const pubsub::node_name& node_name, const json::value& new_data);
 
     private:
         boost::shared_ptr< server::async_response > on_bayeux_request(
@@ -185,6 +199,15 @@ namespace
             name );
     }
 
+    void bayeux_server::mark_ruby_references()
+    {
+    }
+
+    void bayeux_server::update_node(const pubsub::node_name& node_name, const json::value& new_data)
+    {
+        root_.update_node( node_name, new_data );
+    }
+
     boost::shared_ptr< server::async_response > bayeux_server::on_bayeux_request(
                 const boost::shared_ptr< connection_t >&                connection,
                 const boost::shared_ptr< const http::request_header >&  request )
@@ -211,13 +234,85 @@ namespace
     {
         session = Qnil;
 
-        return std::pair< bool, json::string >();
+        return std::pair< bool, json::string >( true, json::string() );
+    }
+
+    typedef std::pair< bool, json::string > publish_result_t;
+
+    static publish_result_t convert_call_back_result( VALUE answer, const pubsub::node_name& node,
+        const char* error_context_msg )
+    {
+        if ( TYPE( answer ) != T_ARRAY )
+        {
+            LOG_ERROR( log_context << error_context_msg << node << "\" => " << " answer is not a ruby array" );
+        }
+        else if ( RARRAY_LEN( answer ) != 2 )
+        {
+            LOG_ERROR( log_context << error_context_msg << node << "\" => " << " size of received array is not 2" );
+        }
+        else
+        {
+            const VALUE first_arg  = RARRAY_PTR( answer )[ 0 ];
+            const VALUE second_arg = RARRAY_PTR( answer )[ 1 ];
+            const VALUE error_message = NIL_P( second_arg ) ? second_arg : rb_check_string_type( second_arg );
+
+            if ( NIL_P( second_arg ) && !NIL_P( error_message ) )
+            {
+                LOG_ERROR( log_context << error_context_msg << node << "\" => " << " unable to convert second argument to String." );
+            }
+            else
+            {
+                return publish_result_t( RTEST( first_arg ), rack::rb_str_to_json( error_message ) );
+            }
+        }
+
+        return publish_result_t( false, json::string( "internal error" ) );
+
+    }
+
+    static void bayeux_publish_impl( boost::promise< publish_result_t >& result,
+        const pubsub::node_name& node, const json::value& data, const json::object& message, VALUE root, VALUE adapter,
+        rack::application_interface& )
+    {
+        static const ID publish_function = rb_intern( "publish" );
+        static const char* error_context_msg = "while trying to upcall bayeux publish handler for node: \"";
+
+        try
+        {
+            if ( !rb_respond_to( adapter, publish_function ) )
+            {
+                result.set_value( publish_result_t( false, json::string( "no callback installed." ) ) );
+                return;
+            }
+
+            const VALUE ruby_node  = rack::node_to_hash( node );
+            const VALUE ruby_value = rack::json_to_ruby( data );
+
+            const VALUE answer = rb_funcall( adapter, publish_function, 3, ruby_node, ruby_value, root );
+            result.set_value( convert_call_back_result( answer, node, error_context_msg ) );
+        }
+        catch ( ... )
+        {
+            LOG_ERROR( log_context << error_context_msg << node << "\" => "
+                << tools::exception_text() );
+
+            // attention!, the error text is communicated to the outside.
+            result.set_value( publish_result_t( false, json::string( "internal error" ) ) );
+        }
     }
 
     std::pair< bool, json::string > bayeux_server::publish( const json::string& channel, const json::value& data,
         const json::object& message, VALUE& session, pubsub::root& root )
     {
-        return std::pair< bool, json::string >();
+        boost::promise< publish_result_t > result;
+
+        const pubsub::node_name node = bayeux::node_name_from_channel( channel );
+
+        rack::ruby_land_queue::call_back_t ruby_execution(
+            boost::bind( bayeux_publish_impl, boost::ref( result ), node, data, message, self_, ruby_adapter_, _1 ) );
+
+        ruby_land_queue_.push( ruby_execution );
+        return result.get_future().get();
     }
 
     static void fill_http_headers( VALUE environment, const http::request_header& request )
@@ -338,16 +433,22 @@ namespace
     }
 }
 
-extern "C" VALUE assign_node_bayeux( VALUE self, VALUE index, VALUE value )
+extern "C" VALUE update_node_bayeux( VALUE self, VALUE node, VALUE value )
 {
-    std::cout << "assign_node_bayeux" << std::endl;
+    const pubsub::node_name node_name  = hash_to_node( node );
+    const json::value       node_value = ruby_to_json( value, node_name );
+
+    bayeux_server* server_ptr = 0;
+    Data_Get_Struct( self, bayeux_server, server_ptr );
+
+    if ( server_ptr )
+        server_ptr->update_node( node_name, node_value );
 
     return self;
 }
 
 extern "C" VALUE run_bayeux( VALUE self, VALUE application, VALUE configuration )
 {
-
     VALUE result = Qfalse;
 
     try
@@ -371,34 +472,23 @@ extern "C" VALUE run_bayeux( VALUE self, VALUE application, VALUE configuration 
     return result;
 }
 
-extern "C" VALUE alloc_bayeux( VALUE klass )
+extern "C" void mark_bayeux( void* server )
 {
-    return Data_Wrap_Struct( klass, 0, 0, 0 );
+    static_cast< bayeux_server* >( server )->mark_ruby_references();
 }
 
-extern "C" int each_subriber_hash_value( VALUE key, VALUE value, VALUE node_ptr )
+extern "C" VALUE alloc_bayeux( VALUE klass )
 {
-    pubsub::node_name& node = *reinterpret_cast< pubsub::node_name* >( node_ptr );
-
-    std::string k = rack::rb_str_to_std( StringValue( key ) );
-    std::string v = rack::rb_str_to_std( StringValue( value ) );
-
-    node.add( pubsub::key( pubsub::key_domain( k ), v ) );
-    return ST_CONTINUE;
+    return Data_Wrap_Struct( klass, mark_bayeux, 0, 0 );
 }
 
 extern "C" VALUE subscribe_bayeux( VALUE self, VALUE ruby_node )
 {
-    VALUE hash = rb_check_convert_type( ruby_node, T_HASH, "Hash", "to_hash" );
-
-    pubsub::node_name node;
-    rb_hash_foreach( hash, reinterpret_cast< int (*)(...) >( each_subriber_hash_value ), reinterpret_cast< VALUE >( &node ) );
-
     bayeux_server* server_ptr = 0;
     Data_Get_Struct( self, bayeux_server, server_ptr );
 
     if ( server_ptr )
-        server_ptr->subscribe_test( node );
+        server_ptr->subscribe_test( hash_to_node( ruby_node ) );
 
     return self;
 }
@@ -410,7 +500,7 @@ extern "C" void Init_bayeux()
 
     rb_define_alloc_func( class_, alloc_bayeux );
     rb_define_method( class_, "run", RUBY_METHOD_FUNC( run_bayeux ), 2 );
-    rb_define_method( class_, "[]=", RUBY_METHOD_FUNC( assign_node_bayeux ), 2 );
+    rb_define_method( class_, "[]=", RUBY_METHOD_FUNC( update_node_bayeux ), 2 );
     rb_define_method( class_, "subscribe_for_testing", RUBY_METHOD_FUNC( subscribe_bayeux ), 1 );
 }
 

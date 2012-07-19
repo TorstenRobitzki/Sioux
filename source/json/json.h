@@ -168,6 +168,8 @@ namespace json
 
         explicit string(const char*);
 
+        string( const char* begin, const char* end );
+
         /**
          * @brief returns true, if the number of stored characters is zero
          */

@@ -5,6 +5,7 @@
 #include <boost/test/unit_test.hpp>
 #include "json/json.h"
 #include "tools/iterators.h"
+#include "tools/asstring.h"
 #include <iostream>
 
 BOOST_AUTO_TEST_CASE( json_string_test )
@@ -572,4 +573,17 @@ BOOST_AUTO_TEST_CASE( detect_trailing_garbage )
 {
     BOOST_CHECK_THROW( json::parse( "1{" ), json::parse_error );
     BOOST_CHECK_EQUAL( json::parse( "1 \t\r\n" ), json::number( 1 ) );
+}
+
+BOOST_AUTO_TEST_CASE( string_with_two_pointers )
+{
+    char text[] = { 'a', 0, 'b' };
+
+    const json::string jtext( &text[ 0 ], &text[ 3 ] );
+    const std::string  stext = jtext.to_std_string();
+
+    BOOST_CHECK_EQUAL( 3, stext.size() );
+    BOOST_CHECK_EQUAL( 'a', stext[ 0 ] );
+    BOOST_CHECK_EQUAL( 0,   stext[ 1 ] );
+    BOOST_CHECK_EQUAL( 'b', stext[ 2 ] );
 }

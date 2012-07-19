@@ -3,18 +3,22 @@
 # Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 require_relative '../rack/sioux'
-require_relative '../rack/bayeux'
 require 'rack'
-require 'rack/debug'
 require 'rack/static'
 
 puts "starting rack_chat...."
-messages = []
 
 class Adapter
+    @@SAY_CHANNEL  = { 'p1' => 'say' }
+    @@CHAT_CHANNEL = { 'p1' => 'chat' } 
+    @@MAX_MESSAGES = 20
 
+    def initialize
+        @messages = []
+    end
+        
     def validate_node node
-        node == { 'P1' => 'chat' } 
+        node == @@CHAT_CHANNEL 
     end
     
     def authorize subscriber, node
@@ -22,25 +26,24 @@ class Adapter
     end
      
     def node_init node
-        messages
+        @messages
+    end
+    
+    def publish node, data, root 
+        return [ false, 'invalid channel' ] unless node == @@SAY_CHANNEL
+        
+        @messages.shift if @messages.size == @@MAX_MESSAGES 
+        @messages << { 'head' => '?', 'text' => data }
+
+        root[ @@CHAT_CHANNEL ] = { 'data' => @messages }
+
+        [ true, '' ]
     end
 end
 
 ROOT = File.expand_path(File.dirname(__FILE__))
 
 app = Rack::Builder.new do
-    use Rack::Lint
-
-    use Rack::Bayeux::Handshake do | env, ext, session |
-    end
-    
-    use Rack::Bayeux::Publish do | env, channel, data, whole_message, session_data, root |
-        return [ false, 'invalid channel' ] unless channel == '/chat'
-        root[ { 'P1' => 'chat' } ] = messages
-        [ true, '' ]
-    end
-
-    use Rack::Lint
     use Rack::Static, :urls => [ '/jquery' ], :root => ROOT
     use Rack::Static, :urls => [ '/' ], :index => '/index.html', :root => File.join( ROOT, 'chat' )
     run lambda { | env | [ 404, { 'Content-Type' => 'text/html' }, [] ] }

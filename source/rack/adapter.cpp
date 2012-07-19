@@ -27,22 +27,6 @@ namespace rack
         return rb_intern( s );
     }
 
-    static VALUE node_to_hash( const pubsub::node_name& node_name )
-    {
-        VALUE hash = rb_hash_new();
-
-        const pubsub::node_name::key_list& keys = node_name.keys();
-        for ( pubsub::node_name::key_list::const_iterator key = keys.begin(); key != keys.end(); ++key )
-        {
-            VALUE key_name = rb_str_new_std( key->domain().name() );
-            VALUE value    = rb_str_new_std( key->value() );
-
-            rb_hash_aset( hash, key_name, value );
-        }
-
-        return hash;
-    }
-
     static const ID validate_node_func_name = work_around_gcc_bug( "validate_node" );
 
     static void validate_node_impl( VALUE adapter, const pubsub::node_name& node_name,
@@ -52,7 +36,8 @@ namespace rack
 
         const VALUE result = rb_funcall( adapter, validate_node_func_name, 1, hash );
 
-        ( result == Qfalse || result == Qnil ) ? cb->not_valid() : cb->is_valid();
+
+        RTEST( result ) ? cb->is_valid() : cb->not_valid();
     }
 
     void adapter::validate_node( const pubsub::node_name& node_name, const boost::shared_ptr< pubsub::validation_call_back >& cb )
@@ -72,7 +57,7 @@ namespace rack
 
         const VALUE result = rb_funcall( adapter, authorize_func_name, 2, Qnil, hash );
 
-        ( result == Qfalse || result == Qnil ) ? cb->not_authorized() : cb->is_authorized();
+        RTEST( result ) ? cb->is_authorized() : cb->not_authorized();
     }
 
     void adapter::authorize(const boost::shared_ptr< pubsub::subscriber >& user, const pubsub::node_name& node_name,
@@ -84,35 +69,6 @@ namespace rack
         ruby_land_.push( boost::bind( authorize_impl, adapter_, user, node_name, cb ) );
     }
 
-
-    static json::value json_to_json( VALUE ruby_json, const pubsub::node_name& node_name )
-    {
-        // default, if anything goes wrong is null
-        json::value result = json::null();
-
-        const ID to_json_func = rb_intern( "to_json" );
-
-        if ( !rb_respond_to( ruby_json, to_json_func ) )
-        {
-            LOG_WARNING( log_context << "initial value for node: \"" << node_name << "\" does not respond to \"to_json\"." );
-            return result;
-        }
-
-        VALUE ruby_string = rb_funcall( ruby_json, to_json_func, 0 );
-        Check_Type( ruby_string, T_STRING );
-
-        try
-        {
-            result = json::parse( RSTRING_PTR( ruby_string ), RSTRING_PTR( ruby_string ) + RSTRING_LEN( ruby_string ) );
-        }
-        catch ( ... )
-        {
-            LOG_ERROR( log_context << "while trying to convert value for node: \"" << node_name << "\" => " << tools::exception_text() );
-        }
-
-        return result;
-    }
-
     static const ID node_init_func_name = work_around_gcc_bug( "node_init" );
 
     static void node_init_impl( VALUE adapter, const pubsub::node_name& node_name, const boost::shared_ptr< pubsub::initialization_call_back >& cb )
@@ -121,7 +77,7 @@ namespace rack
 
         const VALUE result    = rb_funcall( adapter, node_init_func_name, 1, hash );
 
-        cb->initial_value( json_to_json( result, node_name ) );
+        cb->initial_value( ruby_to_json( result, node_name ) );
     }
 
     void adapter::node_init( const pubsub::node_name& node_name, const boost::shared_ptr< pubsub::initialization_call_back >& cb )
