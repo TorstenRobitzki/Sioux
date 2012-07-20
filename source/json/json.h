@@ -440,7 +440,7 @@ namespace json
         std::pair< bool, bool > parse( Iter begin, Iter end )
         {
             const std::vector< char > buffer( begin, end );
-            return parse( &buffer[0], &buffer[0] + buffer.size() );
+            return parse( &buffer[ 0 ], &buffer[ 0 ] + buffer.size() );
         }
 
         /**
@@ -460,18 +460,18 @@ namespace json
          */
         value result() const;
     private:
-        int parse_idle(char c);
-        const char* parse_number(const char* begin, const char* end);
-        const char* parse_array(const char* begin, const char* end);
-        const char* parse_object(const char* begin, const char* end);
-        const char* parse_string(const char* begin, const char* end);
-        const char* parse_literal(const char* begin, const char* end);
+        int parse_idle( char c );
+        const char* parse_number( const char* begin, const char* end );
+        const char* parse_array( const char* begin, const char* end );
+        const char* parse_object( const char* begin, const char* end );
+        const char* parse_string( const char* begin, const char* end );
+        const char* parse_literal( const char* begin, const char* end );
 
-        void value_parsed(const value&);
+        void value_parsed( const value& );
 
-        std::vector<char>   buffer_;
-        std::stack<value>   result_;
-        std::stack<int>     state_;
+        std::vector< char >   buffer_;
+        std::stack< value >   result_;
+        std::stack< int >     state_;
     };
 
     /**

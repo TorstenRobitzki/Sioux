@@ -1549,15 +1549,15 @@ namespace json
                     for ( ; p != end && *p != '\"' && *p != '\\'; ++p )
                         ;
 
-                    buffer_.insert(buffer_.end(), begin, p);
+                    buffer_.insert( buffer_.end(), begin, p );
                     begin = p;
 
                     if ( begin != end )
                     {
-                        buffer_.push_back(*begin);
+                        buffer_.push_back( *begin );
                         if ( *begin == '\"' )
                         {
-                            value_parsed(value(new string_impl(buffer_)));
+                            value_parsed( value( new string_impl( buffer_ ) ) );
                             stop = true;
                         }
                         else 
@@ -1618,38 +1618,38 @@ namespace json
 
     const char* parser::parse_literal(const char* begin, const char* end)
     {
-        static const char* literals[] = {"true", "false", "null"};
-        static const value values[]   = {true_val(), false_val(), null()};
+        static const char* literals[] = { "true", "false", "null" };
+        static const value values[]   = { true_val(), false_val(), null() };
 
         const int literal = (state_.top() - start_true_parsing) / 100;
 
-        for ( const char* l = &literals[literal][state_.top() % 100]; 
-            begin != end && *l != 0; ++begin, ++l )
+        const char* l = &literals[literal][state_.top() % 100];
+        for ( ; begin != end && *l != 0; ++begin, ++l )
         {
             if ( *begin != *l )
             {
-                throw parse_error("invalid json literal");
+                throw parse_error( "invalid json literal" );
             }
 
             ++state_.top();
         }
 
-        if ( begin != end )
-            value_parsed(values[literal]);
+        if ( *l == 0 )
+            value_parsed( values[ literal ] );
 
         return begin;
     }
 
-    void parser::value_parsed(const value& v)
+    void parser::value_parsed( const value& v )
     {
         state_.pop();
-        result_.push(v);
+        result_.push( v );
     }
 
     value parser::result() const   
     {
-        assert(state_.empty());
-        assert(result_.size() == 1);
+        assert( state_.empty() );
+        assert( result_.size() == 1 );
 
         return result_.top();
     }
@@ -1659,10 +1659,10 @@ namespace json
         // still parsing a number
         if ( !state_.empty() )
         {
-            if ( !is_complete_number(state_.top()) )
-                throw parse_error("incomplete json number");
+            if ( !is_complete_number( state_.top() ) )
+                throw parse_error( "incomplete json number" );
 
-            value_parsed(value(new number_impl(buffer_)));
+            value_parsed( value( new number_impl( buffer_ ) ) );
         }
 
         if ( !state_.empty() || result_.size() != 1 )
