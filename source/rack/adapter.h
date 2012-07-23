@@ -20,12 +20,16 @@ namespace rack
     public:
         adapter( VALUE ruby_adapter, ruby_land_queue& );
 
+    private:
         void validate_node(const pubsub::node_name& node_name, const boost::shared_ptr< pubsub::validation_call_back >&);
         void authorize(const boost::shared_ptr< pubsub::subscriber >&, const pubsub::node_name& node_name,
             const boost::shared_ptr< pubsub::authorization_call_back >&);
         void node_init(const pubsub::node_name& node_name, const boost::shared_ptr< pubsub::initialization_call_back >&);
 
-    private:
+        virtual void invalid_node_subscription(const pubsub::node_name& node, const boost::shared_ptr<pubsub::subscriber>&);
+        virtual void unauthorized_subscription(const pubsub::node_name& node, const boost::shared_ptr<pubsub::subscriber>&);
+        virtual void initialization_failed(const pubsub::node_name& node);
+
         adapter( const adapter& );
         adapter& operator=( const adapter& );
 

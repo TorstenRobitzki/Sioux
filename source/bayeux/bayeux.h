@@ -49,7 +49,7 @@ namespace bayeux
 	     * @param queue a queue, that is actively used to perform IO and timeouts
 	     * @param data the pubsub data root to store and retrieve data
 	     * @param session_generator a crypto-graphically random generator. The access to the session generator
-	     *        might by from different threads, but synchronized t one thread at a time.
+	     *        might be from different threads, but synchronized to one thread at a time.
 	     * @param config configuration values for the bayeux protocol implementation
 	     */
 		connector( boost::asio::io_service& queue, pubsub::root& data, server::session_generator& session_generator,
@@ -58,7 +58,7 @@ namespace bayeux
 		/**
 		 * @brief construct a connector with a user adapter to hook in handshake and publish messages.
 		 *
-		 * The user_acctions object must stay volid over the entire live time of the connector. If the connector
+		 * The user_acctions object must stay valid over the entire live time of the connector. If the connector
 		 * is used with multiple threads, the adapter might get called from multiple threads at the same time.
 		 */
 		template < class SessionData >
@@ -120,11 +120,17 @@ namespace bayeux
          * @brief reference to the queue, that have to be used by connections for timer ect.
          */
         boost::asio::io_service& queue();
+
+        /**
+         * @brief prepares shut down by releasing all references to the io_service object given to the c'tor.
+         */
+        void shut_down();
 	private:
         boost::asio::io_service&                    queue_;
 		pubsub::root& 				                data_;
 
         boost::mutex                                mutex_;
+        bool                                        shutting_down_;
 		server::session_generator&	                session_generator_;
 		boost::shared_ptr< const configuration >    current_config_;
 
@@ -189,6 +195,7 @@ namespace bayeux
         : queue_( queue )
         , data_( data )
         , mutex_()
+        , shutting_down_( false )
         , session_generator_( session_generator )
         , current_config_( new configuration( config ) )
         , sessions_()

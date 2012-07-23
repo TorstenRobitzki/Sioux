@@ -587,3 +587,22 @@ BOOST_AUTO_TEST_CASE( string_with_two_pointers )
     BOOST_CHECK_EQUAL( 0,   stext[ 1 ] );
     BOOST_CHECK_EQUAL( 'b', stext[ 2 ] );
 }
+
+BOOST_AUTO_TEST_CASE( parse_null )
+{
+    BOOST_CHECK_EQUAL( json::null(), json::parse( "null" ) );
+    BOOST_CHECK( split_parse( "null" ) );
+}
+
+BOOST_AUTO_TEST_CASE( parse_true )
+{
+    BOOST_CHECK_EQUAL( json::true_val(), json::parse( "true" ) );
+    BOOST_CHECK( split_parse( "true" ) );
+}
+
+BOOST_AUTO_TEST_CASE( parse_false )
+{
+    BOOST_CHECK_EQUAL( json::false_val(), json::parse( "false" ) );
+    BOOST_CHECK( split_parse( "false" ) );
+}
+

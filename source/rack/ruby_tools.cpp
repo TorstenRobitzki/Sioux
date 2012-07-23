@@ -129,6 +129,7 @@ namespace rack
         catch ( ... )
         {
             LOG_ERROR( log_context << "while trying to convert value for node: \"" << node_name << "\" => " << tools::exception_text() );
+            LOG_ERROR( log_context << "expression was: \"" << rb_str_to_sub( ruby_string ) << "\"" );
         }
 
         return result;

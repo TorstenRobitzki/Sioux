@@ -1,6 +1,18 @@
 require 'net/http/pipeline'
+require 'json'
+require 'monitor'
 
 module Bayeux
+    @path = '/'
+
+    def self.protocol_path= path
+        @path = path
+    end
+    
+    def self.protocol_path
+        @path
+    end
+    
     class Connection
         class AsyncResult
             def initialize
@@ -48,7 +60,7 @@ module Bayeux
             result = nil
     
             @mutex.synchronize do
-                req = Net::HTTP::Post.new('/')
+                req = Net::HTTP::Post.new( Bayeux.protocol_path )
                 req.body = text
                 req[ 'host' ] = 'localhost'
                 req[ 'Content-Type' ] = 'POST';

@@ -9,6 +9,8 @@ require 'net/http'
 require 'minitest/unit'
 require_relative 'sioux'
 require_relative '../bayeux/client'
+require_relative '../bayeux/network_test_cases'
+require_relative '../tests/bayeux_reply'
 
 class RackTestHandler
     attr_reader :environment
@@ -50,8 +52,8 @@ module SetupRackserver
         raise "Timeout waiting for sever!" unless stop
     end
     
-    def setup adapter = nil
-        @app = RackTestHandler.new
+    def setup adapter = nil, handler = nil
+        @app = handler || RackTestHandler.new
         @server_loop = Thread.new do
             begin
                 Rack::Handler::Sioux.run( Rack::Lint.new( @app ), 'Environment' => 'debug', 'Host' => @@HOST, 'Port' => @@PORT, 'Adapter' => adapter )
@@ -232,5 +234,50 @@ class RackPublishIntegrationTest < MiniTest::Unit::TestCase
         sleep 1 
         assert_equal( { 'node' => 'name', 'param' => '42' }, @initialized_node )
     end
+end
+
+class BayeuxProtocolTest < MiniTest::Unit::TestCase
+    include BayeuxNetworkTestcases 
+    Bayeux.protocol_path = '/bayeux'  
+    
+    # Sioux Handler - implementation
+    def validate_node node
+        true
+    end
+    
+    def authorize user, node
+        true
+    end
+    
+    def node_init node
+        nil
+    end
+    
+    def publish node, data, root
+        reply = { 'data' => data }
+
+        root[ node ] = reply
+        [ true, '' ]
+    end
+    
+    # Rack Handler - implementation
+    def call environment
+        raise StopIteration if environment[ 'PATH_INFO' ] == '/stop'
+        [ 200, {"Content-Type" => "text/html"}, [ "Hello Rack!" ] ]
+    end
+
+    class Init
+        include SetupRackserver
+    end
+
+    def setup
+        @init = Init.new  
+        @init.setup self
+    end
+    
+    def teardown
+        @init.teardown
+    end
+
 end
 

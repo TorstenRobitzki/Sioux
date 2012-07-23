@@ -45,10 +45,11 @@ namespace
     typedef
 #       ifdef NDEBUG
             server::logging_server<
-                bayeux::stream_event_log< server::null_event_logger >,
+                server::null_event_logger,
                 server::null_error_logger >
 #       else
-            server::logging_server<>
+            server::logging_server<
+                bayeux::stream_event_log< server::stream_event_log > >
 #       endif
             server_t;
 
@@ -147,7 +148,8 @@ namespace
 
     bayeux_server::~bayeux_server()
     {
-       delete queue_;
+        connector_.shut_down();
+        delete queue_;
     }
 
     void bayeux_server::call_init_hook()
@@ -165,13 +167,17 @@ namespace
 
     void bayeux_server::run_queue()
     {
-        try
+        for ( ;; )
         {
-            queue_->run();
-        }
-        catch ( ... )
-        {
-            LOG_ERROR( rack::log_context << "in bayeux_server::run_queue(): "  << tools::exception_text() );
+            try
+            {
+                queue_->run();
+                break;
+            }
+            catch ( ... )
+            {
+                LOG_ERROR( rack::log_context << "in bayeux_server::run_queue(): "  << tools::exception_text() );
+            }
         }
     }
 
@@ -438,11 +444,13 @@ extern "C" VALUE update_node_bayeux( VALUE self, VALUE node, VALUE value )
     const pubsub::node_name node_name  = hash_to_node( node );
     const json::value       node_value = ruby_to_json( value, node_name );
 
+    LOG_DETAIL( log_context << "update: " << node_name << " to " << node_value );
+
     bayeux_server* server_ptr = 0;
     Data_Get_Struct( self, bayeux_server, server_ptr );
+    assert( server_ptr );
 
-    if ( server_ptr )
-        server_ptr->update_node( node_name, node_value );
+    server_ptr->update_node( node_name, node_value );
 
     return self;
 }

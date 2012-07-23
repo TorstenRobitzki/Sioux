@@ -18,6 +18,7 @@ namespace bayeux
 		: queue_( queue )
 	    , data_( data )
         , mutex_()
+        , shutting_down_( false )
 		, session_generator_( session_generator )
 		, current_config_( new configuration( config ) )
 		, sessions_()
@@ -144,6 +145,17 @@ namespace bayeux
     {
         return queue_;
     }
+
+    template < class Timer >
+    void connector< Timer >::shut_down()
+    {
+        boost::mutex::scoped_lock lock( mutex_ );
+
+        shutting_down_ = true;
+        sessions_.clear();
+        index_.clear();
+    }
+
 
     template < class Timer >
     void connector< Timer >::remove_from_sessions( typename session_list_t::iterator pos )
