@@ -7,6 +7,7 @@ require 'rake/clean'
 require 'yaml'
 
 CPP = ENV["SIOUX_CPP"] || ENV["CPP"] || 'g++'
+ADDITIONAL_DEFINES = ENV[ 'SIOUX_DEFINES' ]
 
 SOURCE_FOLDER = File.expand_path 'source'
 INCLUDE_FOLDER = SOURCE_FOLDER 
@@ -24,7 +25,9 @@ INCLUDE_PATH = ['.', INCLUDE_FOLDER]
 
 FLAVORS = %w{debug release coverage}
 
-COMPILER_FLAGS = "-Wall -pedantic -Wno-parentheses -Wno-sign-compare -c -pipe -I#{INCLUDE_FOLDER}"
+ADDITIONAL_DEFINES_FLAG = ADDITIONAL_DEFINES.nil? ? '' : "-D#{ADDITIONAL_DEFINES}"
+
+COMPILER_FLAGS = "-Wall -pedantic -Wno-parentheses -Wno-sign-compare -c -pipe -I#{INCLUDE_FOLDER} #{ADDITIONAL_DEFINES_FLAG}"
 COMPILER_FLAGS_BY_FLAVORS = {
 	'debug' => '-ggdb -O0',
 	'release' => '-O3 -DNDEBUG',

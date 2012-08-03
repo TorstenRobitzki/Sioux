@@ -18,7 +18,7 @@ On the server side, a binding for C++ exists and a binding for Ruby/Rake.
  getting "started"
  =================
 
-Currently this isn't an "out of the box" product. To get an overview, checkout the source and use "rake docu" to build oxygen documentation. "rake -T" gives an overview of the available build targets.
+Currently this isn't an "out of the box" product. To get an overview, checkout the source and use "rake docu" to build doxygen documentation. "rake -T" gives an overview of the available build targets.
 
  Examples
  ========
