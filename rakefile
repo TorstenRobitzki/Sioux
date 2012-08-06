@@ -7,6 +7,8 @@ require 'rake/clean'
 require 'yaml'
 require 'rbconfig'
 
+LIBRARY_EXCEPTIONS = %w( sioux tests )
+
 CPP = ENV["SIOUX_CPP"] || ENV["CPP"] || 'g++'
 ADDITIONAL_DEFINES = ENV[ 'SIOUX_DEFINES' ]
 
@@ -61,8 +63,11 @@ GCOV_PATTERN.each { |p| CLEAN.include p }
 
 DEVICE_NULL = '/dev/null'
 
-executables = []
 ALL_TEST_NAMES = []
+UNIT_TEST_NAMES = []
+ALL_EXAMPLE_NAMES = []
+COMPONENT_TEST_NAMES = []
+
 SHARED_LIBARARIES = []
 
 def library_name_from_path path
@@ -191,16 +196,18 @@ def build_executable executable, objects, libraries, external_libraries, flavor
 end
 
 # List of libraries in the source folder
-libraries  = FileList[File.join(SOURCE_FOLDER, '*')].reject do |file|
+LIBRARIES  = FileList[File.join(SOURCE_FOLDER, '*')].reject do |file|
 	!File.directory?(file) 
-end.collect do |lib_path|
+end.collect do | lib_path |
 	library_name_from_path lib_path
+end.reject do | lib_name |
+    LIBRARY_EXCEPTIONS.include? lib_name
 end
 
 FLAVORS.each do |flavor|
 	directory File.join(LIBRARY_FOLDER, flavor)
 
-	libraries.each do |lib| 
+	LIBRARIES.each do |lib| 
 		CLEAN.include File.join(OUTPUT_FOLDER, flavor, lib, '*.' + OBJECT_FILE_EXT)
 		CLEAN.include File.join(OUTPUT_FOLDER, flavor, lib, '*.' + DEPENDS_FILE_EXT)
 
@@ -233,7 +240,7 @@ def create_object_to_source_dependencies source_files, flavor
 end
 
 # create libraries task 
-library_tasks = libraries.collect do |library_name|
+LIBRARY_TASKS = LIBRARIES.collect do |library_name|
 	libs_by_name_and_flavor = {}
 	source_files = FileList[File.join(SOURCE_FOLDER, library_name, '*.cpp')].exclude(/.*test\.cpp/)
 
@@ -262,50 +269,59 @@ def run_test test_name, flavor, single_test
     sh exe_file_name( test_name, flavor ), single_test == 'all' ? '' : "--run_test=#{single_test}"
 end
 
+def create_executable_task name, *dependencies
+    params = {:libraries => [], :extern_libs => [], :sources => [] }
+    dependencies.each {|p| params.merge! p }
+    sources    = params.delete(:sources)
+    libraries  = params.delete(:libraries)
+    external_libs = params.delete(:extern_libs)
+    
+    raise "unrecongnized parameters to 'test': #{params}" unless params.empty?
+
+    tests_by_flavor = {}
+
+    FLAVORS.each do |flavor|
+        exe_name        = exe_file_name name, flavor
+        exe_dir         = File.dirname exe_name
+        
+        object_files       = create_object_to_source_dependencies sources, flavor
+        libraries_files    = libraries.collect {|l| library_file_name l, flavor }
+        external_lib_files = external_libs.collect {|e| external_library_file_name e, flavor }
+
+        directory exe_dir
+        file exe_name => exe_dir 
+
+        tests_by_flavor[flavor] = file exe_name => object_files + libraries_files do |exe|
+            build_executable exe_name, object_files, libraries, external_lib_files, flavor
+        end 
+    end
+    
+    task name.to_sym, [ :flavor, :single_test ] do |t, args|
+        args.with_defaults(:flavor => 'debug', :single_test => 'all' )
+        check_flavor args.flavor
+
+        tests_by_flavor[args.flavor].invoke
+        run_test( name, args.flavor, args.single_test )
+    end
+end
+
 # builds tasks for the given test_name.
 def test test_name, *dependencies
     ALL_TEST_NAMES << test_name
-	params = {:libraries => [], :extern_libs => [], :sources => [] }
-	dependencies.each {|p| params.merge! p }
-	sources    = params.delete(:sources)
-	libraries  = params.delete(:libraries)
-	external_libs = params.delete(:extern_libs)
-	
-	raise "unrecongnized parameters to 'test': #{params}" unless params.empty?
-
-	tests_by_flavor = {}
-
-	FLAVORS.each do |flavor|
-		exe_name        = exe_file_name test_name, flavor
-		exe_dir         = File.dirname exe_name
-		
-		object_files       = create_object_to_source_dependencies sources, flavor
-		libraries_files    = libraries.collect {|l| library_file_name l, flavor }
-		external_lib_files = external_libs.collect {|e| external_library_file_name e, flavor }
-
-		directory exe_dir
-		file exe_name => exe_dir 
-
-		tests_by_flavor[flavor] = file exe_name => object_files + libraries_files do |exe|
-			build_executable exe_name, object_files, libraries, external_lib_files, flavor
-		end 
-	end
-	
-	task test_name.to_sym, [ :flavor, :single_test ] do |t, args|
-		args.with_defaults(:flavor => 'debug', :single_test => 'all' )
-		check_flavor args.flavor
-
-		tests_by_flavor[args.flavor].invoke
-		run_test( test_name, args.flavor, args.single_test )
-	end
+    UNIT_TEST_NAMES << test_name
+    
+    create_executable_task test_name, *dependencies
 end
 
-def test_util test_name, *dependencies
-    test test_name, *dependencies
+def build_example example_name, *dependencies
+    ALL_EXAMPLE_NAMES << example_name
+    
+    create_executable_task example_name, *dependencies
 end
 
 def component_test test_name, *dependencies
     ALL_TEST_NAMES << test_name
+    COMPONENT_TEST_NAMES << test_name
     
     params = { :sources => [], :dependencies => [] }
     dependencies.each {|p| params.merge! p }
@@ -364,41 +380,67 @@ def ruby_extension lib_name, *dependencies
 end
  
 # include sub rake files (this will populate ALL_TEST_NAMES)
-libraries.each do |library_name|
+LIBRARIES.each do |library_name|
     rakefile = File.join(SOURCE_FOLDER, library_name, 'rakefile')
     if File.exist? rakefile then
         load rakefile
     end  
 end
 
-desc 'build all executables shiped with a sioux server'
-task :exes => executables
-
 desc 'build all libraries used to build a sioux server'
 task :libs, [:flavor] do |t, args|
 	args.with_defaults(:flavor => 'debug')
 	check_flavor args.flavor
 
-	library_tasks.each { |t| t.invoke(args.flavor) }
+	LIBRARY_TASKS.each { |t| t.invoke(args.flavor) }
 end
 
 desc 'run all tests'
 task :tests, [:flavor] => ALL_TEST_NAMES
 
-desc 'lists the available tests'
-task :list_tests do
-    puts "list of all available tests:\n\n"
-	puts ALL_TEST_NAMES.collect{|t| "\t#{t}" }.join("\n")
-	
-	puts <<EOD
+desc 'lists the available unit tests'
+task :list_unit_tests do
+    puts "list of all available unit tests:\n\n"
+    puts UNIT_TEST_NAMES.collect{|t| "\t#{t}" }.join("\n")
 
-All tests have two parameters. The first parameter is the build flavor, the second parameter is the test case to be run.
+    puts <<EOD
+
+All unit tests have two parameters. The first parameter is the build flavor, the second parameter is the test case to be run.
 The default for the flavor is 'debug'. The default for the test case is 'all'. Example:
 
 \trake json_test[debug,json_string_test]
 
 builds the json_test and executes just the json_string_test test case out of the json_test.
 EOD
+end
+
+desc 'list the available component tests'
+task :list_component_tests do
+    puts "list of all available component tests:\n\n"
+
+    COMPONENT_TEST_NAMES.each{ | test | puts "\t#{test}\n" };
+    
+    puts <<EOD.gsub( /^    /, '' )
+
+    All component take a single test name as an optional parameter to execute just a single test. Example:
+    
+    \trake bayeux_network_test[test_simple_subscribe_publish]
+        
+EOD
+end
+
+desc 'lists the available tests'
+task :list_tests do
+    puts "list of all available tests:\n\n"
+	puts ALL_TEST_NAMES.collect{|t| "\t#{t}" }.join("\n")
+	puts 
+end
+
+desc 'lists the available examples'
+task :list_examples do
+    puts "list of all available examples:\n\n"
+    puts ALL_EXAMPLE_NAMES.collect{ |t| "\t#{t}" }.join( "\n" )
+    puts
 end
 
 desc 'build html documentation'
@@ -418,5 +460,5 @@ task :list_flavors do
 STOP
 end
 
-task :default => [:exes, :libs] 
+task :default => [:libs] 
 
