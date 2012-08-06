@@ -1,6 +1,6 @@
 
- Sioux is a framework to build Comet Web-Servers 
- ===============================================
+Sioux is a framework to build Comet Web-Servers 
+===============================================
  
 It is based around a publish subscribe paradigm. A web client want to display a special set of data. If that data changes, the client want to get informed about that changes.
 
@@ -8,25 +8,25 @@ Currently only Bayeux with long-polling between server and client is implemented
 
 On the server side, a binding for C++ exists and a binding for Ruby/Rake.
 
- Dependencies
- ============
+Dependencies
+============
 
 - Rake is used as build system 
-- boost 
+- boost (1.50. will work)
 - cometd client library
 
- getting "started"
- =================
+getting "started"
+=================
 
-Currently this isn't an "out of the box" product. To get an overview, checkout the source and use "rake docu" to build doxygen documentation. "rake -T" gives an overview of the available build targets.
+Currently this isn't an "out of the box" product. I've build the project under OS X and Linux. To get an overview, checkout the source and use "rake docu" to build doxygen documentation. "rake -T" gives an overview of the available build targets.
 
- Examples
- ========
+Examples
+========
 
 Have a look at /source/tests/chat.cpp as a C++ chat example and /source/tests/ruby_chat.rb for the same in ruby.
 
- Licence  
- =======
+Licence  
+=======
 
 Sioux is licensed under MIT Licence.
 
