@@ -71,9 +71,9 @@ namespace http {
         if ( !parse_number(status.begin(), status.end(), code) )
             return false;
 
-        code_ = static_cast<http_error_code>(code);
+        code_ = static_cast< http_error_code >( code );
 
-        return code_ >= 100 && code_ < 600;
+        return code >= 100 && code < 600;
     }
 
     message::error_code response_header::end_of_request()

@@ -97,7 +97,8 @@ BOOST_AUTO_TEST_CASE( body_decoder_with_illegal_size )
 BOOST_AUTO_TEST_CASE( body_decoder_without_length_header )
 {
 	http::body_decoder decoder;
-	BOOST_CHECK_EQUAL( http::http_length_required, decoder.start( http::request_header( http::test::simple_get_11 ) ) );
+	http::request_header header( http::test::simple_get_11 );
+	BOOST_CHECK_EQUAL( http::http_length_required, decoder.start( header ) );
 }
 
 BOOST_AUTO_TEST_CASE( test_header_with_empty_body )

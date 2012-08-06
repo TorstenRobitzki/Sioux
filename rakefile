@@ -196,9 +196,11 @@ def build_executable executable, objects, libraries, external_libraries, flavor
 end
 
 # List of libraries in the source folder
-LIBRARIES  = FileList[File.join(SOURCE_FOLDER, '*')].reject do |file|
-	!File.directory?(file) 
-end.collect do | lib_path |
+ALL_SOURCE_FOLDERS = FileList[File.join(SOURCE_FOLDER, '*')].reject do |file|
+    !File.directory?(file)
+end     
+
+LIBRARIES = ALL_SOURCE_FOLDERS.collect do | lib_path |
 	library_name_from_path lib_path
 end.reject do | lib_name |
     LIBRARY_EXCEPTIONS.include? lib_name
@@ -380,8 +382,9 @@ def ruby_extension lib_name, *dependencies
 end
  
 # include sub rake files (this will populate ALL_TEST_NAMES)
-LIBRARIES.each do |library_name|
-    rakefile = File.join(SOURCE_FOLDER, library_name, 'rakefile')
+ALL_SOURCE_FOLDERS.each do |folder|
+    rakefile = File.join( folder, 'rakefile')
+
     if File.exist? rakefile then
         load rakefile
     end  
@@ -395,8 +398,14 @@ task :libs, [:flavor] do |t, args|
 	LIBRARY_TASKS.each { |t| t.invoke(args.flavor) }
 end
 
+desc 'run all unit tests'
+task :unit_tests, [ :flavor ] => UNIT_TEST_NAMES
+
+desc 'run all component tests'
+task :component_tests, [ :flavor ] => COMPONENT_TEST_NAMES
+
 desc 'run all tests'
-task :tests, [:flavor] => ALL_TEST_NAMES
+task :tests, [ :flavor ] => [ :unit_tests, :component_tests ]
 
 desc 'lists the available unit tests'
 task :list_unit_tests do

@@ -165,6 +165,9 @@ namespace bayeux
 		    virtual ~handle_user_actions() {}
 		};
 
+		template < class SessionData >
+		struct typed_user_actions;
+
 		const boost::scoped_ptr< handle_user_actions >  users_actions_;
 
 		template < class SessionData >
@@ -206,9 +209,13 @@ namespace bayeux
 
     template < class Timer >
     template < class SessionData >
-    typename connector< Timer >::handle_user_actions* connector< Timer >::create_user_handler(
-        adapter< SessionData >& user_acctions )
+    struct connector< Timer >::typed_user_actions : handle_user_actions
     {
+        explicit typed_user_actions( adapter< SessionData >& user_acctions )
+            : hooks_( user_acctions )
+        {
+        }
+
         struct session_with_user_data : session
         {
             SessionData user_data_;
@@ -221,39 +228,37 @@ namespace bayeux
             }
         };
 
-        struct typed_user_actions : handle_user_actions
+        std::pair< bool, json::string > handshake( const std::string& session_id, pubsub::root& root,
+            const boost::shared_ptr< const configuration >& config, const json::value& ext,
+            boost::shared_ptr< session >& new_session )
         {
-            explicit typed_user_actions( adapter< SessionData >& user_acctions )
-                : hooks_( user_acctions )
+            SessionData session_data = SessionData(); // the type SessionData have to have a default c'tor
+            const std::pair< bool, json::string > result = hooks_.handshake( ext, session_data );
+
+            if ( result.first )
             {
+                new_session.reset( static_cast< session* >(
+                    new session_with_user_data( session_id, root, config, session_data ) ) );
             }
 
-            std::pair< bool, json::string > handshake( const std::string& session_id, pubsub::root& root,
-                const boost::shared_ptr< const configuration >& config, const json::value& ext,
-                boost::shared_ptr< session >& new_session )
-            {
-                SessionData session_data = SessionData(); // the type SessionData have to have a default c'tor
-                const std::pair< bool, json::string > result = hooks_.handshake( ext, session_data );
+            return result;
+        }
 
-                if ( result.first )
-                {
-                    new_session.reset( static_cast< session* >(
-                        new session_with_user_data( session_id, root, config, session_data ) ) );
-                }
+        std::pair< bool, json::string > publish( const json::string& channel, const json::value& data,
+            const json::object& message, session& client, pubsub::root& root )
+        {
+            return hooks_.publish( channel, data, message, static_cast< session_with_user_data& >( client ).user_data_, root );
+        }
 
-                return result;
-            }
+        adapter< SessionData >& hooks_;
+    };
 
-            std::pair< bool, json::string > publish( const json::string& channel, const json::value& data,
-                const json::object& message, session& client, pubsub::root& root )
-            {
-                return hooks_.publish( channel, data, message, static_cast< session_with_user_data& >( client ).user_data_, root );
-            }
-
-            adapter< SessionData >& hooks_;
-        };
-
-        return new typed_user_actions( user_acctions );
+    template < class Timer >
+    template < class SessionData >
+    typename connector< Timer >::handle_user_actions* connector< Timer >::create_user_handler(
+        adapter< SessionData >& user_acctions )
+    {
+        return new typed_user_actions< SessionData >( user_acctions );
     }
 }
 

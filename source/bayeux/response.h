@@ -41,16 +41,17 @@ namespace bayeux
 	template < class Timer >
 	class response_base : public response_interface
 	{
+	public:
+        /**
+         * @brief dispatcher for the different channels
+         */
+        void handle_request( const json::object& request, const boost::shared_ptr< response_interface >& self,
+            const std::string& connection_name, bool last_message );
 	protected:
 		explicit response_base( connector< Timer >& con );
 
 		~response_base();
 
-		/**
-		 * @brief dispatcher for the different channels
-		 */
-		void handle_request( const json::object& request, const boost::shared_ptr< response_interface >& self,
-		    const std::string& connection_name, bool last_message );
 		void handle_handshake( const json::object& request, const std::string& connection_name );
 		void handle_connect( const json::object& request, const boost::shared_ptr< response_interface >& self,
 		    bool last_message );
@@ -293,41 +294,48 @@ namespace bayeux
 		}
 	}
 
+	namespace details
+	{
+
+	    template < class Connection >
+        struct handle_requests_visitor : json::default_visitor
+        {
+            void visit( const json::object& o )
+            {
+                response_.handle_request( o, response_.shared_from_this(), connection_, last_ );
+                handled_ = true;
+            }
+
+            void visit( const json::array& list )
+            {
+                for ( std::size_t i = 0, size = list.length(); i != size; ++i )
+                {
+                    last_ = i + 1  == size;
+                    list.at( i ).visit( *this );
+                }
+            }
+
+            handle_requests_visitor( response< Connection >& r, const std::string& connection_name )
+                : handled_( false )
+                , last_( true )
+                , response_( r )
+                , connection_( connection_name )
+            {
+            }
+
+            bool                                            handled_;
+            bool                                            last_;
+            response< Connection >&                         response_;
+            const std::string                               connection_;
+        };
+	}
+
 	template < class Connection >
 	void response< Connection >::handle_requests( const json::value& request_container )
 	{
 	    log::bayeux_handle_requests( *connection_, request_container, log::enabled< Connection >( connection_.get() ) );
 
-		struct visitor_t : json::default_visitor
-		{
-	        void visit( const json::object& o )
-	        {
-	        	response_.handle_request( o, response_.shared_from_this(), connection_, last_ );
-	        	handled_ = true;
-	        }
-
-	        void visit( const json::array& list )
-	        {
-	            for ( std::size_t i = 0, size = list.length(); i != size; ++i )
-	            {
-	                last_ = i + 1  == size;
-	                list.at( i ).visit( *this );
-	            }
-	        }
-
-	        visitor_t( response< Connection >& r, const std::string& connection_name )
-	        	: handled_( false )
-	            , last_( true )
-	        	, response_( r )
-	        	, connection_( connection_name )
-	        {
-	        }
-
-	        bool 					                        handled_;
-	        bool                                            last_;
-			response< Connection >&                         response_;
-			const std::string		                        connection_;
-		} visitor( *this,
+	    details::handle_requests_visitor< Connection > visitor( *this,
 			server::socket_end_point_trait< typename Connection::socket_t >::to_text( connection_->socket() ) );
 
 		request_container.visit( visitor );

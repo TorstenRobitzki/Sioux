@@ -22,12 +22,41 @@ namespace json {
             edit_at   =6
         };
 
-        static const number update_at_operation( update_at );
-        static const number delete_at_operation( delete_at );
-        static const number insert_at_operation( insert_at );
-        static const number delete_range_operation( delete_range );
-        static const number update_range_operation( update_range );
-        static const number edit_at_operation( edit_at );
+        static const number& update_at_operation()
+        {
+            static const number result( update_at );
+            return result;
+        }
+
+        static const number& delete_at_operation()
+        {
+            static const number result( delete_at );
+            return result;
+        }
+
+        static const number& insert_at_operation()
+        {
+            static const number result( insert_at );
+            return result;
+        }
+
+        static const number& delete_range_operation()
+        {
+            static const number result( delete_range );
+            return result;
+        }
+
+        static const number& update_range_operation()
+        {
+            static const number result( update_range );
+            return result;
+        }
+
+        static const number& edit_at_operation()
+        {
+            static const number result( edit_at );
+            return result;
+        }
 
         int to_int(const value& val)
         {
@@ -304,18 +333,18 @@ namespace json {
             vertex_list_t::const_iterator   prev        = ptr->previous;
             const array                     last_update = ptr->operation;
 
-            if ( prev_op == update_at_operation )
+            if ( prev_op == update_at_operation() )
             {
                 // combine a previous update with this update to a range update
                 array new_elements;
                 new_elements.add( last_update.at( 2 ) ).add( b );
 
-                result.add( update_range_operation )
+                result.add( update_range_operation() )
                       .add( last_update.at( 1 ) )
                       .add( number( index + 1 ) )
                       .add( new_elements );
             }
-            else if ( prev_op == insert_at_operation )
+            else if ( prev_op == insert_at_operation() )
             {
                 // combine a previous insert with this update to a range update
                 array new_elements( last_update.at( 2 ) );
@@ -323,41 +352,41 @@ namespace json {
 
                 assert( index > 0 );
 
-                result.add( update_range_operation )
+                result.add( update_range_operation() )
                       .add( number( index - 1 ) )
                       .add( number( index ) )
                       .add( new_elements );
             }
-            else if ( prev_op == delete_at_operation )
+            else if ( prev_op == delete_at_operation() )
             {
             	// combine a previous delete with this update to a range update
-                result.add( update_range_operation )
+                result.add( update_range_operation() )
                       .add( number( index ) )
                       .add( number( index + 2 ) )
                       .add( array( b ) );
             }
-            else if ( prev_op == delete_range_operation )
+            else if ( prev_op == delete_range_operation() )
             {
                 // combine a previous range delete with this update to a range update
-                result.add( update_range_operation )
+                result.add( update_range_operation() )
                       .add( last_update.at( 1 ) )
                       .add( increment( last_update.at( 2 ) ) )
                       .add( array( b ) );
             }
-            else if ( prev_op == update_range_operation )
+            else if ( prev_op == update_range_operation() )
             {
                 array new_elements( last_update.at( 3 ).upcast< array >().copy() );
                 new_elements.add( b );
 
                 // combine a previous update with this update to a range update
-                result.add( update_range_operation )
+                result.add( update_range_operation() )
                       .add( last_update.at( 1 ) )
                       .add( increment( last_update.at( 2 ) ) )
                       .add( new_elements );
             }
             else
             {
-                result.add( update_at_operation ).add( number( index ) ).add( b );
+                result.add( update_at_operation() ).add( number( index ) ).add( b );
                 prev = ptr;
             }
 
@@ -370,7 +399,7 @@ namespace json {
             if ( edit_operation.first )
             {
                 array edit_result;
-                edit_result.add( edit_at_operation )
+                edit_result.add( edit_at_operation() )
                            .add( number( index ) )
                            .add( edit_operation.second );
 
@@ -400,41 +429,41 @@ namespace json {
             // a combination of a delete/range delete with an insert to an range update is 
             // not implemented, because an update should be considered too
 
-            if ( prev_op == update_at_operation )
+            if ( prev_op == update_at_operation() )
             {
             	array new_elements( last_update.at( 2 ) );
                 new_elements.add( b );
 
-                result.add( update_range_operation )
+                result.add( update_range_operation() )
                       .add( last_update.at( 1 ) )
                       .add( number( index ) )
                       .add( new_elements );
             }
-            else if ( prev_op == insert_at_operation )
+            else if ( prev_op == insert_at_operation() )
             {
                 array new_elements( last_update.at( 2 ) );
                 new_elements.add( b );
 
                 // combine a previous insert to a range update
-                result.add( update_range_operation )
+                result.add( update_range_operation() )
                       .add( number( index-1 ) )
                       .add( number( index-1 ) )
                       .add( new_elements );
             }
-            else if ( prev_op == update_range_operation )
+            else if ( prev_op == update_range_operation() )
             {
                 array new_elements( last_update.at( 3 ).upcast< array >().copy() );
                 new_elements.add( b );
 
                 // or combine a range update with this insert to an range update
-                result.add( update_range_operation )
+                result.add( update_range_operation() )
                       .add( last_update.at( 1 ) )
                       .add( last_update.at( 2 ) )
                       .add( new_elements );
             }
             else
             {
-                result.add( insert_at_operation )
+                result.add( insert_at_operation() )
                       .add( number(index) )
                       .add( b );
 
@@ -456,38 +485,38 @@ namespace json {
 
             const array last_update = ptr->operation;
 
-            if ( prev_op == update_at_operation )
+            if ( prev_op == update_at_operation() )
             {
-                result.add( update_range_operation )
+                result.add( update_range_operation() )
                       .add( number( index - 1 ) )
                       .add( number( index + 1 ) )
                       .add( array( last_update.at( 2 ) ) );
             }
-            else if ( prev_op == delete_at_operation )
+            else if ( prev_op == delete_at_operation() )
             {
                 // combine a previous delete with this delete to a range delete
-                result.add( delete_range_operation )
+                result.add( delete_range_operation() )
                       .add( number( index ) )
                       .add( number( index + 2 ) );
             }
-            else if ( prev_op == delete_range_operation )
+            else if ( prev_op == delete_range_operation() )
             {
                 // extend a previous range delete to this element
-                result.add( delete_range_operation )
+                result.add( delete_range_operation() )
                       .add( last_update.at( 1 ) )
                       .add( increment( last_update.at( 2 ) ) );
             }
-            else if ( prev_op == update_range_operation )
+            else if ( prev_op == update_range_operation() )
             {
                 // we can extend a range update and thus delete this element too
-                result.add( update_range_operation )
+                result.add( update_range_operation() )
                       .add( last_update.at( 1 ) )
                       .add( increment( last_update.at( 2 ) ) )
                       .add( last_update.at( 3 ) );
             }
             else
             {
-                result.add( delete_at_operation )
+                result.add( delete_at_operation() )
                       .add( number( index ) );
 
                 prev = ptr;
@@ -598,14 +627,14 @@ namespace json {
             {
                 if ( pb == bkeys.end() || pa != akeys.end() && *pa < *pb )
                 {
-                    result.add( delete_at_operation )
+                    result.add( delete_at_operation() )
                           .add( *pa );
 
                     ++pa;
                 }
                 else if ( pa == akeys.end() || pb != bkeys.end() && *pb < *pa )
                 {
-                    result.add( insert_at_operation )
+                    result.add( insert_at_operation() )
                           .add( *pb )
                           .add( b.at( *pb ) );
 
@@ -621,14 +650,14 @@ namespace json {
                     // use edit, if possible and shorter
                     if ( edit_op.first && edit_op.second.size() < b_element.size() )
                     {
-                        result.add( edit_at_operation )
+                        result.add( edit_at_operation() )
                               .add( *pa )
                               .add( edit_op.second );
 
                     }
                     else
                     {
-                        result.add( update_at_operation )
+                        result.add( update_at_operation() )
                               .add( *pa)
                               .add( b_element );
                     }

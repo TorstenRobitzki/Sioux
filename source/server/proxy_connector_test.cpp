@@ -93,7 +93,8 @@ BOOST_AUTO_TEST_CASE( use_established_proxy_connections )
     BOOST_CHECK(handler2.connection.connected().first);
     BOOST_CHECK_EQUAL(addr, handler2.connection.connected().second);
 
-    proxy->release_connection(handler2.con_ptr, http::response_header("HTTP/1.1 200 OK\r\n\r\n"));
+    const http::response_header ok_header( "HTTP/1.1 200 OK\r\n\r\n" );
+    proxy->release_connection( handler2.con_ptr, ok_header );
 
     connect_handler<>               handler3;
     proxy->async_get_proxy_connection<socket_t>(
@@ -109,7 +110,8 @@ BOOST_AUTO_TEST_CASE( use_established_proxy_connections )
     BOOST_CHECK(handler3.connection.connected().first);
     BOOST_CHECK_EQUAL(addr, handler3.connection.connected().second);
 
-    proxy->release_connection(handler3.con_ptr, http::response_header("HTTP/1.1 200 OK\r\nconnection:foobar\r\n\r\n"));
+    http::response_header connect_header( "HTTP/1.1 200 OK\r\nconnection:foobar\r\n\r\n" );
+    proxy->release_connection( handler3.con_ptr, connect_header );
 
     connect_handler<>               handler4;
     proxy->async_get_proxy_connection<socket_t>(
@@ -125,7 +127,8 @@ BOOST_AUTO_TEST_CASE( use_established_proxy_connections )
     BOOST_CHECK(handler4.connection.connected().first);
     BOOST_CHECK_EQUAL(addr, handler4.connection.connected().second);
 
-    proxy->release_connection(handler4.con_ptr, http::response_header("HTTP/1.1 200 OK\r\nconnection:close\r\n\r\n"));
+    http::response_header close_header( "HTTP/1.1 200 OK\r\nconnection:close\r\n\r\n" );
+    proxy->release_connection( handler4.con_ptr, close_header );
 
     connect_handler<>               handler5;
     proxy->async_get_proxy_connection<socket_t>(
@@ -141,7 +144,7 @@ BOOST_AUTO_TEST_CASE( use_established_proxy_connections )
     BOOST_CHECK(handler5.connection.connected().first);
     BOOST_CHECK_EQUAL(addr, handler5.connection.connected().second);
 
-    proxy->release_connection(handler5.con_ptr, http::response_header("HTTP/1.1 200 OK\r\n\r\n"));
+    proxy->release_connection( handler5.con_ptr, ok_header );
 
     // after waiting the idle timeout, a new connection have to be created
     wait(boost::posix_time::seconds(3));
@@ -163,7 +166,7 @@ BOOST_AUTO_TEST_CASE( use_established_proxy_connections )
     BOOST_CHECK(handler6.connection.connected().first);
     BOOST_CHECK_EQUAL(addr, handler6.connection.connected().second);
 
-    proxy->release_connection(handler6.con_ptr, http::response_header("HTTP/1.1 200 OK\r\n\r\n"));
+    proxy->release_connection( handler6.con_ptr, ok_header );
 
     // after waiting the idle timeout, a new connection have to be created, by not running the queue,
     // the call to async_get_proxy_connection() will find an idle connection and the idle time out will 
@@ -184,7 +187,7 @@ BOOST_AUTO_TEST_CASE( use_established_proxy_connections )
     BOOST_CHECK(handler7.connection.connected().first);
     BOOST_CHECK_EQUAL(addr, handler7.connection.connected().second);
 
-    proxy->release_connection(handler7.con_ptr, http::response_header("HTTP/1.1 200 OK\r\n\r\n"));
+    proxy->release_connection( handler7.con_ptr, ok_header );
 }
 
 /**

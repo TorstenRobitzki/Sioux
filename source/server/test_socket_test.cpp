@@ -293,14 +293,13 @@ BOOST_AUTO_TEST_CASE( read_plan_execute_test )
 BOOST_AUTO_TEST_CASE( write_callback_is_called )
 {
     using namespace boost::lambda;
-    using boost::lambda::_1;
 
     boost::asio::io_service         queue;
     server::test::socket<>          socket( queue, read_plan() );
     boost::asio::const_buffer       buffer;
     io_completed                    io_result;
 
-    socket.write_callback( var( buffer ) = _1 );
+    socket.write_callback( var( buffer ) = boost::lambda::_1 );
     BOOST_REQUIRE_EQUAL( buffer_size( buffer ), 0 );
 
     socket.async_write_some( boost::asio::buffer( "Hallo" ), io_result );
