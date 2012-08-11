@@ -452,9 +452,16 @@ task :list_examples do
     puts
 end
 
+directory DOCUMENTATION_FOLDER
+
 desc 'build html documentation'
-task :docu do
+task :docu => DOCUMENTATION_FOLDER do
 	sh "doxygen #{ File.expand_path( File.join( SOURCE_FOLDER, 'doxybuild' ) ) } 1> #{ DEVICE_NULL }"
+end
+
+desc 'build a \'documentation.zip\' file.'
+task :docu_zip => :docu do
+    sh "zip -jDr9 documentation.zip #{DOCUMENTATION_FOLDER}" 
 end
 
 desc 'lists all flavors and there meaning'
