@@ -1,4 +1,4 @@
-    // Copyright (c) Torrox GmbH & Co KG. All rights reserved.
+// Copyright (c) Torrox GmbH & Co KG. All rights reserved.
 // Please note that the content of this file is confidential or protected by law.
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
@@ -59,23 +59,17 @@ namespace file
         const boost::shared_ptr< Connection >&                    connection,
         const boost::shared_ptr< const http::request_header >&    header )
     {
-        boost::filesystem::path file_name = check_canonical( *header );
-
-        if ( file_name.empty() )
-            return boost::shared_ptr< server::async_response >(
-                new server::defered_error_response< Connection >( connection, http::http_forbidden ) );
-
-        if ( is_directory( file_name ) )
+        try
         {
-            boost::filesystem::path changed_file_name = file_name / "index.html";
+            boost::filesystem::path file_name = check_canonical( *header );
 
-            if ( exists( changed_file_name ) && !is_directory( changed_file_name ) )
+            if ( file_name.empty() )
+                return boost::shared_ptr< server::async_response >(
+                    new server::defered_error_response< Connection >( connection, http::http_forbidden ) );
+
+            if ( is_directory( file_name ) )
             {
-                file_name = changed_file_name;
-            }
-            else
-            {
-                boost::filesystem::path changed_file_name = file_name / "index.htm";
+                boost::filesystem::path changed_file_name = file_name / "index.html";
 
                 if ( exists( changed_file_name ) && !is_directory( changed_file_name ) )
                 {
@@ -83,14 +77,28 @@ namespace file
                 }
                 else
                 {
-                    return boost::shared_ptr< server::async_response >(
-                        new server::defered_error_response< Connection >( connection, http::http_not_found ) );
+                    boost::filesystem::path changed_file_name = file_name / "index.htm";
+
+                    if ( exists( changed_file_name ) && !is_directory( changed_file_name ) )
+                    {
+                        file_name = changed_file_name;
+                    }
+                    else
+                    {
+                        return boost::shared_ptr< server::async_response >(
+                            new server::defered_error_response< Connection >( connection, http::http_not_found ) );
+                    }
                 }
             }
+        
+            return boost::shared_ptr< server::async_response >(
+                new response< Connection >( connection, file_name ) );
         }
-
-        return boost::shared_ptr< server::async_response >(
-            new response< Connection >( connection, file_name ) );
+        catch ( ... )
+        {
+            return boost::shared_ptr< server::async_response >(
+                new server::defered_error_response< Connection >( connection, http::http_not_found ) );
+        }
     }
 
     template < class Server >

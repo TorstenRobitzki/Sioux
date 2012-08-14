@@ -79,27 +79,34 @@ namespace file
 
         response_guard guard( *connection_, *this, http::http_not_found );
 
-        boost::filesystem::ifstream input( path_ );
-
-        if ( input.is_open() )
+        try 
         {
-            std::istreambuf_iterator< char > begin( input ), end;
-            buffer_.insert( buffer_.begin(), begin, end );
+            boost::filesystem::ifstream input( path_ );
 
-            if ( !input.bad() )
+            if ( input.is_open() )
             {
-                header_ = response_header + tools::as_string( buffer_.size() ) + "\r\n\r\n";
+                std::istreambuf_iterator< char > begin( input ), end;
+                buffer_.insert( buffer_.begin(), begin, end );
 
-                result_.push_back( boost::asio::buffer( header_ ) );
-                result_.push_back( boost::asio::buffer( buffer_ ) );
+                if ( !input.bad() )
+                {
+                    header_ = response_header + tools::as_string( buffer_.size() ) + "\r\n\r\n";
 
-                connection_->async_write(
-                    result_,
-                    boost::bind( &response::data_written, this->shared_from_this(), _1, _2 ),
-                    *this );
+                    result_.push_back( boost::asio::buffer( header_ ) );
+                    result_.push_back( boost::asio::buffer( buffer_ ) );
 
-                guard.dismiss();
+                    connection_->async_write(
+                        result_,
+                        boost::bind( &response::data_written, this->shared_from_this(), _1, _2 ),
+                        *this );
+
+                    guard.dismiss();
+                }
             }
+        }
+        catch ( ... ) // error reported by http error code
+        {
+            /// @todo add loging
         }
     }
 }
