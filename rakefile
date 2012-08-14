@@ -22,7 +22,7 @@ DOCUMENTATION_FOLDER = File.expand_path 'documentation'
 
 OBJECT_FILE_EXT = 'o'
 DEPENDS_FILE_EXT = 'd'
-SHARED_LIBRARY_FILE_EXT = Config::CONFIG['DLEXT'] || 'so'
+SHARED_LIBRARY_FILE_EXT = RbConfig::CONFIG['DLEXT'] || 'so'
 
 INCLUDE_PATH = ['.', INCLUDE_FOLDER]
 
@@ -173,26 +173,23 @@ def build_library library_file, object_files, flavor
 	sh "ar -q #{library_file} #{object_files.join(' ')}"
 end
 
-# OSX initialize objects in the revers order as they appear on the linker command, so libaries are listed first
-# object files are listed second
 def build_ruby_extension shared_lib, objects, libraries, external_libraries, flavor
     File.delete( shared_lib ) if File.exist?(shared_lib)
     sh "#{CPP} -o #{shared_lib} #{SHARED_LINK_FLAGS} #{SHARED_LINK_FLAGS_BY_FLAVORS[flavor]} " + 
        "-L#{File.join(LIBRARY_FOLDER, flavor)} " + 
-       "#{external_libraries.reverse.collect{ | lib | "-l#{lib}" }.join(' ')} " +
-       "#{libraries.collect{|l| '-l' +l }.join(' ')} " +
-       "#{objects.join(' ')} "
+       "#{objects.join(' ')} " +
+       "#{libraries.collect{ | lib | "-l#{ lib }" }.join(' ') } " +
+       "#{external_libraries.collect{ | lib | "-l#{ lib }" }.join(' ') } " +
+       "#{SYSTEMLIBRARIES}"
 end
 
-# OSX initialize objects in the revers order as they appear on the linker command, so libaries are listed first
-# object files are listed second
 def build_executable executable, objects, libraries, external_libraries, flavor
-	File.delete(executable) if File.exist?(executable)
-	sh "#{CPP} #{objects.join(' ')} -o #{executable} #{LINK_FLAGS} #{LINK_FLAGS_BY_FLAVORS[flavor]} " + 
-	   "-L#{File.join(LIBRARY_FOLDER, flavor)} " +
-       "#{external_libraries.reverse.collect{ | lib | "-l#{lib}" }.join(' ')} " +
-	   "#{libraries.reverse.collect{|l| '-l' +l }.join(' ')} " +
-	   "#{SYSTEMLIBRARIES}"
+    File.delete(executable) if File.exist?(executable)
+    sh "#{CPP} #{objects.join(' ')} -o #{executable} #{LINK_FLAGS} #{LINK_FLAGS_BY_FLAVORS[flavor]} " + 
+       "-L#{File.join(LIBRARY_FOLDER, flavor)} " +
+       "#{libraries.collect{ | lib | "-l#{ lib }" }.join(' ') } " +
+       "#{external_libraries.collect{ | lib | "-l#{ lib }" }.join(' ') } " +
+       "#{SYSTEMLIBRARIES}"
 end
 
 # List of libraries in the source folder
