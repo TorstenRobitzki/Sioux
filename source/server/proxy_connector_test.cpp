@@ -147,7 +147,7 @@ BOOST_AUTO_TEST_CASE( use_established_proxy_connections )
     proxy->release_connection( handler5.con_ptr, ok_header );
 
     // after waiting the idle timeout, a new connection have to be created
-    wait(boost::posix_time::seconds(3));
+    server::test::wait(boost::posix_time::seconds(3));
 
     // this will forth the timeout handler to be executed
     tools::run(queue);
@@ -171,7 +171,7 @@ BOOST_AUTO_TEST_CASE( use_established_proxy_connections )
     // after waiting the idle timeout, a new connection have to be created, by not running the queue,
     // the call to async_get_proxy_connection() will find an idle connection and the idle time out will 
     // _not_ find the idle connection
-    wait(boost::posix_time::seconds(3));
+    server::test::wait(boost::posix_time::seconds(3));
 
     connect_handler<>               handler7;
     proxy->async_get_proxy_connection<socket_t>(
