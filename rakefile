@@ -43,7 +43,7 @@ LINK_FLAGS_BY_FLAVORS = {
 	'release' => '',
 	'coverage' => '-fprofile-arcs -ftest-coverage -lgcov',
 }
-SYSTEMLIBRARIES = '-lpthread'
+SYSTEMLIBRARIES = '-lpthread -lrt'
 
 SHARED_LINK_FLAGS = "-shared -flat_namespace #{LINK_FLAGS}"
 SHARED_LINK_FLAGS_BY_FLAVORS = LINK_FLAGS_BY_FLAVORS
