@@ -143,7 +143,7 @@ namespace
 
         using namespace boost::asio::ip;
         server_.add_listener( tcp::endpoint( address( address_v4::any() ), port ) );
-        server_.add_listener( tcp::endpoint( address( address_v6::any() ), port ) );
+//        server_.add_listener( tcp::endpoint( address( address_v6::any() ), port ) );
     }
 
     bayeux_server::~bayeux_server()

@@ -1,4 +1,3 @@
-require 'net/http/pipeline'
 require 'json'
 require 'monitor'
 

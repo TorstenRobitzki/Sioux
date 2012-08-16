@@ -3,17 +3,17 @@
 # Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 build_example 'bayeux_reply', 
-    :libraries => ['server', 'bayeux', 'json', 'pubsub', 'http', 'tools'], 
+    :libraries => ['bayeux', 'pubsub', 'server', 'json', 'http', 'tools'], 
     :extern_libs => ['boost_date_time', 'boost_regex', 'boost_system', 'boost_thread'], 
     :sources =>  FileList['./source/tests/bayeux_reply.cpp'] 
 
 build_example 'hello_world', 
-    :libraries => ['file', 'server', 'http', 'tools'], 
+    :libraries => ['server', 'file', 'http', 'tools'], 
     :extern_libs => ['boost_filesystem', 'boost_date_time', 'boost_regex', 'boost_system', 'boost_thread'], 
     :sources =>  FileList['./source/tests/hello_world.cpp'] 
 
 build_example 'chat', 
-    :libraries => ['file', 'server', 'bayeux', 'json', 'pubsub', 'http', 'tools'], 
+    :libraries => ['bayeux', 'pubsub', 'server', 'json', 'http', 'tools'], 
     :extern_libs => ['boost_filesystem', 'boost_date_time', 'boost_regex', 'boost_random', 'boost_system', 'boost_thread'], 
     :sources =>  FileList['./source/tests/chat.cpp'] 
 

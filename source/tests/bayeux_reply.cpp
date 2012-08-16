@@ -114,7 +114,6 @@ int main()
     server_t server( *queue, 0u, std::cout );
     using namespace boost::asio::ip;
     server.add_listener( tcp::endpoint( address( address_v4::any() ), 8080u ) );
-    server.add_listener( tcp::endpoint( address( address_v6::any() ), 8080u ) );
 
     server.add_action( "/stop", on_server_stop );
     server.add_action( "/ping", on_ping );
