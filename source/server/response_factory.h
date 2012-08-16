@@ -47,6 +47,7 @@ namespace server
         template < class Action >
         void add_action( const std::string& route, const Action& action );
 
+        void shutdown();
     private:
         struct action_holder_base
         {
@@ -182,6 +183,13 @@ namespace server
             std::make_pair(
                 route,
                 boost::shared_ptr< action_holder_base >( new action_holder< Action >( action) ) ) );
+    }
+
+    template < class Socket >
+    void response_factory< Socket >::shutdown()
+    {
+        proxies_.clear();
+        actions_.clear();
     }
 
 } // namespace server

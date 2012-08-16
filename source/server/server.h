@@ -128,6 +128,14 @@ namespace server {
          */
         void add_action( const char* route, const action_t& action );
 
+        /**
+         * @brief stops accepting incomming connections, close all listen ports
+         *
+         * The function is need as the io_service give to the c'tor needs to be destructed before the server.
+         * So basically this function must make sure, that the passed reference isn't used anymore.
+         */
+        void shut_down();
+
         typedef Trait                           trait_t;
         trait_t& trait();
 
@@ -140,6 +148,7 @@ namespace server {
         trait_t                                     trait_;
         boost::thread_group                         thread_herd_;
         std::vector<boost::shared_ptr<acceptor_t> > acceptors_;
+        bool                                        shutting_down_;
     };
     
     typedef basic_server<
@@ -197,6 +206,7 @@ namespace server {
         , trait_()
         , thread_herd_()
         , acceptors_()
+        , shutting_down_( false )
     {
         for (; number_of_threads; --number_of_threads)
             thread_herd_.create_thread(boost::bind(&boost::asio::io_service::run, &queue));
@@ -209,6 +219,7 @@ namespace server {
         , trait_(param)
         , thread_herd_()
         , acceptors_()
+        , shutting_down_( false )
     {
         for (; number_of_threads; --number_of_threads)
             thread_herd_.create_thread(boost::bind(&boost::asio::io_service::run, &queue));
@@ -217,12 +228,14 @@ namespace server {
     template <class Trait>
     basic_server<Trait>::~basic_server()
     {
-        thread_herd_.join_all();
+        if ( !shutting_down_ )
+            shut_down();
     }
 
     template <class Trait>
     void basic_server<Trait>::add_listener(const boost::asio::ip::tcp::endpoint& ep)
     {
+        assert( !shutting_down_ );
         boost::shared_ptr< acceptor_t > accept(new acceptor_t(queue_, trait_, ep));
         acceptors_.push_back(accept);
     }
@@ -230,12 +243,14 @@ namespace server {
     template <class Trait>
     void basic_server<Trait>::add_proxy(const char* route, const boost::asio::ip::tcp::endpoint& orgin, const proxy_configuration& config)
     {
+        assert( !shutting_down_ );
         trait_.add_proxy(queue_, route, orgin, config);
     }
 
     template < class Trait >
     void basic_server<Trait>::add_action( const char* route, const action_t& action )
     {
+        assert( !shutting_down_ );
         trait_.add_action( route, action );
     }
 
@@ -243,6 +258,14 @@ namespace server {
     typename basic_server<Trait>::trait_t& basic_server<Trait>::trait()
     {
         return trait_;
+    }
+
+    template < class Trait >
+    void basic_server<Trait>::shut_down()
+    {
+        acceptors_.clear();
+        trait_.shutdown();
+        thread_herd_.join_all();
     }
 
 } // namespace server

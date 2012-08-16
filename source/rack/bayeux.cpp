@@ -149,6 +149,7 @@ namespace
     bayeux_server::~bayeux_server()
     {
         connector_.shut_down();
+        server_.shut_down();
         delete queue_;
     }
 
