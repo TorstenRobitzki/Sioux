@@ -37,6 +37,7 @@ namespace server {
              * error code. Cancelling the timer does not change the expiry time.
              */
             std::size_t cancel();
+            std::size_t cancel( boost::system::error_code & ec );
 
             /**
              * @brief Get the timer's expire time as an absolute time.

@@ -145,6 +145,8 @@ namespace bayeux
                 const boost::shared_ptr< const configuration >& config, boost::asio::io_service& queue );
 
 		    explicit session_data( const boost::shared_ptr< session >& session, boost::asio::io_service& queue );
+
+		    void shut_down();
 		};
 
 		typedef std::map< std::string, session_data > session_list_t;

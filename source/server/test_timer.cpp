@@ -201,6 +201,11 @@ namespace test {
         return impl().cancel( queue_, *this );
     }
 
+    std::size_t timer::cancel( boost::system::error_code & ec )
+    {
+        return impl().cancel( queue_, *this );
+    }
+
     timer::time_type timer::expires_at() const
     {
         return time_type();

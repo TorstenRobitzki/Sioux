@@ -152,8 +152,9 @@ namespace bayeux
         boost::mutex::scoped_lock lock( mutex_ );
 
         shutting_down_ = true;
-        sessions_.clear();
-        index_.clear();
+
+        for ( typename session_list_t::iterator s = sessions_.begin(); s != sessions_.end(); ++s )
+            s->second.shut_down();
     }
 
 
@@ -208,6 +209,13 @@ namespace bayeux
         , session_( session )
         , timer_( new Timer ( queue ) )
     {
+    }
+
+    template < class Timer >
+    void connector< Timer >::session_data::shut_down()
+    {
+        boost::system::error_code ec;
+        timer_->cancel( ec );
     }
 
     template class connector<>;

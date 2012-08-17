@@ -234,9 +234,68 @@ class RackPublishIntegrationTest < MiniTest::Unit::TestCase
         sleep 1 
         assert_equal( { 'node' => 'name', 'param' => '42' }, @initialized_node )
     end
+    
 end
 
+class RackServerStartStopTests < MiniTest::Unit::TestCase
+    # reuse the start- stop functionsn, but do not apply them by default with every test
+    include SetupRackserver
+
+    alias_method :setup_rack_server, :setup
+    alias_method :teardown_rack_server, :teardown
+    
+    def setup() end
+    def teardown() end
+     
+    Bayeux.protocol_path = '/bayeux'  
+    
+    # Sioux Handler - implementation
+    def validate_node node
+        true
+    end
+    
+    def authorize user, node
+        true
+    end
+    
+    def node_init node
+        nil
+    end
+
+    def test_fast_and_very_much_start_stops
+        1000.times do
+            setup_rack_server
+            teardown_rack_server
+        end
+    end
+    
+    def test_a_lot_of_clients_during_shutdown
+        # this relates to https://github.com/TorstenRobitzki/Sioux/issues/8
+        
+        1.times do
+            setup_rack_server self
+            signal = Queue.new
+            subscriber_count = 100
+            
+            clients = ( 1..100 ).collect do | index | 
+                Thread.new( index ) do | i |
+                    Bayeux::Session.start do | session |
+                        subject = "/foo/bar/#{i}"
+                        session.subscribe_and_wait subject
+                        result = session.connect
+                        
+                        signal << 42
+                    end
+                end
+            end
+            
+            teardown_rack_server
+        end        
+    end
+end
+    
 class BayeuxProtocolTest < MiniTest::Unit::TestCase
+    # the testcases are included from the C++ Component test:
     include BayeuxNetworkTestcases 
     Bayeux.protocol_path = '/bayeux'  
     
