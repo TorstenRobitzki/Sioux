@@ -335,13 +335,15 @@ def component_test test_name, *dependencies
     raise "unrecongnized parameters to 'component_test': #{params}" unless params.empty?
 
     task test_name.to_sym, [ :argument ] => dependencies do | t, args |
-        test_name = args[ :argument ]
+        single_test = args[ :argument ]
 
         sources.each do | source |
             require source
            
-            runargs = test_name.nil? ? [] : [ '-n' , "#{test_name}" ]
-            MiniTest::Unit.new.run runargs
+            runargs = single_test.nil? ? [] : [ '-n' , "#{single_test}" ]
+            error_cnt = MiniTest::Unit.new.run runargs
+            
+            raise "#{error_cnt} errors occured while running \'#{test_name}\'" if error_cnt != 0
         end 
     end
 end
