@@ -54,7 +54,7 @@ namespace rack
             boost::unique_lock<boost::mutex>& lock;
         };
 
-        extern "C" VALUE ack_call_queue_wait( void* func_call )
+        extern "C" VALUE rack_call_queue_wait( void* func_call )
         {
             wait_data_call* cd = static_cast< wait_data_call* >( func_call );
             cd->queue.wait( cd->lock );
@@ -84,7 +84,7 @@ namespace rack
 
         while ( !stop_flag_ )
         {
-            rb_thread_blocking_region( &ack_call_queue_wait, &waitdata, &rack_call_queue_stop, &stopdata );
+            rb_thread_blocking_region( &rack_call_queue_wait, &waitdata, &rack_call_queue_stop, &stopdata );
 
             while ( !stop_flag_ && !queue_.empty() )
             {

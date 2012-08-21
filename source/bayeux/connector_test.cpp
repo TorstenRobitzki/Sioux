@@ -3,9 +3,11 @@
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 #include <boost/test/unit_test.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 
 #include "bayeux/bayeux.h"
 #include "bayeux/configuration.h"
+#include "bayeux/test_response_interface.h"
 #include "pubsub/configuration.h"
 #include "pubsub/root.h"
 #include "pubsub/test_helper.h"
@@ -13,6 +15,7 @@
 #include "server/test_timer.h"
 #include "tools/asstring.h"
 #include "tools/io_service.h"
+#include "json/json.h"
 
 namespace
 {
@@ -296,4 +299,80 @@ BOOST_AUTO_TEST_CASE( timeout_will_not_delete_session_if_in_use )
     // but this will execute the timeout callback
     tools::run( queue );
     connector.idle_session( session );
+}
+
+/*!
+ * @test shutdown should result in no long polling connection should be established
+ */
+BOOST_AUTO_TEST_CASE( shutdown_results_in_early_connection_timeout )
+{
+    boost::asio::io_service queue;
+    pubsub::test::adapter   adapter;
+    pubsub::root            root( queue, adapter, pubsub::configuration() );
+
+    test_session_generator  generator;
+    connector_t             connector( queue, root, generator,
+        bayeux::configuration().session_timeout( boost::posix_time::seconds( 5u ) ) );
+
+    json::string           err_msg;
+    bayeux::session* const session = connector.handshake( "foobar", 0, err_msg );
+    BOOST_CHECK( session );
+    BOOST_CHECK( err_msg.empty() );
+
+    boost::shared_ptr< bayeux::test::response_interface > response( new bayeux::test::response_interface );
+
+    // if wait_for_events returns an empty array, waiting can begin
+    BOOST_REQUIRE( session->wait_for_events( response ).empty() );
+
+    // and now, when calling shutdown, on the connector, the response_interface must be called immediately
+    boost::posix_time::ptime now = server::test::current_time();
+    connector.shut_down();
+    tools::run( queue );
+
+    BOOST_CHECK_EQUAL( now, server::test::current_time() );
+    BOOST_REQUIRE_EQUAL( response->messages().size(), 1u );
+    BOOST_CHECK( response->new_message().empty() );
+}
+
+/*!
+ * @test during shutdown, every handshake attempt should fail
+ */
+BOOST_AUTO_TEST_CASE( shutdown_results_handshake_failure )
+{
+    boost::asio::io_service queue;
+    pubsub::test::adapter   adapter;
+    pubsub::root            root( queue, adapter, pubsub::configuration() );
+
+    test_session_generator  generator;
+    connector_t             connector( queue, root, generator,
+        bayeux::configuration().session_timeout( boost::posix_time::seconds( 5u ) ) );
+
+    connector.shut_down();
+
+    json::string           err_msg;
+    bayeux::session* const session = connector.handshake( "foobar", 0, err_msg );
+    BOOST_CHECK( !session );
+    BOOST_CHECK( !err_msg.empty() );
+}
+
+
+/*!
+ * @test currently not active used sessions do time out during shut down
+ */
+BOOST_AUTO_TEST_CASE( sessions_do_timeout_when_shutting_down )
+{
+    boost::asio::io_service queue;
+    pubsub::test::adapter   adapter;
+    pubsub::root            root( queue, adapter, pubsub::configuration() );
+
+    test_session_generator  generator;
+    connector_t             connector( queue, root, generator,
+        bayeux::configuration().session_timeout( boost::posix_time::seconds( 5u ) ) );
+
+    json::string           err_msg;
+    bayeux::session* const session = connector.handshake( "foobar", 0, err_msg );
+    BOOST_REQUIRE( session );
+
+    const json::string session_id = session->session_id();
+    connector.shut_down();
 }

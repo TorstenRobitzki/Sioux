@@ -129,6 +129,13 @@ namespace bayeux
         void close();
 
         /**
+         * @brief to be called, when the connector is shutting down.
+         *
+         * The function will unblock a conencted http connection.
+         */
+        void shut_down();
+
+        /**
          * @brief returns the connection timeout for this session
          */
         boost::posix_time::time_duration long_polling_timeout() const;

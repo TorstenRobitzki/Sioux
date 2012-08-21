@@ -122,7 +122,7 @@ namespace bayeux
         boost::asio::io_service& queue();
 
         /**
-         * @brief prepares shut down by releasing all references to the io_service object given to the c'tor.
+         * @brief prepares shut down by timing out all existing sessions and by timing out all new connections.
          */
         void shut_down();
 	private:

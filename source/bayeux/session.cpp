@@ -157,6 +157,27 @@ namespace bayeux
         http_connection_.reset();
     }
 
+    void session::shut_down()
+    {
+        json::array                              updates;
+        boost::shared_ptr< response_interface >  old_connection;
+        root_.unsubscribe_all( shared_from_this() );
+
+        {
+            boost::mutex::scoped_lock lock( mutex_ );
+
+            if ( http_connection_.get() )
+            {
+                http_connection_.swap( old_connection );
+                messages_.swap( updates );
+            }
+        }
+
+        if ( old_connection.get() )
+            old_connection->messages( updates, session_id_ );
+    }
+
+
     boost::posix_time::time_duration session::long_polling_timeout() const
     {
         boost::mutex::scoped_lock lock( mutex_ );

@@ -7,6 +7,7 @@
 #include "bayeux/configuration.h"
 #include "bayeux/node_channel.h"
 #include "bayeux/session.h"
+#include "bayeux/test_response_interface.h"
 #include "pubsub/configuration.h"
 #include "pubsub/root.h"
 #include "pubsub/test_helper.h"
@@ -247,49 +248,6 @@ BOOST_AUTO_TEST_CASE( total_message_size_limited )
     BOOST_CHECK_LT( first_element.to_int(), last_element.to_int() );
 }
 
-namespace
-{
-    class test_interface : public bayeux::response_interface
-    {
-    public:
-        test_interface()
-            : second_connections_detected_( 0 )
-        {
-        }
-
-        int number_of_second_connection_detected() const
-        {
-            return second_connections_detected_;
-        }
-
-        json::array new_message() const
-        {
-            if ( messages_.size() != 1u )
-                throw std::runtime_error( "no single message reported: " + tools::as_string( messages_.size() ) );
-
-            return messages_.front();
-        }
-
-        const std::vector< json::array >& messages() const
-        {
-            return messages_;
-        }
-
-    private:
-        void second_connection_detected()
-        {
-            ++second_connections_detected_;
-        }
-
-        void messages( const json::array& message, const json::string& )
-        {
-            messages_.push_back( message );
-        }
-
-        int                         second_connections_detected_;
-        std::vector< json::array >  messages_;
-    };
-}
 
 /**
  * @test notify a connected and asynchronous http response, when updates come in
@@ -298,7 +256,7 @@ BOOST_AUTO_TEST_CASE( response_notified_by_session_when_messages_come_in )
 {
     test_root       root;
     bayeux::session session( "sss", root.root_, config() );
-    boost::shared_ptr< test_interface > response( new test_interface );
+    boost::shared_ptr< bayeux::test::response_interface > response( new bayeux::test::response_interface );
 
     BOOST_CHECK_EQUAL( json::array(), session.wait_for_events( response ) );
     BOOST_CHECK( response->messages().empty() );
@@ -331,7 +289,7 @@ BOOST_AUTO_TEST_CASE( respose_not_referenced_if_there_is_alread_data_to_be_send 
     test_root       root;
     bayeux::session session( "sss", root.root_, config() );
 
-    boost::shared_ptr< test_interface > response( new test_interface );
+    boost::shared_ptr< bayeux::test::response_interface > response( new bayeux::test::response_interface );
 
     static_cast< pubsub::subscriber& >( session ).on_update( node_1, pubsub::node( v1, data1 ) );
     BOOST_CHECK_EQUAL(
@@ -354,8 +312,8 @@ BOOST_AUTO_TEST_CASE( detect_double_connect )
     test_root       root;
     bayeux::session session( "sss", root.root_, config() );
 
-    boost::shared_ptr< test_interface > responseA( new test_interface );
-    boost::shared_ptr< test_interface > responseB( new test_interface );
+    boost::shared_ptr< bayeux::test::response_interface > responseA( new bayeux::test::response_interface );
+    boost::shared_ptr< bayeux::test::response_interface > responseB( new bayeux::test::response_interface );
     BOOST_CHECK_EQUAL( responseA->number_of_second_connection_detected(), 0 );
     BOOST_CHECK_EQUAL( responseB->number_of_second_connection_detected(), 0 );
 
@@ -542,7 +500,7 @@ BOOST_AUTO_TEST_CASE( session_node_subscription_success )
 
     tools::run( root.io_queue_ );
 
-    boost::shared_ptr< test_interface > response( new test_interface );
+    boost::shared_ptr< bayeux::test::response_interface > response( new bayeux::test::response_interface );
     BOOST_CHECK_EQUAL(
         session->wait_for_events( response ),
         json::parse_single_quoted(
@@ -565,7 +523,7 @@ BOOST_AUTO_TEST_CASE( asyn_session_node_subscription_success )
 {
     test_root       root;
     boost::shared_ptr< bayeux::session > session( new bayeux::session( "sss", root.root_, config() ) );
-    boost::shared_ptr< test_interface > response( new test_interface );
+    boost::shared_ptr< bayeux::test::response_interface > response( new bayeux::test::response_interface );
 
     session->subscribe( node_2, 0 );
     BOOST_CHECK( session->wait_for_events( response ).empty() );
@@ -790,7 +748,7 @@ BOOST_AUTO_TEST_CASE( session_connect_time_out )
 {
     test_root       root;
     const boost::shared_ptr< bayeux::session > session( new bayeux::session( "abcdefg", root.root_, config() ) );
-    const boost::shared_ptr< test_interface >  interface( new test_interface );
+    const boost::shared_ptr< bayeux::test::response_interface >  interface( new bayeux::test::response_interface );
 
     BOOST_CHECK_EQUAL( json::array(), session->wait_for_events( interface ) );
 
@@ -808,8 +766,8 @@ BOOST_AUTO_TEST_CASE( session_connect_time_out )
 BOOST_AUTO_TEST_CASE( unsubscribe_all_if_session_is_closed )
 {
     test_root       root;
-    const boost::shared_ptr< bayeux::session > session( new bayeux::session( "abcdefg", root.root_, config() ) );
-    const boost::shared_ptr< test_interface >  bayeux_connection( new test_interface );
+    const boost::shared_ptr< bayeux::session >                  session( new bayeux::session( "abcdefg", root.root_, config() ) );
+    const boost::shared_ptr< bayeux::test::response_interface > bayeux_connection( new bayeux::test::response_interface );
 
     subscribe_session( root, session, node_1 );
     subscribe_session( root, session, node_2 );

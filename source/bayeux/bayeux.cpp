@@ -48,6 +48,13 @@ namespace bayeux
 	    json::string& error_txt )
 	{
         boost::mutex::scoped_lock lock( mutex_ );
+
+        if ( shutting_down_ )
+        {
+            error_txt = json::string( "shutting down." );
+            return 0;
+        }
+
         std::string session_id = session_generator_( network_connection_name );
 
         for ( ; sessions_.find( session_id ) != sessions_.end(); session_id = session_generator_( network_connection_name ) )
@@ -157,7 +164,6 @@ namespace bayeux
             s->second.shut_down();
     }
 
-
     template < class Timer >
     void connector< Timer >::remove_from_sessions( typename session_list_t::iterator pos )
     {
@@ -216,6 +222,7 @@ namespace bayeux
     {
         boost::system::error_code ec;
         timer_->cancel( ec );
+        session_->shut_down();
     }
 
     template class connector<>;

@@ -148,8 +148,6 @@ namespace
 
     bayeux_server::~bayeux_server()
     {
-        connector_.shut_down();
-        server_.shut_down();
         delete queue_;
     }
 
@@ -182,15 +180,35 @@ namespace
         }
     }
 
+    typedef std::pair< boost::thread*, server_t* > join_data_t;
+
+    extern "C" VALUE bayeux_join_threads( void* arg )
+    {
+        join_data_t *const threads = static_cast< join_data_t* >( arg );
+        threads->first->join();
+        threads->second->join();
+
+        return VALUE();
+    }
+
+    extern "C" void bayeux_stop_joining_threads( void* arg )
+    {
+        boost::asio::io_service *const queue = static_cast< boost::asio::io_service* >( arg );
+
+        queue->stop();
+    }
+
     void bayeux_server::run()
     {
         call_init_hook();
         boost::thread queue_runner( boost::bind( &bayeux_server::run_queue, this ) );
 
         ruby_land_queue_.process_request( *this );
+        server_.shut_down();
+        connector_.shut_down();
 
-        queue_->stop();
-        queue_runner.join();
+        join_data_t joindata( &queue_runner, &server_ );
+        rb_thread_blocking_region( &bayeux_join_threads, &joindata, &bayeux_stop_joining_threads, &queue_ );
     }
 
 

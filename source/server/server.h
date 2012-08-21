@@ -23,18 +23,28 @@ namespace server {
      * @brief accepts incoming connection and creates connection objects from that
      */
     template < class Trait, class Connection >
-    class acceptator
+    class acceptator : public boost::enable_shared_from_this< acceptator< Trait, Connection > >
     {
     public:
         acceptator(boost::asio::io_service& s, Trait& trait, const boost::asio::ip::tcp::endpoint& ep)
             : end_point_(ep)
             , acceptor_(s, ep)
             , queue_(s)
-            , timer_( queue_ )
-            , connection_()
             , trait_(trait)
+            , timer_( queue_ )
+        {
+        }
+
+        void start()
         {
             issue_accept();
+        }
+
+        void shut_down()
+        {
+            boost::system::error_code ec;
+            timer_.cancel( ec );
+            acceptor_.cancel( ec );
         }
 
     private:
@@ -42,27 +52,30 @@ namespace server {
 
         void issue_accept()
         {
-            connection_.reset( new connection_t( boost::ref( queue_ ), trait_ ) );
-            acceptor_.async_accept( connection_->socket(), end_point_,
-                boost::bind( &acceptator::handler_connect, this, boost::asio::placeholders::error ) );
+            boost::shared_ptr<connection_t> connection( new connection_t( boost::ref( queue_ ), trait_ ) );
+
+            boost::function< void(boost::system::error_code) > f =
+                boost::bind( &acceptator::handler_connect, this->shared_from_this(), connection, _1 );
+
+            acceptor_.async_accept( connection->socket(), end_point_, f );
         }
 
-        void handler_connect( const boost::system::error_code& error )
+        void handler_connect( boost::shared_ptr<connection_t> connection, boost::system::error_code& error )
         {
             if ( !error )
             {
-                connection_->trait().event_accepting_new_connection( end_point_, connection_->socket().remote_endpoint() );
+                connection->trait().event_accepting_new_connection( end_point_, connection->socket().remote_endpoint() );
 
-                connection_->start();
+                connection->start();
                 issue_accept();
             }
-            else
+            else if ( error != boost::asio::error::operation_aborted )
             {
                 trait_.error_accepting_new_connection( end_point_, error );
 
                 timer_.expires_from_now( trait_.reaccept_timeout() );
                 timer_.async_wait(
-                    boost::bind( &acceptator::handle_reaccept_timeout, this, boost::asio::placeholders::error ) );
+                    boost::bind( &acceptator::handle_reaccept_timeout, this->shared_from_this(), boost::asio::placeholders::error ) );
             }
         }
 
@@ -77,9 +90,8 @@ namespace server {
         boost::asio::ip::tcp::endpoint  end_point_;
         boost::asio::ip::tcp::acceptor  acceptor_;
         boost::asio::io_service&        queue_;
-        boost::asio::deadline_timer     timer_;
-        boost::shared_ptr<connection_t> connection_;
         Trait&                          trait_;
+        boost::asio::deadline_timer     timer_;
     };
 
     /**
@@ -136,6 +148,11 @@ namespace server {
          */
         void shut_down();
 
+        /**
+         * @brief joins the thread pool
+         */
+        void join();
+
         typedef Trait                           trait_t;
         trait_t& trait();
 
@@ -143,11 +160,12 @@ namespace server {
     private:
         typedef boost::asio::ip::tcp::socket    socket_t;
         typedef acceptator<trait_t, socket_t>   acceptor_t;
-
+        typedef std::vector< boost::shared_ptr< acceptor_t > >  acceptor_list_t;
         boost::asio::io_service&                    queue_;
         trait_t                                     trait_;
         boost::thread_group                         thread_herd_;
-        std::vector<boost::shared_ptr<acceptor_t> > acceptors_;
+
+        acceptor_list_t                             acceptors_;
         bool                                        shutting_down_;
     };
     
@@ -238,6 +256,7 @@ namespace server {
         assert( !shutting_down_ );
         boost::shared_ptr< acceptor_t > accept(new acceptor_t(queue_, trait_, ep));
         acceptors_.push_back(accept);
+        accept->start();
     }
 
     template <class Trait>
@@ -263,8 +282,17 @@ namespace server {
     template < class Trait >
     void basic_server<Trait>::shut_down()
     {
-        acceptors_.clear();
+        shutting_down_ = true;
+
+        for ( typename acceptor_list_t::iterator acc = acceptors_.begin(); acc != acceptors_.end(); ++acc )
+            ( *acc )->shut_down();
+
         trait_.shutdown();
+    }
+
+    template < class Trait >
+    void basic_server< Trait >::join()
+    {
         thread_herd_.join_all();
     }
 
