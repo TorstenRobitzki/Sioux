@@ -2,13 +2,13 @@
 // Please note that the content of this file is confidential or protected by law.
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
-#include "server/proxy.h"
+#include "proxy/proxy.h"
 #include "server/test_socket.h"
 #include <boost/utility.hpp>
 #include <boost/asio/io_service.hpp>
 #include <list>
 
-namespace server
+namespace proxy
 {
 namespace test {
 
@@ -16,13 +16,13 @@ namespace test {
      * @brief configuration that provides server::test::socket<const char*> connections that 
      *        simulate the IO with an orgin server
      */
-    class proxy_connector : public proxy_connector_base, boost::noncopyable
+    class connector : public proxy::connector_base, boost::noncopyable
     {
     public:
         /**
          * @brief constructs a proxy_config that will send the passed response text
          */
-        explicit proxy_connector(boost::asio::io_service& queue, const std::string& simulate_response);
+        explicit connector(boost::asio::io_service& queue, const std::string& simulate_response);
 
         enum error_type {
             /** no error at all */
@@ -36,18 +36,18 @@ namespace test {
         /**
          * @brief constructs a proxy, that simulates the passes error situation
          */
-        explicit proxy_connector(boost::asio::io_service& queue, error_type error);
+        explicit connector(boost::asio::io_service& queue, error_type error);
 
         /**
          * @brief constructs a proxy_config that will return the passed socket, if asked for a connection
          */
-        explicit proxy_connector(socket<const char*>& socket);
+        explicit connector( server::test::socket< const char* >& socket);
 
-        typedef std::list<socket<const char*> > socket_list_t;
+        typedef std::list< server::test::socket< const char* > > socket_list_t;
 
-        explicit proxy_connector(socket_list_t& socket);
+        explicit connector( socket_list_t& socket );
 
-        ~proxy_connector();
+        ~connector();
 
         /**
          * @brief data that was received by the simulated orgin server.

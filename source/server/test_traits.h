@@ -19,7 +19,6 @@ namespace server {
 
 namespace test {
 
-	class proxy_connector;
 	class timer;
 
 struct response_factory
@@ -51,11 +50,7 @@ template < class ResponseFactory = response_factory,
 class traits : public server::connection_traits< Network, Timer, ResponseFactory, server::null_event_logger >
 {
 public:
-    traits() : pimpl_( new impl(0, 0) )
-    {
-    }
-
-    traits( proxy_connector& p, boost::asio::io_service& io ) : pimpl_(new impl(&p, &io))
+    traits() : pimpl_( new impl )
     {
     }
 
@@ -87,16 +82,6 @@ public:
         return result;
     }
 
-    proxy_connector& proxy() const
-    {
-        return pimpl_->proxy();
-    }
-
-    boost::asio::io_service& io_queue() const
-    {
-        return pimpl_->io_queue();
-    }
-
     std::vector<boost::shared_ptr<server::async_response> > responses() const
     {
         return pimpl_->responses();
@@ -111,13 +96,6 @@ private:
     class impl
     {
     public:
-        explicit impl(proxy_connector* p, boost::asio::io_service* i) 
-            : requests_()
-            , proxy_(p)
-            , io_(i)
-        {
-        }
-
         void add_request(const boost::shared_ptr<const http::request_header>& r)
         {
             requests_.push_back(r);
@@ -143,23 +121,9 @@ private:
             responses_.clear();
         }
 
-        proxy_connector& proxy() const
-        {
-            assert(proxy_);
-            return *proxy_;
-        }
-
-        boost::asio::io_service& io_queue() const
-        {        
-            assert(io_);
-            return *io_;
-        }
-
     private:
         std::vector<boost::shared_ptr<const http::request_header> >     requests_;
         std::vector<boost::shared_ptr<server::async_response> >         responses_;
-        proxy_connector*                                                proxy_;
-        boost::asio::io_service*                                        io_;
     };
 
     boost::shared_ptr<impl> pimpl_;

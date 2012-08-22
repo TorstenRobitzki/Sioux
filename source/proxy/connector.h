@@ -5,7 +5,7 @@
 #ifndef SIOUX_SOURCE_SERVER_PROXY_CONNECTOR_H
 #define SIOUX_SOURCE_SERVER_PROXY_CONNECTOR_H
 
-#include "server/proxy.h"
+#include "proxy/proxy.h"
 #include "server/error_code.h"
 #include "tools/asstring.h"
 #include "tools/scope_guard.h"
@@ -20,21 +20,21 @@
 #include <stdexcept>
 #include <deque>
 
-namespace server
+namespace proxy
 {
     /**
-     * @brief will be thrown, if a proxy can not fulify a connection request due to configured limitations
+     * @brief will be thrown, if a proxy can not fulfill a connections request due to configured limitations
      */
-    class proxy_connection_limit_reached : public std::runtime_error
+    class connection_limit_reached : public std::runtime_error
     {
     public:
-        proxy_connection_limit_reached(const std::string&);
+        connection_limit_reached(const std::string&);
     };
 
-    class proxy_configuration
+    class configuration
     {
     public:
-        proxy_configuration();
+        configuration();
 
         // maximum number of connections to an orgin server
         unsigned max_connections() const;
@@ -64,41 +64,41 @@ namespace server
     /**
      * @brief helper to set configurations on a proxy_configuration
      */
-    class proxy_configurator 
+    class configurator
     {
     public:
-        proxy_configurator();
+        configurator();
 
-        const proxy_configurator& max_connections(unsigned) const;
-        const proxy_configurator& max_idle_time(const boost::posix_time::time_duration&) const;
-        const proxy_configurator& connect_timeout(const boost::posix_time::time_duration&) const;
-        const proxy_configurator& orgin_timeout(const boost::posix_time::time_duration&) const;
+        const configurator& max_connections(unsigned) const;
+        const configurator& max_idle_time(const boost::posix_time::time_duration&) const;
+        const configurator& connect_timeout(const boost::posix_time::time_duration&) const;
+        const configurator& orgin_timeout(const boost::posix_time::time_duration&) const;
 
-        boost::shared_ptr<proxy_configuration> config_;
+        boost::shared_ptr< configuration > config_;
 
-        operator const proxy_configuration&() const;
+        operator const configuration&() const;
     };
 
     /**
      * @brief ip-address/port based proxy_connector
      */
-    template <class Socket>
-    class ip_proxy_connector : 
-        public proxy_connector_base, 
-        public boost::enable_shared_from_this<ip_proxy_connector<Socket> >
+    template < class Socket >
+    class ip_connector :
+        public connector_base,
+        public boost::enable_shared_from_this<ip_connector<Socket> >
     {
     public:
-        ip_proxy_connector(
-            boost::asio::io_service& queue, 
-            const boost::shared_ptr<const proxy_configuration>& config, 
-            const boost::asio::ip::tcp::endpoint& ep);
+        ip_connector(
+            boost::asio::io_service&                        queue,
+            const boost::shared_ptr< const configuration >& config,
+            const boost::asio::ip::tcp::endpoint&           ep );
 
-        ip_proxy_connector(
+        ip_connector(
             boost::asio::io_service&                queue, 
-            const proxy_configuration&              config, 
+            const configuration&                    config,
             const boost::asio::ip::tcp::endpoint&   ep);
 
-        ~ip_proxy_connector();
+        ~ip_connector();
 
     private:
         /**
@@ -108,7 +108,7 @@ namespace server
             const tools::dynamic_type&,
             const tools::substring&,
             unsigned,
-            const boost::shared_ptr<proxy_connector_base::connect_callback>&  call_back);
+            const boost::shared_ptr< connector_base::connect_callback >&  call_back);
 
         virtual void release_connection(
             const tools::dynamic_type&,
@@ -117,7 +117,7 @@ namespace server
 
         struct connection
         {
-            connection(boost::asio::io_service& q, const boost::shared_ptr<proxy_connector_base::connect_callback>& cb)
+            connection(boost::asio::io_service& q, const boost::shared_ptr< connector_base::connect_callback >& cb)
                 : socket_(q)
                 , timer_(q)
                 , connect_call_back_(cb)
@@ -126,7 +126,7 @@ namespace server
         
             Socket                                                      socket_;
             boost::asio::deadline_timer                                 timer_;
-            boost::shared_ptr<proxy_connector_base::connect_callback>   connect_call_back_;
+            boost::shared_ptr< connector_base::connect_callback >       connect_call_back_;
         };
 
         typedef std::deque<boost::shared_ptr<connection> >  connection_list_t;
@@ -139,7 +139,7 @@ namespace server
 
         boost::mutex                                        mutex_;
         boost::asio::io_service&                            queue_;
-        const boost::shared_ptr<const proxy_configuration>  config_;
+        const boost::shared_ptr<const configuration>        config_;
         const boost::asio::ip::tcp::endpoint                addr_;
 
         connection_list_t                                   idle_connections_;
@@ -150,9 +150,9 @@ namespace server
     ////////////////////////////////////
     // implementation
     template <class Socket>
-    ip_proxy_connector<Socket>::ip_proxy_connector(
+    ip_connector<Socket>::ip_connector(
         boost::asio::io_service& queue, 
-        const boost::shared_ptr<const proxy_configuration>& config, 
+        const boost::shared_ptr<const configuration>& config,
         const boost::asio::ip::tcp::endpoint& ep)
       : mutex_()
       , queue_(queue)
@@ -165,38 +165,38 @@ namespace server
     }
 
     template <class Socket>
-    ip_proxy_connector<Socket>::ip_proxy_connector(
+    ip_connector<Socket>::ip_connector(
         boost::asio::io_service&                queue, 
-        const proxy_configuration&              config, 
+        const configuration&                    config,
         const boost::asio::ip::tcp::endpoint&   ep)
       : mutex_()
-      , queue_(queue)
-      , config_(new proxy_configuration(config))
-      , addr_(ep)
+      , queue_( queue )
+      , config_( new configuration(config) )
+      , addr_( ep )
       , idle_connections_()
       , in_use_connections_()
     {
     }
 
     template <class Socket>
-    ip_proxy_connector<Socket>::~ip_proxy_connector()
+    ip_connector<Socket>::~ip_connector()
     {
-        assert(in_use_connections_.empty());
+        assert( in_use_connections_.empty() );
     }
 
     template <class Socket>
-    void ip_proxy_connector<Socket>::async_get_proxy_connection(
+    void ip_connector<Socket>::async_get_proxy_connection(
             const tools::dynamic_type&,
             const tools::substring&,
             unsigned,
-            const boost::shared_ptr<proxy_connector_base::connect_callback>&  call_back)
+            const boost::shared_ptr< connector_base::connect_callback >&  call_back)
     {
         boost::mutex::scoped_lock lock(mutex_);
 
         if ( idle_connections_.size() + in_use_connections_.size() + connecting_connections_.size()
             >= config_->max_connections() )
         {
-            throw proxy_connection_limit_reached(
+            throw connection_limit_reached(
                 "while connecting to " + tools::as_string(addr_) 
               + "; limit of " + tools::as_string(config_->max_connections()) + " connections reached.");
         }
@@ -212,7 +212,7 @@ namespace server
             new_connection->socket_.async_connect(
                 addr_, 
                 boost::bind(
-                    &ip_proxy_connector::connection_handler, this->shared_from_this(), 
+                    &ip_connector::connection_handler, this->shared_from_this(),
                     new_connection, _1));
 
             tools::scope_guard stop_connecting = tools::make_obj_guard(
@@ -223,7 +223,7 @@ namespace server
                 config_->connect_timeout());
             new_connection->timer_.async_wait(
                 boost::bind(
-                &ip_proxy_connector::connect_timeout, this->shared_from_this(),
+                &ip_connector::connect_timeout, this->shared_from_this(),
                 new_connection, _1));
 
             stop_connecting.dismiss();
@@ -238,8 +238,8 @@ namespace server
             tools::scope_guard remove_connection = tools::make_obj_guard(connecting_connections_, &connection_list_t::pop_back);
 
             old_connection->timer_.cancel();
-            queue_.post(boost::bind(&proxy_connector_base::connect_callback::connection_received,
-                call_back, &*old_connection, make_error_code(boost::system::errc::success)));
+            queue_.post( boost::bind( &connector_base::connect_callback::connection_received,
+                call_back, &*old_connection, make_error_code( boost::system::errc::success ) ) );
 
             remove_connection.dismiss();
         }
@@ -264,7 +264,7 @@ namespace server
     }
 
     template <class Socket>
-    void ip_proxy_connector<Socket>::release_connection(
+    void ip_connector<Socket>::release_connection(
             const tools::dynamic_type&,
             void*                               con,
             const http::response_header*        header)
@@ -279,7 +279,7 @@ namespace server
             in_use->timer_.expires_from_now(config_->max_idle_time());
             in_use->timer_.async_wait(
                 boost::bind(
-                    &ip_proxy_connector::connect_idle_timeout, this->shared_from_this(),
+                    &ip_connector::connect_idle_timeout, this->shared_from_this(),
                     in_use, _1));
 
             idle_connections_.push_back(in_use);
@@ -287,9 +287,9 @@ namespace server
     }
 
     template <class Socket>
-    void ip_proxy_connector<Socket>::connection_handler(const boost::shared_ptr<connection>& new_connection, const boost::system::error_code& error)
+    void ip_connector<Socket>::connection_handler(const boost::shared_ptr<connection>& new_connection, const boost::system::error_code& error)
     {
-        boost::shared_ptr<proxy_connector_base::connect_callback>   connect_call_back;
+        boost::shared_ptr< connector_base::connect_callback >   connect_call_back;
         void* connection = 0;
 
         {
@@ -302,7 +302,7 @@ namespace server
             if ( new_con_pos != connecting_connections_.end() )
             {
                 tools::scope_guard remove_con_from_list = 
-                    tools::make_guard(&ip_proxy_connector::remove_from_list, boost::ref(connecting_connections_), new_con_pos);
+                    tools::make_guard(&ip_connector::remove_from_list, boost::ref(connecting_connections_), new_con_pos);
                 static_cast<void>(remove_con_from_list);
 
                 new_connection->connect_call_back_.swap(connect_call_back);
@@ -322,14 +322,14 @@ namespace server
     }
 
     template <class Socket>
-    void ip_proxy_connector<Socket>::connect_timeout(
+    void ip_connector<Socket>::connect_timeout(
         const boost::shared_ptr<connection>&    timed_out_connection, 
         const boost::system::error_code&        error)
     {
         if ( error ==  boost::asio::error::operation_aborted )
             return;
 
-        boost::shared_ptr<proxy_connector_base::connect_callback>   connect_call_back;
+        boost::shared_ptr< connector_base::connect_callback > connect_call_back;
 
         {
             boost::mutex::scoped_lock lock(mutex_);
@@ -348,12 +348,12 @@ namespace server
 
         if ( connect_call_back.get() )
         {
-            connect_call_back->connection_received(0, make_error_code(time_out));
+            connect_call_back->connection_received(0, server::make_error_code( server::time_out ) );
         }
     }
 
     template <class Socket>
-    void ip_proxy_connector<Socket>::connect_idle_timeout(
+    void ip_connector<Socket>::connect_idle_timeout(
         const boost::shared_ptr<connection>&    timed_out_connection, 
         const boost::system::error_code&        error )
     {
@@ -386,7 +386,7 @@ namespace server
     }
 
     template <class Socket>
-    void ip_proxy_connector<Socket>::remove_from_list(connection_list_t& list, typename connection_list_t::iterator pos)
+    void ip_connector<Socket>::remove_from_list(connection_list_t& list, typename connection_list_t::iterator pos)
     {
         list.erase(pos);
     }

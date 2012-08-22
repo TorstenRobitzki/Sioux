@@ -5,11 +5,11 @@
 #ifndef SIOUX_SOURCE_SERVER_IP_PROXY_H
 #define SIOUX_SOURCE_SERVER_IP_PROXY_H
 
-#include "server/proxy.h"
-#include "server/proxy_connector.h"
-#include "server/proxy_response.h"
+#include "proxy/proxy.h"
+#include "proxy/connector.h"
+#include "proxy/response.h"
 
-namespace server {
+namespace proxy {
 
     template <class Socket>
     class ip_proxy
@@ -56,7 +56,7 @@ namespace server {
         return result;
     }
 
-} // namespace server
+} // namespace proxy
 
 #endif // include guard
 

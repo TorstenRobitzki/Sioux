@@ -6,12 +6,14 @@
 #define SIOUX_SERVER_RESPONSE_FACTORY_H_
 
 #include "http/http.h"
-#include "server/ip_proxy.h"
+#include "http/request.h"
 #include "server/error.h"
+#include "tools/substring.h"
 #include <boost/utility.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/asio/io_service.hpp>
 #include <boost/function.hpp>
+#include <boost/type_traits/is_same.hpp>
 
 namespace http
 {
@@ -41,8 +43,6 @@ namespace server
 
         template <class Connection>
         boost::shared_ptr<async_response> error_response(const boost::shared_ptr<Connection>& con, http::http_error_code ec) const;
-
-        void add_proxy( boost::asio::io_service& q, const std::string& route, const boost::asio::ip::tcp::endpoint& orgin, const proxy_configuration& c );
 
         template < class Action >
         void add_action( const std::string& route, const Action& action );
@@ -83,10 +83,6 @@ namespace server
                 return action_( con, header );
             }
         };
-
-        typedef std::vector< std::pair< std::string, boost::shared_ptr< ip_proxy< Socket > > > > proxy_list_t;
-
-        proxy_list_t proxies_;
 
         typedef std::vector< std::pair< std::string, boost::shared_ptr< action_holder_base > > > action_list_t;
 
@@ -138,24 +134,13 @@ namespace server
         if ( header->state() != http::message::ok )
             return error_response( connection, http::http_bad_request );
 
-        boost::shared_ptr< async_response > result;
-
-        const typename proxy_list_t::const_iterator proxy =
-            std::find_if( proxies_.begin(), proxies_.end(), fitting_uri( header->uri() ) );
-
-        if ( proxy != proxies_.end() )
-            result = proxy->second->create_response(connection, header);
-
-        if ( result.get() )
-            return result;
-
         const typename action_list_t::const_iterator action =
             std::find_if( actions_.begin(), actions_.end(), fitting_uri( header->uri() ) );
 
         if ( action != actions_.end() )
-            result = (*action->second)( connection, header );
+            return (*action->second)( connection, header );
 
-        return result.get() ? result : error_response( connection, http::http_not_found );
+        return error_response( connection, http::http_not_found );
     }
 
     template < class Socket >
@@ -164,15 +149,6 @@ namespace server
     {
         boost::shared_ptr<async_response> result(new ::server::error_response<Connection>(con, ec));
         return result;
-    }
-
-    template < class Socket >
-    void response_factory< Socket >::add_proxy(boost::asio::io_service& q, const std::string& route, const boost::asio::ip::tcp::endpoint& orgin, const proxy_configuration& c)
-    {
-        boost::shared_ptr<ip_proxy<Socket> > proxy(
-            new ip_proxy<Socket>(q, boost::shared_ptr<const proxy_configuration>(new proxy_configuration(c)), orgin));
-
-        proxies_.push_back(std::make_pair(route, proxy));
     }
 
     template < class Socket >
@@ -188,7 +164,6 @@ namespace server
     template < class Socket >
     void response_factory< Socket >::shutdown()
     {
-        proxies_.clear();
         actions_.clear();
     }
 

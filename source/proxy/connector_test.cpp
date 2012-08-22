@@ -3,7 +3,7 @@
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 #include <boost/test/unit_test.hpp>
-#include "server/proxy_connector.h"
+#include "proxy/connector.h"
 #include "server/error_code.h"
 #include "server/test_resolver.h"
 #include "server/test_socket.h"
@@ -19,7 +19,7 @@
 using namespace server::test;
 
 typedef server::test::socket< const char* > socket_t;
-typedef server::ip_proxy_connector<socket_t> ip_proxy_connector;
+typedef proxy::ip_connector< socket_t > ip_connector;
 
 namespace {
     template <class Socket = socket_t>
@@ -56,12 +56,12 @@ namespace {
 BOOST_AUTO_TEST_CASE( use_established_proxy_connections )
 {
     const boost::asio::ip::tcp::endpoint            addr(boost::asio::ip::address::from_string("127.0.0.1"), 80);
-    const server::proxy_configuration               config(
-         server::proxy_configurator()
+    const proxy::configuration               config(
+         proxy::configurator()
          .max_idle_time(boost::posix_time::seconds(2)));
     boost::asio::io_service                         queue;
 
-    boost::shared_ptr<server::proxy_connector_base> proxy(new ip_proxy_connector(queue, config, addr));
+    boost::shared_ptr<proxy::connector_base> proxy(new ip_connector(queue, config, addr));
     connect_handler<>                handler1;
 
     proxy->async_get_proxy_connection<socket_t>(
@@ -197,13 +197,13 @@ BOOST_AUTO_TEST_CASE( use_established_proxy_connections )
 BOOST_AUTO_TEST_CASE(proxy_connection_limit)
 {
     const boost::asio::ip::tcp::endpoint            addr(boost::asio::ip::address::from_string("192.168.1.1"), 88);
-    const server::proxy_configuration               config(
-         server::proxy_configurator()
+    const proxy::configuration               config(
+         proxy::configurator()
          .max_connections(5));
     boost::asio::io_service                         queue;
 
-    boost::shared_ptr<server::proxy_connector_base> proxy(
-        new ip_proxy_connector(queue, config, addr));
+    boost::shared_ptr<proxy::connector_base> proxy(
+        new ip_connector(queue, config, addr));
 
     std::vector<socket_t*>   sockets;
 
@@ -230,12 +230,12 @@ BOOST_AUTO_TEST_CASE(proxy_connection_limit)
         else
         {
             BOOST_CHECK_THROW(
-                proxy->async_get_proxy_connection<socket_t>(
+                proxy->async_get_proxy_connection< socket_t >(
                     tools::substring(), 0, 
-                    boost::bind(&connect_handler<>::handle_connect, boost::ref(handler), _1, _2)),
-                server::proxy_connection_limit_reached);
+                    boost::bind( &connect_handler<>::handle_connect, boost::ref( handler ), _1, _2) ),
+                proxy::connection_limit_reached );
 
-            BOOST_CHECK(!handler.called);
+            BOOST_CHECK( !handler.called );
         }
     }
 
@@ -253,13 +253,13 @@ BOOST_AUTO_TEST_CASE(proxy_connection_limit)
 BOOST_AUTO_TEST_CASE(proxy_connection_limit2)
 {
     const boost::asio::ip::tcp::endpoint            addr(boost::asio::ip::address::from_string("192.168.1.1"), 88);
-    const server::proxy_configuration               config(
-         server::proxy_configurator()
+    const proxy::configuration               config(
+         proxy::configurator()
          .max_connections(5));
     boost::asio::io_service                         queue;
 
-    boost::shared_ptr<server::proxy_connector_base> proxy(
-        new ip_proxy_connector(queue, config, addr));
+    boost::shared_ptr<proxy::connector_base> proxy(
+        new ip_connector(queue, config, addr));
 
     std::vector<connect_handler<> > handler(5);
 
@@ -276,12 +276,12 @@ BOOST_AUTO_TEST_CASE(proxy_connection_limit2)
             connect_handler<> handler;
 
             BOOST_CHECK_THROW(
-                proxy->async_get_proxy_connection<socket_t>(
+                proxy->async_get_proxy_connection< socket_t >(
                     tools::substring(), 0, 
-                    boost::bind(&connect_handler<>::handle_connect, boost::ref(handler), _1, _2)),
-                server::proxy_connection_limit_reached);
+                    boost::bind( &connect_handler<>::handle_connect, boost::ref( handler ), _1, _2 ) ),
+                proxy::connection_limit_reached );
 
-            BOOST_CHECK(!handler.called);
+            BOOST_CHECK( !handler.called );
         }
     }
     
@@ -302,15 +302,15 @@ BOOST_AUTO_TEST_CASE(proxy_connection_limit2)
 BOOST_AUTO_TEST_CASE(proxy_connection_error)
 {
     const boost::asio::ip::tcp::endpoint            addr(boost::asio::ip::address::from_string("192.168.1.1"), 88);
-    const server::proxy_configuration               config;
+    const proxy::configuration               config;
     boost::asio::io_service                         queue;
 
     // use a socket type, that will simulate a connect error
     typedef server::test::socket<const char*, server::test::timer, socket_behaviour<connect_error<error_on_connect> > > socket_t;
-    typedef server::ip_proxy_connector<socket_t> ip_proxy_connector;
+    typedef proxy::ip_connector<socket_t> ip_connector;
 
-    boost::shared_ptr<server::proxy_connector_base> proxy(
-        new ip_proxy_connector(queue, config, addr));
+    boost::shared_ptr<proxy::connector_base> proxy(
+        new ip_connector(queue, config, addr));
 
     connect_handler<socket_t>   handler;
     proxy->async_get_proxy_connection<socket_t>(
@@ -327,8 +327,8 @@ BOOST_AUTO_TEST_CASE(proxy_connection_error)
 BOOST_AUTO_TEST_CASE(proxy_connection_timeout)
 {
     const boost::asio::ip::tcp::endpoint            addr(boost::asio::ip::address::from_string("192.168.1.1"), 88);
-    const server::proxy_configuration               config(
-         server::proxy_configurator()
+    const proxy::configuration               config(
+         proxy::configurator()
          .connect_timeout(boost::posix_time::seconds(5)));
     boost::asio::io_service                         queue;
 
@@ -337,10 +337,10 @@ BOOST_AUTO_TEST_CASE(proxy_connection_timeout)
         const char*,
         boost::asio::deadline_timer,
         socket_behaviour<connect_error<do_not_respond> > > socket_t;
-    typedef server::ip_proxy_connector<socket_t> ip_proxy_connector;
+    typedef proxy::ip_connector<socket_t> ip_connector;
 
-    boost::shared_ptr<server::proxy_connector_base> proxy(
-        new ip_proxy_connector(queue, config, addr));
+    boost::shared_ptr<proxy::connector_base> proxy(
+        new ip_connector(queue, config, addr));
 
     connect_handler<socket_t>   handler;
     proxy->async_get_proxy_connection<socket_t>(
@@ -362,7 +362,7 @@ namespace {
 
     struct connector_client
     {
-        connector_client(server::proxy_connector_base* p, unsigned n)
+        connector_client(proxy::connector_base* p, unsigned n)
             : proxy_(p)
             , remaining_connects_(n)
         {
@@ -396,21 +396,21 @@ namespace {
                 start();
         }
 
-        server::proxy_connector_base*   proxy_;
+        proxy::connector_base*   proxy_;
         unsigned                        remaining_connects_;
     };
 }
 /* This test is broken. 
 BOOST_AUTO_TEST_CASE(proxy_connection_stress)
 {
-    const server::proxy_configuration               config(
-         server::proxy_configurator()
+    const proxy::configuration               config(
+         proxy::configurator()
          .connect_timeout(boost::posix_time::seconds(5)));
     boost::asio::io_service                         queue;
     const boost::asio::ip::tcp::endpoint            addr(boost::asio::ip::address::from_string("192.168.1.1"), 88);
 
-    boost::shared_ptr<server::proxy_connector_base> proxy(
-        new ip_proxy_connector(queue, config, addr));
+    boost::shared_ptr<proxy::connector_base> proxy(
+        new ip_connector(queue, config, addr));
 
     std::vector<connector_client>                   clients(5, connector_client(&*proxy, 200000));
 

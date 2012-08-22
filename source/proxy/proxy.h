@@ -19,28 +19,28 @@ namespace http {
     class response_header;
 }
 
-namespace server 
+namespace proxy
 {
     /** 
      * @brief exception, that is used to indicate problems when attemding to connect or
      * communicate with the target.
      */
-    class proxy_error : public std::runtime_error
+    class error : public std::runtime_error
     {
     public:
         /**
-         * @brief constructs a proxy_error with a message text
+         * @brief constructs a error with a message text
          */
-        explicit proxy_error(const std::string&);
+        explicit error(const std::string&);
     };
 
     /**
      * @brief base class for a proxy configuration
      */
-    class proxy_connector_base
+    class connector_base
     {
     public:
-        virtual ~proxy_connector_base() {}
+        virtual ~connector_base() {}
 
         /**
          * @brief returns a connection to talk to the server where a request should be forwarded to
@@ -130,9 +130,9 @@ namespace server
     };
 
     ////////////////////////////////////////
-    // proxy_connector_base implementation
+    // connector_base implementation
     template <class Connection, class ConnectHandler>
-    void proxy_connector_base::async_get_proxy_connection(
+    void connector_base::async_get_proxy_connection(
         const tools::substring& orgin_host,
         unsigned                orgin_port,
         ConnectHandler          handler)
@@ -142,14 +142,14 @@ namespace server
     }
 
     template <class Connection>
-    void proxy_connector_base::release_connection(Connection* c, const http::response_header& h)
+    void connector_base::release_connection(Connection* c, const http::response_header& h)
     {
         assert(c);
         release_connection(typeid(Connection), c, &h);
     }
 
     template <class Connection>
-    void proxy_connector_base::dismiss_connection(Connection* c)
+    void connector_base::dismiss_connection(Connection* c)
     {
         assert(c);
         release_connection(typeid(Connection), c, 0);
@@ -157,7 +157,7 @@ namespace server
 
 
 
-} // namespace server 
+} // namespace proxy
 
 #endif
 

@@ -5,8 +5,8 @@
 #ifndef SIOUX_SOURCE_SERVER_PROXY_RESPONSE_H
 #define SIOUX_SOURCE_SERVER_PROXY_RESPONSE_H
 
+#include "proxy/connector.h"
 #include "server/response.h"
-#include "server/proxy_connector.h"
 #include "server/transfer_buffer.h"
 #include "server/timeout.h"
 #include "server/error_code.h"
@@ -19,20 +19,19 @@
 #include <boost/asio/placeholders.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 
-namespace server
+namespace proxy
 {
     /**
      * @brief forwards the request to an other server and answers with the answer of that server
-     *
      */
-    template <class Connection, std::size_t BodyBufferSize = 1024>
-    class proxy_response : public async_response, 
-                           public boost::enable_shared_from_this<proxy_response<Connection, BodyBufferSize> >, 
-                           private boost::noncopyable
+    template < class Connection, std::size_t BodyBufferSize = 1024 >
+    class response : public server::async_response,
+                     public boost::enable_shared_from_this< response< Connection, BodyBufferSize > >,
+                     private boost::noncopyable
     {
     public:
         /**
-         * @brief constructs a new proxy_response
+         * @brief constructs a new response
          *
          * @param connection the connection where the request was read from and where the response should be written to
          * @param header request header read from the connection
@@ -40,12 +39,12 @@ namespace server
          * @param queue io_service, used to implement the timeouts while communicating with the orgin server
          * @param config a reference to the configuration currently in use
          */
-        proxy_response(
+        response(
             const boost::shared_ptr<Connection>&                    connection, 
             const boost::shared_ptr<const http::request_header>&    header, 
-            proxy_connector_base&                                   connector,
+            connector_base&                                         connector,
             boost::asio::io_service&                                queue,
-            const boost::shared_ptr<const proxy_configuration>&     config)
+            const boost::shared_ptr< const configuration >&         config)
             : connection_(connection)
             , request_(header)
             , connector_(connector)
@@ -63,7 +62,7 @@ namespace server
                 throw std::runtime_error("Request-Body in Proxy currently not implemented");
         }
 
-        ~proxy_response();
+        ~response();
 
     private:
         // async_response implementation
@@ -76,8 +75,8 @@ namespace server
         // make sure, that after a read-error from the proxy occured, the connection to the proxy will not be restarted.
         void disable_restart();
 
-        typedef report_error_guard<Connection>  error_guard;
-        typedef close_connection_guard<Connection> close_guard;
+        typedef server::report_error_guard< Connection >  error_guard;
+        typedef server::close_connection_guard< Connection > close_guard;
 
         void handle_orgin_connect(
             typename Connection::socket_t*      orgin_socket,
@@ -113,14 +112,14 @@ namespace server
 
         boost::shared_ptr<Connection>                   connection_;
         boost::shared_ptr<const http::request_header>   request_;
-        proxy_connector_base&                           connector_;
+        connector_base&                                 connector_;
 
         std::vector<tools::substring>                   outbuffers_;
 
         typename Connection::socket_t*                  proxy_socket_;
 
         http::response_header                           response_header_from_proxy_;
-        transfer_buffer<BodyBufferSize>                 body_buffer_;
+        server::transfer_buffer< BodyBufferSize >       body_buffer_;
     
         bool                                            response_body_exists_;
 
@@ -138,9 +137,9 @@ namespace server
     };
 
     ////////////////////////////////////////
-    // proxy_response implementation
+    // response implementation
     template <class Connection, std::size_t BodyBufferSize>
-    proxy_response<Connection, BodyBufferSize>::~proxy_response()
+    response<Connection, BodyBufferSize>::~response()
     {
         connection_->trait().event_proxy_response_destroyed(*connection_, *this);
 
@@ -151,20 +150,20 @@ namespace server
     }
 
     template <class Connection, std::size_t BodyBufferSize>
-    void proxy_response<Connection, BodyBufferSize>::start()
+    void response<Connection, BodyBufferSize>::start()
     {
         connection_->trait().event_proxy_response_started(*connection_, *this);
 
         connector_.async_get_proxy_connection<typename Connection::socket_t>(
             request_->host(), request_->port(),
-            boost::bind(&proxy_response::handle_orgin_connect, this->shared_from_this(), _1, _2));
+            boost::bind(&response::handle_orgin_connect, this->shared_from_this(), _1, _2));
 
         // while waiting for the response, the request to the orgin server can be assembled
         outbuffers_ = filtered_header(*request_);
     }
 
     template <class Connection, std::size_t BodyBufferSize>
-    bool proxy_response<Connection, BodyBufferSize>::restart()
+    bool response<Connection, BodyBufferSize>::restart()
     {
         ++restart_counter_;
         connection_->trait().event_proxy_response_restarted(*connection_, *this, restart_counter_);
@@ -181,19 +180,19 @@ namespace server
 
         connector_.async_get_proxy_connection<typename Connection::socket_t>(
             request_->host(), request_->port(),
-            boost::bind(&proxy_response::handle_orgin_connect, this->shared_from_this(), _1, _2));
+            boost::bind(&response::handle_orgin_connect, this->shared_from_this(), _1, _2));
 
         return true;
     }
 
     template <class Connection, std::size_t BodyBufferSize>
-    void proxy_response<Connection, BodyBufferSize>::disable_restart()
+    void response<Connection, BodyBufferSize>::disable_restart()
     {
         restart_counter_ = max_restarts_;
     }
 
     template <class Connection, std::size_t BodyBufferSize>
-    void proxy_response<Connection, BodyBufferSize>::handle_orgin_connect(
+    void response<Connection, BodyBufferSize>::handle_orgin_connect(
         typename Connection::socket_t*      orgin_socket,
         const boost::system::error_code&    error)
     {
@@ -209,7 +208,7 @@ namespace server
                 *proxy_socket_,
                 outbuffers_, 
                 boost::bind(
-                    &proxy_response::request_written, 
+                    &response::request_written,
                     this->shared_from_this(),
                     boost::asio::placeholders::error,
                     boost::asio::placeholders::bytes_transferred),
@@ -221,7 +220,7 @@ namespace server
     }
         
     template <class Connection, std::size_t BodyBufferSize>
-    void proxy_response<Connection, BodyBufferSize>::request_written(
+    void response<Connection, BodyBufferSize>::request_written(
         const boost::system::error_code&    error,
         std::size_t                         bytes_transferred)
     {
@@ -246,7 +245,7 @@ namespace server
     }
 
     template <class Connection, std::size_t BodyBufferSize>
-    void proxy_response<Connection, BodyBufferSize>::handle_read_from_orgin(
+    void response<Connection, BodyBufferSize>::handle_read_from_orgin(
         const boost::system::error_code&    error,
         std::size_t                         bytes_transferred)
     {
@@ -255,7 +254,7 @@ namespace server
 
         if ( error )
         {
-            connection_->trait().log_error(*this, "proxy_response::handle_read_from_orgin", error, bytes_transferred);
+            connection_->trait().log_error(*this, "response::handle_read_from_orgin", error, bytes_transferred);
 
             if ( restart() )
                 fail.dismiss();
@@ -305,7 +304,7 @@ namespace server
     }
 
     template <class Connection, std::size_t BodyBufferSize>
-    void proxy_response<Connection, BodyBufferSize>::response_header_written(
+    void response<Connection, BodyBufferSize>::response_header_written(
         const boost::system::error_code&    error,
         std::size_t                         bytes_transferred)
     {
@@ -332,7 +331,7 @@ namespace server
     }
 
     template <class Connection, std::size_t BodyBufferSize>
-    void proxy_response<Connection, BodyBufferSize>::handle_body_written(
+    void response<Connection, BodyBufferSize>::handle_body_written(
         const boost::system::error_code&    error,
         std::size_t                         bytes_transferred)
     {
@@ -361,13 +360,13 @@ namespace server
     }
 
     template <class Connection, std::size_t BodyBufferSize>
-    void proxy_response<Connection, BodyBufferSize>::issue_read(const std::pair<char*, std::size_t>& buffer)
+    void response<Connection, BodyBufferSize>::issue_read(const std::pair<char*, std::size_t>& buffer)
     {
         issue_read(boost::asio::buffer(buffer.first, buffer.second));
     }
 
     template <class Connection, std::size_t BodyBufferSize>
-    void proxy_response<Connection, BodyBufferSize>::issue_read(const boost::asio::mutable_buffers_1& buffer)
+    void response<Connection, BodyBufferSize>::issue_read(const boost::asio::mutable_buffers_1& buffer)
     {
         if ( !reading_body_from_orgin_ && buffer_size(buffer) != 0 )
         {
@@ -376,7 +375,7 @@ namespace server
             async_read_some_with_to(
                 *proxy_socket_,
                 buffer,
-                boost::bind(&proxy_response::handle_read_from_orgin, 
+                boost::bind(&response::handle_read_from_orgin,
                         this->shared_from_this(),
                         boost::asio::placeholders::error,
                         boost::asio::placeholders::bytes_transferred),
@@ -387,11 +386,11 @@ namespace server
     }
 
     template <class Connection, std::size_t BodyBufferSize>
-    void proxy_response<Connection, BodyBufferSize>::orgin_timeout(const boost::system::error_code& error)
+    void response<Connection, BodyBufferSize>::orgin_timeout(const boost::system::error_code& error)
     {
         if ( !error && proxy_socket_ )
         {
-            connection_->trait().log_error(*this, "proxy_response::orgin_timeout");
+            connection_->trait().log_error(*this, "response::orgin_timeout");
 
             // close connection to orgin, pass the connection back to the connector
             connector_.dismiss_connection(proxy_socket_);
@@ -400,14 +399,14 @@ namespace server
     }
 
     template <class Connection, std::size_t BodyBufferSize>
-    void proxy_response<Connection, BodyBufferSize>::issue_write(const boost::asio::const_buffers_1& buffer)
+    void response<Connection, BodyBufferSize>::issue_write(const boost::asio::const_buffers_1& buffer)
     {
         if ( !writing_body_to_client_ && buffer_size(buffer) != 0 )
         {
             writing_body_to_client_ = true;
             connection_->async_write_some(
                 buffer,
-                boost::bind(&proxy_response::handle_body_written,
+                boost::bind(&response::handle_body_written,
                         this->shared_from_this(),
                         boost::asio::placeholders::error,
                         boost::asio::placeholders::bytes_transferred),
@@ -417,7 +416,7 @@ namespace server
     }
 
     template <class Connection, std::size_t BodyBufferSize>
-    void proxy_response<Connection, BodyBufferSize>::forward_header()
+    void response<Connection, BodyBufferSize>::forward_header()
     {
         // filter all connection headers
         outbuffers_ = filtered_header(response_header_from_proxy_);
@@ -426,7 +425,7 @@ namespace server
         connection_->async_write(
                 outbuffers_, 
                 boost::bind(
-                    &proxy_response::response_header_written, 
+                    &response::response_header_written,
                     this->shared_from_this(),
                     boost::asio::placeholders::error,
                     boost::asio::placeholders::bytes_transferred),
@@ -435,7 +434,7 @@ namespace server
 
     template <class Connection, std::size_t BodyBufferSize>
     template <class Header>
-    std::vector<tools::substring> proxy_response<Connection, BodyBufferSize>::filtered_header(const Header& header)
+    std::vector<tools::substring> response<Connection, BodyBufferSize>::filtered_header(const Header& header)
     {
         http::filter                    unused_headers(connection_headers_to_be_removed_);
 
@@ -450,7 +449,7 @@ namespace server
     }
 
     template <class Connection, std::size_t BodyBufferSize>
-    const http::filter proxy_response<Connection, BodyBufferSize>::connection_headers_to_be_removed_("connection, keep-alive");
+    const http::filter response<Connection, BodyBufferSize>::connection_headers_to_be_removed_("connection, keep-alive");
 } // namespace server
 
 #endif 

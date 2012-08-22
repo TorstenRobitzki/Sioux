@@ -2,17 +2,19 @@
 // Please note that the content of this file is confidential or protected by law.
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
-#include "server/proxy_connector.h"
+#include "proxy/connector.h"
 #include <boost/test/unit_test.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 
+BOOST_AUTO_TEST_CASE( there_is_a_default_configuration )
+{
+    proxy::configuration();
+}
+
 BOOST_AUTO_TEST_CASE(get_set_proxy_configs)
 {
-    // there is a default c'tor
-    server::proxy_configuration();
-
-    const server::proxy_configuration config(
-        server::proxy_configurator()
+    const proxy::configuration config(
+        proxy::configurator()
             .max_connections(15u)
             .max_idle_time(boost::posix_time::millisec(42))
             .connect_timeout(boost::posix_time::seconds(4)));

@@ -21,3 +21,12 @@ build_example 'chat',
 task :rack_chat => :all_rack_bayeux do 
     ruby './source/tests/rack_chat.rb'
 end
+
+FLAVORS.each do |flavor|
+    CLEAN.include File.join(OUTPUT_FOLDER, flavor, 'tests', '*.' + OBJECT_FILE_EXT)
+    CLEAN.include File.join(OUTPUT_FOLDER, flavor, 'tests', '*.' + DEPENDS_FILE_EXT)
+
+    GCOV_PATTERN.each { |p| CLEAN.include File.join(OUTPUT_FOLDER, flavor, 'tests', p)  }       
+    
+    CLOBBER.include File.join(LIBRARY_FOLDER, flavor, '*');
+end

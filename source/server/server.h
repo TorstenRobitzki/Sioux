@@ -124,11 +124,6 @@ namespace server {
         void add_listener( const boost::asio::ip::tcp::endpoint& );
 
         /**
-         * @brief adds a new route to an orgin server
-         */
-        void add_proxy( const char* route, const boost::asio::ip::tcp::endpoint& orgin, const proxy_configuration&);
-
-        /**
          * a function taking a connection and a request_header, returning a async_response
          */
         typedef boost::function< boost::shared_ptr< async_response > (
@@ -259,12 +254,6 @@ namespace server {
         accept->start();
     }
 
-    template <class Trait>
-    void basic_server<Trait>::add_proxy(const char* route, const boost::asio::ip::tcp::endpoint& orgin, const proxy_configuration& config)
-    {
-        assert( !shutting_down_ );
-        trait_.add_proxy(queue_, route, orgin, config);
-    }
 
     template < class Trait >
     void basic_server<Trait>::add_action( const char* route, const action_t& action )
