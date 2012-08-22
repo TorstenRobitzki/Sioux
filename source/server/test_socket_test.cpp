@@ -110,10 +110,10 @@ BOOST_AUTO_TEST_CASE(use_test_plan)
 	using server::test::write;
 
 	read_plan reads;
-    reads << read("hallo Welt") << delay(boost::posix_time::millisec(100)) << read("");
+    reads << read("hallo Welt") << delay(boost::posix_time::millisec(1000)) << read("");
 
     write_plan writes;
-    writes << delay(boost::posix_time::millisec(200)) << write(20) << write(5);
+    writes << delay(boost::posix_time::millisec(2000)) << write(20) << write(5);
 
     BOOST_REQUIRE( !reads.empty() );
     BOOST_REQUIRE( !writes.empty() );
@@ -143,7 +143,7 @@ BOOST_AUTO_TEST_CASE(use_test_plan)
     tools::run(queue);
 
     const boost::posix_time::ptime          now = boost::posix_time::microsec_clock::universal_time();
-    const boost::posix_time::time_duration  tolerance = boost::posix_time::millisec(5);
+    const boost::posix_time::time_duration  tolerance = boost::posix_time::millisec( 100 );
 
     BOOST_CHECK_GE(first_read.when, start_time - tolerance);
     BOOST_CHECK_LE(first_read.when, start_time + tolerance);
@@ -151,18 +151,18 @@ BOOST_AUTO_TEST_CASE(use_test_plan)
     BOOST_CHECK_EQUAL(std::string("hallo Welt"), std::string(&read_buffer[0], &read_buffer[10]));
     BOOST_CHECK(!first_read.error);
 
-    BOOST_CHECK_GE(second_read.when, start_time + boost::posix_time::millisec(100) - tolerance);
-    BOOST_CHECK_LE(second_read.when, start_time + boost::posix_time::millisec(100) + tolerance);
+    BOOST_CHECK_GE(second_read.when, start_time + boost::posix_time::millisec(1000) - tolerance);
+    BOOST_CHECK_LE(second_read.when, start_time + boost::posix_time::millisec(1000) + tolerance);
     BOOST_CHECK_EQUAL(0u, second_read.bytes_transferred);
     BOOST_CHECK(!second_read.error);
 
-    BOOST_CHECK_GE(first_write.when, start_time + boost::posix_time::millisec(200) - tolerance);
-    BOOST_CHECK_LE(first_write.when, start_time + boost::posix_time::millisec(200) + tolerance);
+    BOOST_CHECK_GE(first_write.when, start_time + boost::posix_time::millisec(2000) - tolerance);
+    BOOST_CHECK_LE(first_write.when, start_time + boost::posix_time::millisec(2000) + tolerance);
     BOOST_CHECK_EQUAL(20u, first_write.bytes_transferred);
     BOOST_CHECK(!first_write.error);
 
-    BOOST_CHECK_GE(second_write.when, start_time + boost::posix_time::millisec(200) - tolerance);
-    BOOST_CHECK_LE(second_write.when, start_time + boost::posix_time::millisec(200) + tolerance);
+    BOOST_CHECK_GE(second_write.when, start_time + boost::posix_time::millisec(2000) - tolerance);
+    BOOST_CHECK_LE(second_write.when, start_time + boost::posix_time::millisec(2000) + tolerance);
     BOOST_CHECK_EQUAL(5u, second_write.bytes_transferred);
     BOOST_CHECK(!second_write.error);
 }
