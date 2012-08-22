@@ -44,7 +44,7 @@ namespace server {
         {
             boost::system::error_code ec;
             timer_.cancel( ec );
-            acceptor_.cancel( ec );
+            acceptor_.close( ec );
         }
 
     private:
