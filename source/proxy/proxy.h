@@ -19,6 +19,7 @@ namespace http {
     class response_header;
 }
 
+/** @namespace proxy */
 namespace proxy
 {
     /** 
