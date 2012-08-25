@@ -96,7 +96,7 @@ module Rack
                 options = DEFAULTS.merge options 
                 environment = options.delete 'Environment' 
                 raise "unsupported environment #{}" unless POSSIBLE_ENVIRONMENTS.detect environment
-                require_relative "../../lib/#{environment}/rack/bayeux"
+                require 'bayeux_sioux'
 
                 server = Rack::Sioux::SiouxRubyImplementation.new
                 server.run ApplicationWrapper.new( app, options ), options 

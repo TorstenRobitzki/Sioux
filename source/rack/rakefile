@@ -2,14 +2,29 @@
 # Please note that the content of this file is confidential or protected by law.
 # Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
-ruby_extension 'rack/bayeux',
-    :sources        => FileList['./source/rack/*.cpp'],
-    :libraries      => [ 'bayeux', 'server', 'pubsub', 'http', 'json', 'tools' ], 
-    :extern_libs    => [ 'boost_regex', 'boost_date_time', 'boost_system', 'boost_random', 'boost_thread', 'ruby' ]
+namespace :rack do 
+    ruby_extension 'bayeux_sioux',
+        :sources        => FileList['./source/rack/*.cpp'],
+        :libraries      => [ 'bayeux', 'server', 'pubsub', 'http', 'json', 'tools' ], 
+        :extern_libs    => [ 'boost_regex', 'boost_date_time', 'boost_system', 'boost_random', 'boost_thread', 'ruby' ]
+    
+    desc 'build the ruby extension shared library'
+    task :bayeux_sioux
 
+    desc 'build a gem file (\'sioux-m.m.gem\') for the ruby rack component'
+    task :gem do 
+        require 'rubygems/builder'
+         
+        Dir.chdir( File.expand_path('..', __FILE__ ) ) do
+            load File.expand_path('../sioux.gemspec', __FILE__ )
+            Gem::Builder.new( RACK_GEM_SPEC ).build
+        end 
+    end
+end
+    
 task :all_rack_bayeux do
     FLAVORS.each do | flavor |
-        Rake::Task[ 'rack/bayeux' ].execute( Rake::TaskArguments.new( [ :flavor ], [ flavor ] ) )
+        Rake::Task[ 'rack:bayeux_sioux' ].execute( Rake::TaskArguments.new( [ :flavor ], [ flavor ] ) )
     end
 end
 

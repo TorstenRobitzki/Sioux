@@ -548,12 +548,12 @@ namespace server
     template < class Trait, class Connection, class Timer >
     void connection< Trait, Connection, Timer >::issue_read( const boost::posix_time::time_duration& time_out )
     {
-		std::pair<char*, std::size_t> buffer( 0, 0 );
+		std::pair< char*, std::size_t > buffer( 0, 0 );
 
 		if ( body_read_call_back_.empty() )
 		{
 			buffer = current_request_->read_buffer();
-			assert(buffer.first && buffer.second);
+			assert( buffer.first && buffer.second );
 		}
 		else
 		{
@@ -565,24 +565,24 @@ namespace server
 		{
             server::async_read_some_with_to(
                 connection_,
-                boost::asio::buffer(buffer.first, buffer.second),
-                boost::bind(&connection::handle_read,
-                            boost::static_pointer_cast<connection<Trait, Connection> >(this->shared_from_this()),
-                            boost::asio::placeholders::error,
-                            boost::asio::placeholders::bytes_transferred),
+                boost::asio::buffer( buffer.first, buffer.second ),
+                boost::bind( &connection::handle_read,
+                             boost::static_pointer_cast< connection< Trait, Connection > >( this->shared_from_this() ),
+                             boost::asio::placeholders::error,
+                             boost::asio::placeholders::bytes_transferred ),
                 read_timer_,
-                time_out);
+                time_out );
 
             no_read_timeout_set_ = false;
 		}
 		else
 		{
 		    connection_.async_read_some(
-		        boost::asio::buffer(buffer.first, buffer.second),
+		        boost::asio::buffer( buffer.first, buffer.second ),
                 boost::bind( &connection::handle_read,
-                             boost::static_pointer_cast<connection<Trait, Connection> >(this->shared_from_this()),
+                             boost::static_pointer_cast< connection< Trait, Connection > >( this->shared_from_this() ),
                              boost::asio::placeholders::error,
-                             boost::asio::placeholders::bytes_transferred) );
+                             boost::asio::placeholders::bytes_transferred ) );
 
 		    no_read_timeout_set_ = true;
 		}

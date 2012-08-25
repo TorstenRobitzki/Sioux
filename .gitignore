@@ -1,7 +1,7 @@
-bin/
-lib/
-obj/
-
+/bin
+/lib
+/obj
 documentation/
 README.html
 documentation.zip
+source/rack/sioux-0.4.gem

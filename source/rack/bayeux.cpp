@@ -520,7 +520,7 @@ extern "C" VALUE subscribe_bayeux( VALUE self, VALUE ruby_node )
     return self;
 }
 
-extern "C" void Init_bayeux()
+extern "C" void Init_bayeux_sioux()
 {
     const VALUE mod_sioux = rb_define_module_under( rb_define_module( "Rack" ), "Sioux" );
     VALUE class_    = rb_define_class_under( mod_sioux, "SiouxRubyImplementation", rb_cObject );

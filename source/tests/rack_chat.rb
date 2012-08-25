@@ -2,8 +2,10 @@
 # Please note that the content of this file is confidential or protected by law.
 # Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
-require_relative '../rack/sioux'
+$LOAD_PATH << File.expand_path('../../rack/lib', __FILE__)
+
 require 'rack'
+require 'rack/handler/sioux'
 require 'rack/static'
 
 puts "starting rack_chat...."
