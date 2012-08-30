@@ -7,7 +7,7 @@ require 'rack/lint'
 require 'net/http'
 
 require 'minitest/unit'
-require_relative 'sioux'
+require 'rack/handler/sioux'
 require_relative '../bayeux/client'
 require_relative '../bayeux/network_test_cases'
 require_relative '../tests/bayeux_reply'
