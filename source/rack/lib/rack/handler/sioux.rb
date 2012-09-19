@@ -63,7 +63,7 @@ module Rack
                     # patch the result to be more convenience for the c++ part
                     body_text = ""
                     body.each { | line | body_text = body_text + line }
-                    body.close                        
+                    body.close if body.respond_to? :close                        
                                         
                     if !body_text.empty? && !headers.include?( 'Content-Length' )
                         headers[ 'Content-Length' ] = body_text.length 
