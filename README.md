@@ -1,4 +1,3 @@
-
 Sioux is a framework to build Comet Web-Servers 
 ===============================================
  
@@ -6,7 +5,7 @@ It is based around a publish subscribe paradigm. A web client want to display a 
 
 Currently only Bayeux with long-polling between server and client is implemented. On the client side, the JavaScript client library from the cometd project is used.
 
-On the server side, a binding for C++ exists and a binding for Ruby/Rake.
+On the server side, a binding for C++ exists and a binding for Ruby/Rack.
 
 Dependencies
 ============
