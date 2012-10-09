@@ -92,11 +92,23 @@ class RackIntegrationTest < MiniTest::Unit::TestCase
         assert_equal '', @app.environment[ 'QUERY_STRING' ]
         assert_equal @@HOST, @app.environment[ 'SERVER_NAME' ]
         assert_equal @@PORT.to_s, @app.environment[ 'SERVER_PORT' ]
+    end
+    
+    def test_remote_addr_and_port
+        assert_equal "Hello Rack!", Net::HTTP.get( @@URI )
+
         assert_equal '127.0.0.1', @app.environment[ 'REMOTE_ADDR' ]
         assert @app.environment[ 'REMOTE_ADDR' ]
         refute_equal @@PORT.to_s, @app.environment[ 'REMOTE_PORT' ]
     end
-    
+            
+    def test_correctly_translated_bindestrich
+        assert_equal "Hello Rack!", Net::HTTP.get( @@URI )
+
+        assert @app.environment[ 'HTTP_USER_AGENT' ]
+        refute @app.environment[ 'HTTP_USER-AGENT' ]
+    end
+            
     def test_post_body
         Net::HTTP.post_form @@URI + '/', { 'param1' => 5, 'param2' => 'text' }
 
