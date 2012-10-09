@@ -8,6 +8,7 @@
 #include <boost/function.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/condition.hpp>
+#include <boost/asio/ip/tcp.hpp>
 #include <deque>
 #include <vector>
 
@@ -28,7 +29,8 @@ namespace rack
          * the result into a buffer to be transmitted to the client. If no response is intended, the function
          * returns an empty vector.
          */
-        virtual std::vector< char > call( const std::vector< char >& body, const http::request_header& request ) = 0;
+        virtual std::vector< char > call( const std::vector< char >& body, const http::request_header& request,
+            const boost::asio::ip::tcp::endpoint& ) = 0;
 
         virtual ~application_interface() {}
     };

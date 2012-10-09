@@ -97,7 +97,8 @@ namespace
             const json::object& message, VALUE& session, pubsub::root& root );
 
         // rack::application_interface implementation
-        std::vector< char > call( const std::vector< char >& body, const http::request_header& request );
+        std::vector< char > call( const std::vector< char >& body, const http::request_header& request,
+            const boost::asio::ip::tcp::endpoint& );
 
         // calls an optional configurated call back: configuration['Adapter'].init(self)
         // it's important, that
@@ -379,6 +380,12 @@ namespace
         fill_http_headers( environment, request );
     }
 
+    static void fill_endpoint( VALUE environment, const boost::asio::ip::tcp::endpoint& endpoint )
+    {
+        rb_hash_aset( environment, rb_str_new2( "REMOTE_ADDR" ), rb_str_new_std( endpoint.address().to_string() ) );
+        rb_hash_aset( environment, rb_str_new2( "REMOTE_PORT" ), rb_str_new_std( tools::as_string( endpoint.port() ) ) );
+    }
+
     extern "C"
     {
         static VALUE call_ruby_cb( VALUE* params )
@@ -404,11 +411,13 @@ namespace
         }
     }
 
-    std::vector< char > bayeux_server::call( const std::vector< char >& body, const http::request_header& request )
+    std::vector< char > bayeux_server::call( const std::vector< char >& body, const http::request_header& request,
+        const boost::asio::ip::tcp::endpoint& endpoint )
     {
         VALUE hash = rb_hash_new();
 
         fill_header( hash, request );
+        fill_endpoint( hash, endpoint );
         rb_hash_aset( hash, rb_str_new2( "rack.input" ), rb_str_new( &body[ 0 ], body.size() ) );
 
         VALUE func_args[ 2 ] = { app_, hash };

@@ -32,7 +32,7 @@ class RackTestHandler
 end
 
 module SetupRackserver
-    @@HOST = 'localhost'
+    @@HOST = '127.0.0.1'
     @@PORT = 8080
     @@URI  = URI( "http://#{@@HOST}:#{@@PORT}" )
     
@@ -92,6 +92,9 @@ class RackIntegrationTest < MiniTest::Unit::TestCase
         assert_equal '', @app.environment[ 'QUERY_STRING' ]
         assert_equal @@HOST, @app.environment[ 'SERVER_NAME' ]
         assert_equal @@PORT.to_s, @app.environment[ 'SERVER_PORT' ]
+        assert_equal '127.0.0.1', @app.environment[ 'REMOTE_ADDR' ]
+        assert @app.environment[ 'REMOTE_ADDR' ]
+        refute_equal @@PORT.to_s, @app.environment[ 'REMOTE_PORT' ]
     end
     
     def test_post_body

@@ -73,7 +73,7 @@ namespace rack
     {
         server::close_connection_guard< connection_t >  error_guard( *connection_, *this );
 
-        response_ = call_back.call( body_, *request_ );
+        response_ = call_back.call( body_, *request_, connection_->socket().remote_endpoint() );
 
         if ( response_.size() == 0 )
             return;
