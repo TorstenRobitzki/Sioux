@@ -184,7 +184,10 @@ class RackIntegrationTest < MiniTest::Unit::TestCase
             request = Net::HTTP::Get.new '/index.html'
             request[ 'request_header' ] = ( 1..header_length ).collect { 'a' }.reduce(:+)
             
-            http.request request
+            begin 
+                http.request request
+            rescue
+            end                
         end 
     end
 
