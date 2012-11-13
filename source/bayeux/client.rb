@@ -104,6 +104,11 @@ module Bayeux
                 if !closed? 
                     puts "#error: #{e.message}"  
                     close
+                    
+                    @mutex.synchronize do
+                        @requests.each { | r | r.signal_data '' } 
+                    end
+                                       
                     raise
                 end
             end

@@ -289,22 +289,29 @@ class RackServerStartStopTests < MiniTest::Unit::TestCase
         
         1.times do
             setup_rack_server self
-            signal = Queue.new
             subscriber_count = 100
+            sync = Queue.new
             
-            clients = ( 1..100 ).collect do | index | 
+            clients = ( 1..subscriber_count ).collect do | index |
                 Thread.new( index ) do | i |
                     Bayeux::Session.start do | session |
-                        subject = "/foo/bar/#{i}"
-                        session.subscribe_and_wait subject
-                        result = session.connect
-                        
-                        signal << 42
+                        begin 
+                            session.subscribe_and_wait "/foo/bar/#{i}"
+                            sync << i
+                            session.connect
+                        rescue
+                        end
                     end
                 end
             end
             
+            subscriber_count.times { sync.pop }
+            
             teardown_rack_server
+            
+            clients.each do | t |
+                t.join
+            end
         end        
     end
 end

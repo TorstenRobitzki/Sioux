@@ -77,24 +77,33 @@ namespace rack
 
     void ruby_land_queue::process_request( application_interface& application)
     {
-        boost::mutex::scoped_lock lock( mutex_ );
+        queue_t last_data;
 
-        wait_data_call  waitdata  = { *this, lock };
-        stop_data       stopdata  = { stop_flag_, mutex_, condition_ };
-
-        while ( !stop_flag_ )
         {
-            rb_thread_blocking_region( &rack_call_queue_wait, &waitdata, &rack_call_queue_stop, &stopdata );
+            boost::mutex::scoped_lock lock( mutex_ );
 
-            while ( !stop_flag_ && !queue_.empty() )
+            wait_data_call  waitdata  = { *this, lock };
+            stop_data       stopdata  = { stop_flag_, mutex_, condition_ };
+
+            while ( !stop_flag_ )
             {
-                const call_back_t current = queue_.front();
-                queue_.pop_front();
+                rb_thread_blocking_region( &rack_call_queue_wait, &waitdata, &rack_call_queue_stop, &stopdata );
 
-                boost::reverse_lock< boost::mutex::scoped_lock > unlock( lock );
+                while ( !stop_flag_ && !queue_.empty() )
+                {
+                    const call_back_t current = queue_.front();
+                    queue_.pop_front();
 
-                current( application );
+                    boost::reverse_lock< boost::mutex::scoped_lock > unlock( lock );
+
+                    current( application );
+                }
             }
+
+            last_data.swap( queue_ );
         }
+
+        // destroy the data contained in last_data, without mutex locked.
+        last_data.clear();
     }
 }

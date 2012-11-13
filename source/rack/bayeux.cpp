@@ -193,13 +193,6 @@ namespace
         return VALUE();
     }
 
-    extern "C" void bayeux_stop_joining_threads( void* arg )
-    {
-        boost::asio::io_service *const queue = static_cast< boost::asio::io_service* >( arg );
-
-        queue->stop();
-    }
-
     void bayeux_server::run()
     {
         call_init_hook();
@@ -210,7 +203,7 @@ namespace
         connector_.shut_down();
 
         join_data_t joindata( &queue_runner, &server_ );
-        rb_thread_blocking_region( &bayeux_join_threads, &joindata, &bayeux_stop_joining_threads, &queue_ );
+        rb_thread_blocking_region( &bayeux_join_threads, &joindata, 0, 0 );
     }
 
 
