@@ -1,0 +1,12 @@
+Problem:
+========
+- Buffering incomming data requires some memory to keep that data
+- a big fixed size buffer might be to big for many cases, a buffer that's to small requires some kind of reallocating and copying  
+
+Requirements:
+============
+- Fast allocating / deallocation
+- fixed, continous blocks of memory to mark headers 
+  - function, that returns a pointer if given a pair of begin/end iterators
+  - this buffers could be used by json::objects and http::header
+- returning as much memory as early as possible to be able to keep a lot of connections   
