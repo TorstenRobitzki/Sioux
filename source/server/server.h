@@ -69,7 +69,7 @@ namespace server {
                 connection->start();
                 issue_accept();
             }
-            else if ( error != boost::asio::error::operation_aborted && error != boost::asio::error::bad_descriptor )
+            else if ( error != boost::asio::error::operation_aborted && error != boost::asio::error::bad_descriptor && error != boost::asio::error::broken_pipe )
             {
                 trait_.error_accepting_new_connection( end_point_, error );
 
