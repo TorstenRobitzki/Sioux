@@ -28,6 +28,7 @@ std::string as_printable(const std::string& input);
  * @brief prints a byte as a hex text on the given stream
  */
 void print_hex(std::ostream& out, char value);
+void print_hex(std::ostream& out, unsigned char value);
 
 /** @copydoc print_hex(std::ostream&, char) */
 void print_hex_uppercase(std::ostream& out, unsigned char value);

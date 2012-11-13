@@ -170,7 +170,7 @@ namespace http
 
         void parse_error();
 
-        char                        buffer_[1024];
+        char                        buffer_[ 4 * 1024 ];
         std::size_t                 write_ptr_;
         std::size_t                 parse_ptr_; // already consumed including trailing CRLF
         std::size_t                 read_ptr_;  // read, but no CRLF found so far

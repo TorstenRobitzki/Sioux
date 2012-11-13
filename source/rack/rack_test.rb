@@ -174,17 +174,20 @@ class RackIntegrationTest < MiniTest::Unit::TestCase
 
         assert_equal '', @app.environment[ 'QUERY_STRING' ]
     end
-
-end
-
-class RackIntegrationTest < MiniTest::Unit::TestCase
-    include SetupRackserver
-
-    def test_bayeux_handshake
-        # Start a bayeux client, handshake, update a node 
+    
+    # just make sure, that the case is handled by the server and does not crash the application
+    # currently there is a upper limit for http header length
+    def test_very_long_request
+        header_length = 10000
         
-        # observe the validation, authorization and initialization request
+        result = Net::HTTP.start @@HOST, @@PORT do | http |
+            request = Net::HTTP::Get.new '/index.html'
+            request[ 'request_header' ] = ( 1..header_length ).collect { 'a' }.reduce(:+)
+            
+            http.request request
+        end 
     end
+
 end
 
 class RackPublishIntegrationTest < MiniTest::Unit::TestCase
