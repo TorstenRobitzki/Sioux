@@ -9,6 +9,7 @@ require 'rack/handler/sioux'
 require 'rack/static'
 
 puts "starting rack_chat...."
+puts "connect to server via: \'http://localhost:8080\'"
 
 class Adapter
     @@SAY_CHANNEL  = { 'p1' => 'say' }
@@ -51,5 +52,5 @@ app = Rack::Builder.new do
     run lambda { | env | [ 404, { 'Content-Type' => 'text/html' }, [] ] }
 end
 
-Rack::Handler::Sioux.run( app, 'Environment' => 'debug', 'Host' => 'localhost', 'Port' => 8080, 'Adapter' => Adapter.new )
+Rack::Handler::Sioux.run( app, 'Host' => 'localhost', 'Port' => 8080, 'Adapter' => Adapter.new )
 
