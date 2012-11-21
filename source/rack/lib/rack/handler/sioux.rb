@@ -83,7 +83,6 @@ module Rack
         class Sioux
             POSSIBLE_ENVIRONMENTS = %w{release debug converage}
             DEFAULTS = { 
-                'Environment'   => POSSIBLE_ENVIRONMENTS[ 0 ],
                 'Host'          => 'localhost',
                 'Port'          => 8080,
                 'Adapter'       => nil
@@ -96,8 +95,6 @@ module Rack
                 end
                 
                 options = DEFAULTS.merge options 
-                environment = options.delete 'Environment' 
-                raise "unsupported environment #{}" unless POSSIBLE_ENVIRONMENTS.detect environment
                 require 'bayeux_sioux'
 
                 server = Rack::Sioux::SiouxRubyImplementation.new
@@ -106,7 +103,6 @@ module Rack
 
             def self.valid_options
                 {
-                    "Environment=#{POSSIBLE_ENVIRONMENTS.join('|')}" => "build flavor of the sioux server (default: #{DEFAULTS['Environment']})",
                     "Host=hostname|ip-address" => "address of a single IP endpoint to bind to (default: #{DEFAULTS['localhost']})",
                     "Port=ip-port" => "port of a single IP endpoint to bind to (default: #{DEFAULTS['Port']})",
                     'Adapter=object' => 'object validate and authorize reading access to the root-data object. (default: nil)' 
