@@ -608,3 +608,24 @@ BOOST_AUTO_TEST_CASE( parse_false )
     BOOST_CHECK( split_parse( "false" ) );
 }
 
+BOOST_AUTO_TEST_CASE( array_find )
+{
+    const json::array a = json::parse("[1,2,3]").upcast< json::array >();
+    BOOST_CHECK_EQUAL( 0, a.find( json::number( 1 ) ) );
+    BOOST_CHECK_EQUAL( 1, a.find( json::number( 2 ) ) );
+    BOOST_CHECK_EQUAL( 2, a.find( json::number( 3 ) ) );
+    BOOST_CHECK_EQUAL( -1, a.find( json::number( 4 ) ) );
+}
+
+BOOST_AUTO_TEST_CASE( array_contains )
+{
+    const json::array a = json::parse_single_quoted("[1,'2',true]").upcast< json::array >();
+
+    BOOST_CHECK( a.contains( json::number( 1 ) ) );
+    BOOST_CHECK( a.contains( json::string( "2" ) ) );
+    BOOST_CHECK( a.contains( json::true_val() ) );
+
+    BOOST_CHECK( !a.contains( json::number( 2 ) ) );
+    BOOST_CHECK( !a.contains( json::string( "1" ) ) );
+    BOOST_CHECK( !a.contains( json::null() ) );
+}

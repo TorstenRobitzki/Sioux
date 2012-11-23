@@ -483,6 +483,15 @@ namespace json
                 members_.insert(members_.begin() + index, v);
             }
 
+            int find( const value& v ) const
+            {
+                const list_t::const_iterator pos = std::find( members_.begin(), members_.end(), v );
+
+                return pos != members_.end()
+                    ? std::distance( members_.begin(), pos )
+                    : -1;
+            }
+
             typedef std::vector<value> list_t;
             list_t members_;
 
@@ -825,6 +834,16 @@ namespace json
     {
     	for ( std::size_t i = 0, s = length(); i != s; ++i )
     		at( i ).visit( v );
+    }
+
+    int array::find( const value& v ) const
+    {
+        return get_impl< array_impl >().find( v );
+    }
+
+    bool array::contains( const value& v ) const
+    {
+        return get_impl< array_impl >().find( v ) != -1;
     }
 
     array operator+(const array& lhs, const array& rhs)

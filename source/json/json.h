@@ -351,6 +351,19 @@ namespace json
          * @brief invokes e.visit(v) for ever element e in the array
          */
         void for_each( visitor& v ) const;
+
+        /**
+         * @brief searches the given value‚ in the array. operator== is used to compare v with the elements in the array
+         * @return the function returns the position of the element found in the array
+         * @pred this->find( v ) == -1 || this->at( this->find( v ) ) == v
+         */
+        int find( const value& v ) const;
+
+        /**
+         * @brief searches the given value‚ in the array. operator== is used to compare v with the elements in the array
+         * @return true, if v was found.
+         */
+        bool contains( const value& v ) const;
     private:
         explicit array(impl*);
     };
