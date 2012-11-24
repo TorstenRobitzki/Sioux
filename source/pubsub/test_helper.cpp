@@ -4,6 +4,7 @@
 
 #include "pubsub/test_helper.h"
 #include <utility>
+#include <boost/bind.hpp>
 
 namespace pubsub {
 namespace test {
@@ -137,6 +138,14 @@ namespace test {
 
     /////////////////
     // class adapter
+    adapter::adapter( boost::asio::io_service& q ) : queue_( &q )
+    {
+    }
+
+    adapter::adapter( ) : queue_( 0 )
+    {
+    }
+
     bool adapter::authorization_requested(const boost::shared_ptr< ::pubsub::subscriber>& user, const node_name& name) const
     {
         boost::mutex::scoped_lock lock(mutex_);
@@ -226,6 +235,13 @@ namespace test {
         }
     }
 
+    void adapter::answer_initialization_request_defered(const node_name& name, const json::value& answer)
+    {
+        assert( queue_ );
+        boost::mutex::scoped_lock lock(mutex_);
+        initialization_answers_defered_.insert( std::make_pair( name, answer ) );
+    }
+
     void adapter::skip_initialization_request(const node_name& name)
     {
         boost::mutex::scoped_lock lock(mutex_);
@@ -284,6 +300,10 @@ namespace test {
         if ( search_and_remove(initialization_answers_, name, value) )
         {
             cb->initial_value(value);
+        }
+        else if ( search_and_remove(initialization_answers_defered_, name, value) )
+        {
+            queue_->post( boost::bind( &initialization_call_back::initial_value, cb, value ) );
         }
         else if ( !search_and_remove(initializations_to_skip_, name) )
         {

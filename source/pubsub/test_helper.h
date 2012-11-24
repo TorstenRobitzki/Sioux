@@ -10,6 +10,7 @@
 #include <map>
 #include <set>
 #include <boost/thread/mutex.hpp>
+#include <boost/asio/io_service.hpp>
 #include <boost/tuple/tuple.hpp>
 #include <boost/tuple/tuple_comparison.hpp>
 
@@ -112,6 +113,17 @@ namespace test {
     {
     public:
         /**
+         * @brief a reference to an io_service is taken and kept over the entire livetime, to perform
+         *        defered callback responses
+         */
+        explicit adapter( boost::asio::io_service& );
+
+        /**
+         * @brief if no defered_callback answering is used, no io_service needs to be applied
+         */
+        adapter();
+
+        /**
          * @brief returns true, if the authorize() function was called at least once 
          *        with the given parameters.
          */
@@ -174,6 +186,17 @@ namespace test {
         void answer_initialization_request(const node_name&, const json::value& answer);
 
         /**
+         * @brief defered response to an upcoming initialization request.
+         *
+         * The passed data is stored until a initialization request is made for the given node.
+         * The request isn't directly answered, insteed, a call to the callback is stored in a
+         * function that is posted onto the io_service object, that was passed to the c'tor.
+         *
+         * @pre the c'tor overload that takes a io_service must have been used.
+         */
+        void answer_initialization_request_defered(const node_name&, const json::value& answer);
+
+        /**
          * @brief similar to skip_validation_request()
          * @sa skip_validation_request()
          */
@@ -227,6 +250,7 @@ namespace test {
         typedef std::multiset<node_name>  															initialization_failed_reported_list;
 
 
+        boost::asio::io_service * const             queue_; // optional reference
         mutable boost::mutex                        mutex_;
 
         authorization_request_list                  authorization_request_;
@@ -239,6 +263,7 @@ namespace test {
 
         initialization_request_list                 initialization_request_;
         initialization_answer_list                  initialization_answers_;
+        initialization_answer_list                  initialization_answers_defered_;
         initialization_skip_list                    initializations_to_skip_;
 
         invalid_node_subscription_reported_list     invalid_node_subscription_reports_;

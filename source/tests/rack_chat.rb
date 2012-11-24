@@ -17,21 +17,27 @@ class Adapter
     @@MAX_MESSAGES = 20
 
     def initialize
-        @messages = []
+        @messages = [ 'head' => '?', 'text' => 'Welcome :-)' ]
     end
         
+    # this callback is called first. Return true, if the given node names a valid node in your application    
     def validate_node node
         node == @@CHAT_CHANNEL 
     end
-    
+
+    # this callback is called after the node was validated. Return true, if the subscriber is allowed to subscribe to
+    # the node    
     def authorize subscriber, node
         true
     end
      
+    # This callback is called after validation and authorization. return the initial data wrapped in an hash with 
+    # 'data' field. An additional 'id' field will be transported to the clients too
     def node_init node
-        @messages
+        { 'data' => @messages }
     end
     
+    # This callback will be invoked, when a client invokes cometd.publish()
     def publish node, data, root 
         return [ false, 'invalid channel' ] unless node == @@SAY_CHANNEL
         

@@ -179,7 +179,7 @@ namespace bayeux
 
             context()
                 : queue()
-                , pubsub_adapter()
+                , pubsub_adapter( queue )
                 , data( queue, pubsub_adapter, pubsub::configuration() )
                 , trait( queue, data, bayeux_adapter )
             {
@@ -188,7 +188,7 @@ namespace bayeux
 
             explicit context( const pubsub::configuration& config )
                 : queue()
-                , pubsub_adapter()
+                , pubsub_adapter( queue )
                 , data( queue, pubsub_adapter, config )
                 , trait( queue, data, bayeux_adapter )
             {
@@ -197,7 +197,7 @@ namespace bayeux
 
             context( const pubsub::configuration& config, const bayeux::configuration& bayeux_config )
                 : queue()
-                , pubsub_adapter()
+                , pubsub_adapter( queue )
                 , data( queue, pubsub_adapter, config )
                 , trait( queue, data, bayeux_adapter, bayeux_config )
             {
@@ -207,7 +207,7 @@ namespace bayeux
             template < class SessionData >
             explicit context( bayeux::adapter< SessionData >& adapt )
                 : queue()
-                , pubsub_adapter()
+                , pubsub_adapter( queue )
                 , data( queue, pubsub_adapter, pubsub::configuration() )
                 , trait( queue, data, adapt )
             {

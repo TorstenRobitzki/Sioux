@@ -27,7 +27,27 @@ namespace http {
 	class request_header;
 }
 
-/** @namespace bayeux */
+/**
+ * @namespace bayeux
+ *
+ * This library connects a client to a pubsub::root using the bayeux protocol. There are some differences in how
+ * bayeux handle things:
+ *
+ * 1) The name of a node is pass like
+ *    using the functions in node_channel.h a bayeux channel is converted into a pubsub::node_name by taking every
+ *    seqment of the pass and name them p1, p2, and so on. Example:
+ *      /abc/def/4 becomes { "p1": "abc", "p2": "def", "p3": "4" }
+ *
+ * 2) The bayeux protocol has an addition message 'id', that can be passed allong with a published message. To implement
+ *     this, a pubsub::node contains two fields 'data' and 'id'. So initial data must be wrapped in an object. For example
+ *     a node with a string containing the text "hello world" must be initialized with { "data": "hello world" }
+ *
+ * 3) pubsub is value or state based. Whereas bayeux is message based. Pubsub tries to keep all subscribers in sync with
+ *    a nodes value with the least possible overhead, whereas bayeux simply forwards all published messages to all
+ *    subscribers. So in case, it's important for a subscriber to not only get a actual state of the node, but all
+ *    messsages published to a subject, it's best to use an array of messages a node state and to let clients derive
+ *    the messsages from the changes to the message array.
+ */
 namespace bayeux
 {
 	class session;

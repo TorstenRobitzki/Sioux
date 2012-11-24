@@ -629,6 +629,82 @@ BOOST_AUTO_TEST_CASE( unsubscribe_with_invalid_client_id )
     );
 }
 
+static bool initial_data_reaches_the_subscribed_client_impl( bayeux::test::context& context )
+{
+    json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
+        server::test::read_plan()
+            << bayeux::test::msg(
+                "[{ "
+                "   'channel' : '/meta/handshake',"
+                "   'version' : '1.0.0',"
+                "   'supportedConnectionTypes' : ['long-polling', 'callback-polling']"
+                "},{ "
+                "   'channel' : '/meta/subscribe',"
+                "   'clientId' : '192.168.210.1:9999/0',"
+                "   'subscription' : '/foo/bar' "
+                "}]" )
+            << bayeux::test::msg(
+                "{ "
+                "   'channel' : '/meta/connect',"
+                "   'clientId' : '192.168.210.1:9999/0',"
+                "   'connectionType' : 'long-polling'"
+                "}" )
+            << bayeux::test::msg(
+                "{ "
+                "   'channel' : '/meta/connect',"
+                "   'clientId' : '192.168.210.1:9999/0',"
+                "   'connectionType' : 'long-polling'"
+                "}" )
+            << bayeux::test::msg(
+                "{ "
+                "   'channel' : '/meta/connect',"
+                "   'clientId' : '192.168.210.1:9999/0',"
+                "   'connectionType' : 'long-polling'"
+                "}" )
+            << server::test::disconnect_read(),
+            context ) );
+
+    return response.contains(
+        json::parse_single_quoted(
+            "   {"
+            "       'channel'   : '/foo/bar',"
+            "       'data'      : 'Hello World'"
+            "   }") );
+
+}
+
+/**
+ * @test according to Issue #11, initial, not null, not empty array data is not communicated to a subscibed client
+ */
+BOOST_AUTO_TEST_CASE( initial_data_reaches_the_subscribed_client )
+{
+    bayeux::test::context context( pubsub::configurator().authorization_not_required() );
+
+    context.pubsub_adapter.answer_validation_request( bayeux::node_name_from_channel( "/foo/bar" ), true );
+    context.pubsub_adapter.answer_initialization_request(
+        bayeux::node_name_from_channel( "/foo/bar" ),
+        json::parse_single_quoted( "{'data': 'Hello World'}" ) );
+
+
+    BOOST_CHECK( initial_data_reaches_the_subscribed_client_impl( context ) );
+}
+
+/**
+ * @test and now the same, with a defered answer of the initialization request.
+ */
+BOOST_AUTO_TEST_CASE( initial_data_reaches_the_subscribed_client_defered )
+{
+    bayeux::test::context context( pubsub::configurator().authorization_not_required() );
+
+    context.pubsub_adapter.answer_validation_request( bayeux::node_name_from_channel( "/foo/bar" ), true );
+    context.pubsub_adapter.answer_initialization_request_defered(
+        bayeux::node_name_from_channel( "/foo/bar" ),
+        json::parse_single_quoted( "{'data': 'Hello World'}" ) );
+
+
+    BOOST_CHECK( initial_data_reaches_the_subscribed_client_impl( context ) );
+}
+
 /**
  * @test test that a bayeux-connect blocks if nothing is there to be send
  *
@@ -764,14 +840,6 @@ BOOST_AUTO_TEST_CASE( http_connection_get_closed_while_response_is_waiting )
 
     BOOST_REQUIRE( session );
     context.trait.connector().idle_session( session );
-}
-
-/**
- * @test check, that only configured connection types are considered
- */
-BOOST_AUTO_TEST_CASE( bayeux_only_supported_connection_types )
-{
-    /// @todo should be implemented, when a second connection type is implemented
 }
 
 /**
