@@ -7,39 +7,6 @@ require 'json'
 require 'rack'
 
 module Rack
-    module Sioux
-        class Validate
-            def initialize app, &block
-                @app    = app
-            end
-            
-            def call env
-                @app.call env
-            end
-        end
-        
-        
-        class Authorize
-            def initialize app, &block
-                @app    = app
-            end
-            
-            def call env
-                @app.call env
-            end
-        end
-        
-        class Initialize
-            def initialize app, &block
-                @app    = app
-            end
-            
-            def call env
-                @app.call env
-            end
-        end
-    end
-    
     module Handler
         class ApplicationWrapper
             def initialize app, options
@@ -73,7 +40,7 @@ module Rack
                         sum + "#{header}: #{value}\r\n"
                     end + "\r\n"
                     
-                    [ status, header_text, body_text, error_log.string ]
+                    [ status.to_int, header_text, body_text, error_log.string ]
                 rescue StopIteration
                     []
                 end
