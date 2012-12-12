@@ -349,7 +349,7 @@ namespace
                 std::replace( header_name.begin(), header_name.end(), '-', '_' );
 
                 VALUE header_name_cgi = rb_str_concat( rb_str_new2( "HTTP_" ), rack::rb_str_new_std( header_name ) );
-                header_name_cgi = rb_funcall( header_name_cgi, upcase, 0 );
+                rb_funcall( header_name_cgi, upcase, 0 );
 
                 rb_hash_aset( environment, header_name_cgi, rack::rb_str_new_sub( header->value() ) );
             }

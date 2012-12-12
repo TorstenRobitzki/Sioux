@@ -138,6 +138,30 @@ class RackIntegrationTest < MiniTest::Unit::TestCase
         assert_equal '42', @app.environment[ 'HTTP_OTHERHEADER' ]
     end 
     
+    # The Net::HTTP libraries does some transformations on the request headers, to circumvent this, a request
+    # is directly sended over TCP. issue #12 describes a case, where an all upper case header will not be converted
+    def test_receive_ua_cpu_header
+        lines = [
+            "GET /index.html HTTP/1.1\r\n",
+            "Host: google.de\r\n",
+            "UA-CPU: AMD64\r\n",
+            "Connection: close\r\n",
+            "\r\n" ]
+            
+        require 'socket'            
+        socket = TCPSocket.new @@HOST, @@PORT 
+        begin
+            lines.each do | line |
+                socket.write line
+            end
+            sleep 1 # give the server some time to hand the request to the handler
+        ensure
+            socket.close
+        end            
+
+        assert_equal 'AMD64', @app.environment[ 'HTTP_UA_CPU' ]
+    end 
+
     def test_url_http_schema
         Net::HTTP.get @@URI
         assert_equal 'http', @app.environment[ 'rack.url_scheme' ]
