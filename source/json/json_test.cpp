@@ -629,3 +629,10 @@ BOOST_AUTO_TEST_CASE( array_contains )
     BOOST_CHECK( !a.contains( json::string( "1" ) ) );
     BOOST_CHECK( !a.contains( json::null() ) );
 }
+
+BOOST_AUTO_TEST_CASE( object_add_const_char_overload )
+{
+    json::object o;
+    o.add( "foo", json::string( "bar" ) );
+    BOOST_CHECK_EQUAL( o, json::parse_single_quoted("{'foo':'bar'}") );
+}

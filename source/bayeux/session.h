@@ -24,7 +24,8 @@ namespace bayeux
 	class configuration;
 
 	/**
-	 * @brief interface of the asynchronous to the session, used by the session to inform the response about events
+	 * @brief interface of the asynchronous response to the session, used by the session to inform the response about events,
+	 *        while the response is connected.
 	 */
 	class response_interface
 	{

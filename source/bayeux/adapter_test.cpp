@@ -131,7 +131,8 @@ BOOST_AUTO_TEST_CASE( handshake_hook_is_called )
         "       'clientId'      : '192.168.210.1:9999/0',"
         "       'successful'    : true,"
         "       'supportedConnectionTypes': ['long-polling'],"
-        "       'id'            : 'connect_id'"
+        "       'id'            : 'connect_id',"
+        "       'advice'        : { 'reconnect': 'handshake', 'timeout': 40000, 'interval' :1000} "
         "   }"
         "]" ) );
 
@@ -193,7 +194,8 @@ BOOST_AUTO_TEST_CASE( handshake_hook_ext_is_transported )
         "       'clientId'      : '192.168.210.1:9999/0',"
         "       'successful'    : true,"
         "       'supportedConnectionTypes': ['long-polling'],"
-        "       'id'            : 'connect_id'"
+        "       'id'            : 'connect_id',"
+        "       'advice'        : { 'reconnect': 'handshake', 'timeout': 40000, 'interval' :1000} "
         "   }"
         "]" ) );
 
@@ -233,7 +235,8 @@ BOOST_AUTO_TEST_CASE( publish_hook_is_called )
         "       'clientId'      : '192.168.210.1:9999/0',"
         "       'successful'    : true,"
         "       'supportedConnectionTypes': ['long-polling'],"
-        "       'id'            : 'connect_id'"
+        "       'id'            : 'connect_id',"
+        "       'advice'        : { 'reconnect': 'handshake', 'timeout': 40000, 'interval' :1000} "
         "   },"
         "   {"
         "       'channel'       : '/foo/bar',"
@@ -279,7 +282,8 @@ BOOST_AUTO_TEST_CASE( publish_hook_result_is_applied )
         "       'clientId'      : '192.168.210.1:9999/0',"
         "       'successful'    : true,"
         "       'supportedConnectionTypes': ['long-polling'],"
-        "       'id'            : 'connect_id'"
+        "       'id'            : 'connect_id',"
+        "       'advice'        : { 'reconnect': 'handshake', 'timeout': 40000, 'interval' :1000} "
         "   },"
         "   {"
         "       'channel'       : '/foo/bar',"

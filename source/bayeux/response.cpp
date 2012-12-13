@@ -36,6 +36,7 @@ namespace bayeux
 	static const json::string error_field_token( "error" );
 	static const json::string data_field_token( "data" );
 	static const json::string successful_field_token( "successful" );
+	static const json::string advice_token( "advice" );
 
 	static const json::string meta_handshake_channel( "/meta/handshake" );
 	static const json::string meta_connect_channel( "/meta/connect" );
@@ -161,6 +162,7 @@ namespace bayeux
 
 	        json::object response = add_session_id( response_prototype, *session_ );
             copy_id_field( request, response );
+            response.add( advice_token, connector_.advice() );
 
             bayeux_response_.add( response );
 		}

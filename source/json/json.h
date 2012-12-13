@@ -219,6 +219,11 @@ namespace json
         object& add(const string& name, const value& val);
 
         /**
+         * @brief convenience overload of the function above
+         */
+        object& add(const char* name, const value& val);
+
+        /**
          * @brief returns a list of all keys
          * 
          * The keys will be ordered in descent order
@@ -241,6 +246,12 @@ namespace json
          * @exception std::out_of_range
          */
         const value& at(const string& key) const;
+
+        /**
+         * @brief returns the element with the given key
+         * @exception std::out_of_range
+         */
+        const value& at(const char* key) const;
 
         /**
          * @brief looks up the given key and returns a pointer to it

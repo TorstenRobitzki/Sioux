@@ -3,6 +3,7 @@
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 #include "bayeux/configuration.h"
+#include <ostream>
 
 namespace bayeux
 {
@@ -11,6 +12,7 @@ namespace bayeux
 	    , long_polling_timeout_( boost::posix_time::seconds( 20 ) )
 		, max_messages_per_client_( 10u )
 		, max_messages_size_per_client_( 10 * 1024 )
+	    , reconnect_advice_( handshake )
 	{
 	}
 
@@ -61,5 +63,32 @@ namespace bayeux
 
 		return *this;
 	}
+
+	configuration::reconnect_advice_t configuration::reconnect_advice() const
+	{
+	    return reconnect_advice_;
+	}
+
+	configuration& configuration::reconnect_advice( reconnect_advice_t new_advice )
+	{
+	    reconnect_advice_ = new_advice;
+
+	    return *this;
+	}
+
+    std::ostream& operator<<( std::ostream& out, configuration::reconnect_advice_t advice )
+    {
+        switch ( advice )
+        {
+        case configuration::retry:
+            return out << "retry";
+        case configuration::handshake:
+            return out << "handshake";
+        case configuration::none:
+            return out << "none";
+        }
+
+        return out << "configuration::reconnect_advice_t(" << int( advice ) << ")";
+    }
 
 }

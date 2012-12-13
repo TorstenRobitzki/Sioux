@@ -707,6 +707,11 @@ namespace json
         return *this;
     }
 
+    object& object::add(const char* name, const value& val)
+    {
+        return add( string( name ), val );
+    }
+
     std::vector<string> object::keys() const
     {
         return get_impl<object_impl>().keys();
@@ -725,6 +730,11 @@ namespace json
     const value& object::at(const string& key) const
     {
         return get_impl<object_impl>().at(key);
+    }
+
+    const value& object::at(const char* key) const
+    {
+        return at( string( key ) );
     }
 
     value* object::find( const string& key )

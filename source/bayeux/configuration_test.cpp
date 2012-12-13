@@ -63,16 +63,35 @@ BOOST_AUTO_TEST_CASE( max_messages_size_per_client_config_test )
 	BOOST_CHECK_EQUAL( config.max_messages_size_per_client(), 102400u );
 }
 
+BOOST_AUTO_TEST_CASE( reconnect_advice_config_test )
+{
+    bayeux::configuration config;
+
+    BOOST_CHECK_EQUAL( config.reconnect_advice(), bayeux::configuration::handshake );
+
+    BOOST_CHECK_EQUAL( &config.reconnect_advice( bayeux::configuration::retry ), &config );
+    BOOST_CHECK_EQUAL( config.reconnect_advice(), bayeux::configuration::retry );
+
+    BOOST_CHECK_EQUAL( &config.reconnect_advice( bayeux::configuration::none ), &config );
+    BOOST_CHECK_EQUAL( config.reconnect_advice(), bayeux::configuration::none );
+
+    BOOST_CHECK_EQUAL( &config.reconnect_advice( bayeux::configuration::handshake ), &config );
+    BOOST_CHECK_EQUAL( config.reconnect_advice(), bayeux::configuration::handshake );
+}
+
 BOOST_AUTO_TEST_CASE( check_configuration_items_are_independent )
 {
 	bayeux::configuration config;
 	config.session_timeout( boost::posix_time::minutes(1) )
 	    .long_polling_timeout( boost::posix_time::seconds( 42 ) )
 		.max_messages_per_client( 4u )
-		.max_messages_size_per_client( 1234u );
+		.max_messages_size_per_client( 1234u )
+		.reconnect_advice( bayeux::configuration::retry );
 
 	BOOST_CHECK_EQUAL( config.session_timeout(), boost::posix_time::minutes(1) );
 	BOOST_CHECK_EQUAL( config.long_polling_timeout(), boost::posix_time::seconds( 42 ) );
 	BOOST_CHECK_EQUAL( config.max_messages_per_client(), 4u );
 	BOOST_CHECK_EQUAL( config.max_messages_size_per_client(), 1234u );
+    BOOST_CHECK_EQUAL( config.reconnect_advice(), bayeux::configuration::retry );
 }
+

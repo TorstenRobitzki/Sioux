@@ -63,20 +63,50 @@ namespace
         server::test::advance_time( boost::posix_time::seconds( delay_in_seconds ) );
         tools::run( queue );
     }
+
+    struct basic_setup
+    {
+        boost::asio::io_service queue;
+        pubsub::test::adapter   adapter;
+        pubsub::root            root;
+
+        test_session_generator  generator;
+        connector_t             connector;
+
+        basic_setup()
+            : queue()
+            , adapter()
+            , root( queue, adapter, pubsub::configuration() )
+            , generator()
+            , connector( queue, root, generator, bayeux::configuration() )
+        {
+        }
+
+        explicit basic_setup( const bayeux::configuration& config )
+            : queue()
+            , adapter()
+            , root( queue, adapter, pubsub::configuration() )
+            , generator()
+            , connector( queue, root, generator, config )
+        {
+        }
+    };
+
+    template < long TimeoutMS >
+    struct setup_with_session_timeout : basic_setup
+    {
+        setup_with_session_timeout()
+            : basic_setup( bayeux::configuration().session_timeout( boost::posix_time::milliseconds( TimeoutMS ) ) )
+        {
+        }
+    };
 }
 
 /*!
  * @test after a session was created, it must be obtainable
  */
-BOOST_AUTO_TEST_CASE( create_session_find_session_test )
+BOOST_FIXTURE_TEST_CASE( create_session_find_session_test, basic_setup )
 {
-    boost::asio::io_service queue;
-    pubsub::test::adapter   adapter;
-    pubsub::root            root( queue, adapter, pubsub::configuration() );
-
-    test_session_generator  generator;
-    connector_t             connector( queue, root, generator, bayeux::configuration() );
-
     BOOST_CHECK( connector.find_session( json::string( "1" ) ) == 0 );
 
     json::string error_txt;
@@ -96,7 +126,7 @@ BOOST_AUTO_TEST_CASE( create_session_find_session_test )
 /*!
  * @test drop session test
  */
-BOOST_AUTO_TEST_CASE( drop_session_test )
+BOOST_FIXTURE_TEST_CASE( drop_session_test, basic_setup )
 {
     boost::asio::io_service queue;
     pubsub::test::adapter   adapter;
@@ -147,16 +177,8 @@ BOOST_AUTO_TEST_CASE( drop_session_in_use )
 /*!
  * @test after a configured session timeout the session must not be obtainable.
  */
-BOOST_AUTO_TEST_CASE( session_timeout_test )
+BOOST_FIXTURE_TEST_CASE( session_timeout_test, setup_with_session_timeout< 20000 > )
 {
-    boost::asio::io_service queue;
-    pubsub::test::adapter   adapter;
-    pubsub::root            root( queue, adapter, pubsub::configuration() );
-
-    test_session_generator  generator;
-    connector_t             connector( queue, root, generator,
-        bayeux::configuration().session_timeout( boost::posix_time::seconds( 20u ) ) );
-
     json::string error_txt;
     bayeux::session* session = connector.handshake( "foobar", 0, error_txt );
     connector.idle_session( session );
@@ -169,16 +191,8 @@ BOOST_AUTO_TEST_CASE( session_timeout_test )
 /*!
  * @test test that the session doesn't timeout, when it is used regularly
  */
-BOOST_AUTO_TEST_CASE( session_doesnt_get_timeout_when_used )
+BOOST_FIXTURE_TEST_CASE( session_doesnt_get_timeout_when_used, setup_with_session_timeout< 20000 > )
 {
-    boost::asio::io_service queue;
-    pubsub::test::adapter   adapter;
-    pubsub::root            root( queue, adapter, pubsub::configuration() );
-
-    test_session_generator  generator;
-    connector_t             connector( queue, root, generator,
-        bayeux::configuration().session_timeout( boost::posix_time::seconds( 20u ) ) );
-
     json::string error_txt;
     bayeux::session* session = connector.handshake( "foobar", 0, error_txt );
     connector.idle_session( session );
@@ -196,16 +210,8 @@ BOOST_AUTO_TEST_CASE( session_doesnt_get_timeout_when_used )
 /*!
  * @test test that a session doesn't timeout when it is in use
  */
-BOOST_AUTO_TEST_CASE( session_in_use_doesnt_timeout )
+BOOST_FIXTURE_TEST_CASE( session_in_use_doesnt_timeout, setup_with_session_timeout< 1000000 > )
 {
-    boost::asio::io_service queue;
-    pubsub::test::adapter   adapter;
-    pubsub::root            root( queue, adapter, pubsub::configuration() );
-
-    test_session_generator  generator;
-    connector_t             connector( queue, root, generator,
-        bayeux::configuration().session_timeout( boost::posix_time::seconds( 100u ) ) );
-
     json::string error_txt;
     bayeux::session* session = connector.handshake( "foobar", 0, error_txt );
 
@@ -219,16 +225,8 @@ BOOST_AUTO_TEST_CASE( session_in_use_doesnt_timeout )
 /*!
  * @test session doesn't time out if used once
  */
-BOOST_AUTO_TEST_CASE( single_outstanding_session_prevents_timeout_test )
+BOOST_FIXTURE_TEST_CASE( single_outstanding_session_prevents_timeout_test, setup_with_session_timeout< 20000 > )
 {
-    boost::asio::io_service queue;
-    pubsub::test::adapter   adapter;
-    pubsub::root            root( queue, adapter, pubsub::configuration() );
-
-    test_session_generator  generator;
-    connector_t             connector( queue, root, generator,
-        bayeux::configuration().session_timeout( boost::posix_time::seconds( 20u ) ) );
-
     json::string error_txt;
     bayeux::session* session = connector.handshake( "foobar", 0, error_txt );
     connector.idle_session( session );
@@ -247,16 +245,8 @@ BOOST_AUTO_TEST_CASE( single_outstanding_session_prevents_timeout_test )
 /*!
  * @test session will timeout independently from other sessions
  */
-BOOST_AUTO_TEST_CASE( session_timeouts_are_independent )
+BOOST_FIXTURE_TEST_CASE( session_timeouts_are_independent, setup_with_session_timeout< 5000 > )
 {
-    boost::asio::io_service queue;
-    pubsub::test::adapter   adapter;
-    pubsub::root            root( queue, adapter, pubsub::configuration() );
-
-    test_session_generator  generator;
-    connector_t             connector( queue, root, generator,
-        bayeux::configuration().session_timeout( boost::posix_time::seconds( 5u ) ) );
-
     json::string error_txt;
     bayeux::session* sessionA = connector.handshake( "foobar", 0, error_txt );
     connector.idle_session( sessionA );
@@ -277,16 +267,8 @@ BOOST_AUTO_TEST_CASE( session_timeouts_are_independent )
 /*!
  * @test used after timeout will cancel the timeout
  */
-BOOST_AUTO_TEST_CASE( timeout_will_not_delete_session_if_in_use )
+BOOST_FIXTURE_TEST_CASE( timeout_will_not_delete_session_if_in_use, setup_with_session_timeout< 5000 > )
 {
-    boost::asio::io_service queue;
-    pubsub::test::adapter   adapter;
-    pubsub::root            root( queue, adapter, pubsub::configuration() );
-
-    test_session_generator  generator;
-    connector_t             connector( queue, root, generator,
-        bayeux::configuration().session_timeout( boost::posix_time::seconds( 5u ) ) );
-
     json::string error_txt;
     bayeux::session* session = connector.handshake( "foobar", 0, error_txt );
     connector.idle_session( session );
@@ -304,16 +286,8 @@ BOOST_AUTO_TEST_CASE( timeout_will_not_delete_session_if_in_use )
 /*!
  * @test shutdown should result in no long polling connection should be established
  */
-BOOST_AUTO_TEST_CASE( shutdown_results_in_early_connection_timeout )
+BOOST_FIXTURE_TEST_CASE( shutdown_results_in_early_connection_timeout, setup_with_session_timeout< 5000 > )
 {
-    boost::asio::io_service queue;
-    pubsub::test::adapter   adapter;
-    pubsub::root            root( queue, adapter, pubsub::configuration() );
-
-    test_session_generator  generator;
-    connector_t             connector( queue, root, generator,
-        bayeux::configuration().session_timeout( boost::posix_time::seconds( 5u ) ) );
-
     json::string           err_msg;
     bayeux::session* const session = connector.handshake( "foobar", 0, err_msg );
     BOOST_CHECK( session );
@@ -337,16 +311,8 @@ BOOST_AUTO_TEST_CASE( shutdown_results_in_early_connection_timeout )
 /*!
  * @test during shutdown, every handshake attempt should fail
  */
-BOOST_AUTO_TEST_CASE( shutdown_results_handshake_failure )
+BOOST_FIXTURE_TEST_CASE( shutdown_results_handshake_failure, basic_setup )
 {
-    boost::asio::io_service queue;
-    pubsub::test::adapter   adapter;
-    pubsub::root            root( queue, adapter, pubsub::configuration() );
-
-    test_session_generator  generator;
-    connector_t             connector( queue, root, generator,
-        bayeux::configuration().session_timeout( boost::posix_time::seconds( 5u ) ) );
-
     connector.shut_down();
 
     json::string           err_msg;
@@ -359,20 +325,40 @@ BOOST_AUTO_TEST_CASE( shutdown_results_handshake_failure )
 /*!
  * @test currently not active used sessions do time out during shut down
  */
-BOOST_AUTO_TEST_CASE( sessions_do_timeout_when_shutting_down )
+BOOST_FIXTURE_TEST_CASE( sessions_do_timeout_when_shutting_down, basic_setup )
 {
-    boost::asio::io_service queue;
-    pubsub::test::adapter   adapter;
-    pubsub::root            root( queue, adapter, pubsub::configuration() );
-
-    test_session_generator  generator;
-    connector_t             connector( queue, root, generator,
-        bayeux::configuration().session_timeout( boost::posix_time::seconds( 5u ) ) );
-
     json::string           err_msg;
     bayeux::session* const session = connector.handshake( "foobar", 0, err_msg );
     BOOST_REQUIRE( session );
 
     const json::string session_id = session->session_id();
     connector.shut_down();
+}
+
+/*!
+ * @test check the advice given, based on the current configuration
+ */
+BOOST_FIXTURE_TEST_CASE( connectors_default_adivce_test, basic_setup )
+{
+    BOOST_CHECK_EQUAL( connector.advice(), json::parse_single_quoted(
+        "{"
+        "   'reconnect': 'handshake',"
+        "   'interval': 1000,"
+        "   'timeout': 40000"
+        "}") );
+}
+
+BOOST_AUTO_TEST_CASE( connectors_advice_test_with_changed_configuration )
+{
+    basic_setup setup(
+        bayeux::configuration()
+            .long_polling_timeout( boost::posix_time::seconds( 5u ) )
+            .reconnect_advice( bayeux::configuration::retry ) );
+
+    BOOST_CHECK_EQUAL( setup.connector.advice(), json::parse_single_quoted(
+        "{"
+        "   'reconnect': 'retry',"
+        "   'interval': 1000,"
+        "   'timeout': 10000"
+        "}") );
 }

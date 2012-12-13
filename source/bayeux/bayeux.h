@@ -145,11 +145,17 @@ namespace bayeux
          * @brief prepares shut down by timing out all existing sessions and by timing out all new connections.
          */
         void shut_down();
+
+        /**
+         * @brief returns an advice object based on the current valid configuration
+         */
+        json::object advice() const;
+
 	private:
         boost::asio::io_service&                    queue_;
 		pubsub::root& 				                data_;
 
-        boost::mutex                                mutex_;
+        mutable boost::mutex                        mutex_;
         bool                                        shutting_down_;
 		server::session_generator&	                session_generator_;
 		boost::shared_ptr< const configuration >    current_config_;
