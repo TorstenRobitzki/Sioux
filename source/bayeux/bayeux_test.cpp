@@ -76,6 +76,20 @@ BOOST_AUTO_TEST_CASE( bayeux_connection_with_invalid_id_must_fail )
             json::string( "192.168.210.1:9999/42" ) );
 }
 
+BOOST_AUTO_TEST_CASE( bayeux_connect_with_invalid_id_must_contain_a_advice )
+{
+    const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
+        server::test::read_plan()
+            << bayeux::test::msg(
+                "{ 'channel' : '/meta/connect',"
+                "  'clientId' : '192.168.210.1:9999/42',"
+                "  'connectionType' : 'long-polling' }" )
+            << server::test::disconnect_read() );
+
+    BOOST_CHECK_EQUAL( failed_connect( response ).at( "advice" ),
+        json::parse_single_quoted( "{ 'reconnect' : 'handshake' }" ) );
+}
+
 /**
  * @test connect without valid client id must result in connection failure
  *       A passed id field in the request have to appear in the response
@@ -207,8 +221,7 @@ BOOST_AUTO_TEST_CASE( bayeux_simple_handshake_subscribe_connect )
 	    "       'clientId'      : '192.168.210.1:9999/0',"
 	    "       'successful'    : true,"
 	    "       'supportedConnectionTypes': ['long-polling'],"
-	    "       'id'            : 'connect_id',"
-	    "       'advice'        : { 'reconnect': 'handshake', 'timeout': 40000, 'interval' :1000} "
+	    "       'id'            : 'connect_id'"
 	    "   },"
 	    "   {"
 	    "       'channel'       : '/meta/subscribe',"
@@ -253,8 +266,7 @@ BOOST_AUTO_TEST_CASE( subscribe_without_subject )
         "       'clientId'      : '192.168.210.1:9999/0',"
         "       'successful'    : true,"
         "       'supportedConnectionTypes': ['long-polling'],"
-        "       'id'            : 'connect_id',"
-        "       'advice'        : { 'reconnect': 'handshake', 'timeout': 40000, 'interval' :1000} "
+        "       'id'            : 'connect_id'"
         "   }"
         "]" ) );
 }
@@ -287,8 +299,7 @@ BOOST_AUTO_TEST_CASE( subscribe_without_client_id )
         "       'version'       : '1.0',"
         "       'clientId'      : '192.168.210.1:9999/0',"
         "       'successful'    : true,"
-        "       'supportedConnectionTypes': ['long-polling'],"
-        "       'advice'        : { 'reconnect': 'handshake', 'timeout': 40000, 'interval' :1000} "
+        "       'supportedConnectionTypes': ['long-polling']"
         "   }"
         "]" ) );
 
@@ -331,8 +342,7 @@ BOOST_AUTO_TEST_CASE( subscribe_with_invalid_client_id )
         "       'version'       : '1.0',"
         "       'clientId'      : '192.168.210.1:9999/0',"
         "       'successful'    : true,"
-        "       'supportedConnectionTypes': ['long-polling'],"
-        "       'advice'        : { 'reconnect': 'handshake', 'timeout': 40000, 'interval' :1000} "
+        "       'supportedConnectionTypes': ['long-polling']"
         "   }"
         "]" ) );
 
@@ -393,8 +403,7 @@ BOOST_AUTO_TEST_CASE( unsubscribe_after_subscription )
             "       'version'       : '1.0',"
             "       'clientId'      : '192.168.210.1:9999/0',"
             "       'successful'    : true,"
-            "       'supportedConnectionTypes' : ['long-polling'],"
-            "       'advice'        : { 'reconnect': 'handshake', 'timeout': 40000, 'interval' :1000} "
+            "       'supportedConnectionTypes' : ['long-polling']"
             "   },"
             "   {"
             "       'channel'       : '/meta/subscribe',"
@@ -455,8 +464,7 @@ BOOST_AUTO_TEST_CASE( unsubscribe_without_beeing_subscribed )
             "       'version'       : '1.0',"
             "       'clientId'      : '192.168.210.1:9999/0',"
             "       'successful'    : true,"
-            "       'supportedConnectionTypes' : ['long-polling'],"
-            "       'advice'        : { 'reconnect': 'handshake', 'timeout': 40000, 'interval' :1000} "
+            "       'supportedConnectionTypes' : ['long-polling']"
             "   },"
 
             "   {"
@@ -499,8 +507,7 @@ BOOST_AUTO_TEST_CASE( unsubscribe_without_beeing_subscribed_with_id )
             "       'version'       : '1.0',"
             "       'clientId'      : '192.168.210.1:9999/0',"
             "       'successful'    : true,"
-            "       'supportedConnectionTypes' : ['long-polling'],"
-            "       'advice'        : { 'reconnect': 'handshake', 'timeout': 40000, 'interval' :1000} "
+            "       'supportedConnectionTypes' : ['long-polling']"
             "   },"
 
             "   {"
@@ -540,8 +547,7 @@ BOOST_AUTO_TEST_CASE( unsubscribe_without_subject )
             "       'version'       : '1.0',"
             "       'clientId'      : '192.168.210.1:9999/0',"
             "       'successful'    : true,"
-            "       'supportedConnectionTypes' : ['long-polling'],"
-            "       'advice'        : { 'reconnect': 'handshake', 'timeout': 40000, 'interval' :1000} "
+            "       'supportedConnectionTypes' : ['long-polling']"
             "   },"
 
             "   {"
@@ -583,8 +589,7 @@ BOOST_AUTO_TEST_CASE( unsubscribe_without_client_id )
             "       'version'       : '1.0',"
             "       'clientId'      : '192.168.210.1:9999/0',"
             "       'successful'    : true,"
-            "       'supportedConnectionTypes' : ['long-polling'],"
-            "       'advice'        : { 'reconnect': 'handshake', 'timeout': 40000, 'interval' :1000} "
+            "       'supportedConnectionTypes' : ['long-polling']"
             "   },"
 
             "   {"
@@ -625,8 +630,7 @@ BOOST_AUTO_TEST_CASE( unsubscribe_with_invalid_client_id )
             "       'version'       : '1.0',"
             "       'clientId'      : '192.168.210.1:9999/0',"
             "       'successful'    : true,"
-            "       'supportedConnectionTypes' : ['long-polling'],"
-            "       'advice'        : { 'reconnect': 'handshake', 'timeout': 40000, 'interval' :1000} "
+            "       'supportedConnectionTypes' : ['long-polling']"
             "   },"
 
             "   {"
@@ -1005,8 +1009,7 @@ BOOST_AUTO_TEST_CASE( more_than_one_session_in_a_single_connection )
             "       'supportedConnectionTypes' : ['long-polling'],"
             "       'clientId'      : '192.168.210.1:9999/0',"
             "       'successful'    : true,"
-            "       'id'            : 'id_first_handshake',"
-            "       'advice'        : { 'reconnect': 'handshake', 'timeout': 40000, 'interval' :1000} "
+            "       'id'            : 'id_first_handshake'"
             "   }"
             "]"
         ) );
@@ -1022,8 +1025,7 @@ BOOST_AUTO_TEST_CASE( more_than_one_session_in_a_single_connection )
             "       'supportedConnectionTypes' : ['long-polling'],"
             "       'clientId'      : '192.168.210.1:9999/1',"
             "       'successful'    : true,"
-            "       'id'            : 'id_second_handshake',"
-            "       'advice'        : { 'reconnect': 'handshake', 'timeout': 40000, 'interval' :1000} "
+            "       'id'            : 'id_second_handshake'"
             "   }"
             "]"
         ) );
@@ -1614,31 +1616,3 @@ BOOST_AUTO_TEST_CASE( connect_packed_with_disconnect )
             "   }"
             "]" ) );
 }
-
-BOOST_AUTO_TEST_CASE( bayeux_handshake_advice_from_configuration )
-{
-    bayeux::test::context context(
-        pubsub::configuration(),
-        bayeux::configuration()
-            .long_polling_timeout( boost::posix_time::milliseconds( 7500 ) )
-            .reconnect_advice( bayeux::configuration::retry ) );
-
-    json::array response = bayeux_messages( bayeux::test::bayeux_session(
-        server::test::read_plan()
-            << bayeux::test::msg(
-                "{ 'channel' : '/meta/handshake',"
-                "  'version' : '1.0.0',"
-                "  'supportedConnectionTypes' : ['long-polling'] }" )
-            << server::test::disconnect_read(),
-        server::test::write_plan(),
-        context ) );
-
-    BOOST_REQUIRE_EQUAL( 1u, response.length() );
-    const json::object handshake_response = response.at( 0 ).upcast< json::object >();
-
-    BOOST_CHECK_EQUAL( handshake_response.at( "channel" ), json::string( "/meta/handshake" ) );
-    BOOST_CHECK_EQUAL(
-        handshake_response.at( "advice" ),
-        json::parse_single_quoted( "{ 'reconnect': 'retry', 'timeout': 15000, 'interval': 1000 }" ) );
-}
-

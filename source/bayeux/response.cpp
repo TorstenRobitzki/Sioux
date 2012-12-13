@@ -162,7 +162,6 @@ namespace bayeux
 
 	        json::object response = add_session_id( response_prototype, *session_ );
             copy_id_field( request, response );
-            response.add( advice_token, connector_.advice() );
 
             bayeux_response_.add( response );
 		}
@@ -373,6 +372,14 @@ namespace bayeux
             response.add( channel_token, response_channel );
             response.add( client_id_token, id );
             copy_id_field( request, response );
+
+            static const json::object reconnect_advice = json::parse_single_quoted(
+                "{ 'reconnect' : 'handshake' }" ).upcast< json::object >();
+
+            // add advice to re-handshake in case of a connect with invalid session-id. Most likely, the server
+            // was restarted.
+            if ( response_channel == meta_connect_channel )
+                response.add( advice_token, reconnect_advice );
 
             bayeux_response_.add( response );
         }

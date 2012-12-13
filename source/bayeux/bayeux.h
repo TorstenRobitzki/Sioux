@@ -146,11 +146,6 @@ namespace bayeux
          */
         void shut_down();
 
-        /**
-         * @brief returns an advice object based on the current valid configuration
-         */
-        json::object advice() const;
-
 	private:
         boost::asio::io_service&                    queue_;
 		pubsub::root& 				                data_;

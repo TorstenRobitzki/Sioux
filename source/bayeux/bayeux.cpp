@@ -165,27 +165,6 @@ namespace bayeux
     }
 
     template < class Timer >
-    json::object connector< Timer >::advice() const
-    {
-        static const json::string interval_token( "interval" );
-        static const json::string timeout_token( "timeout" );
-        static const json::string reconnect_token( "reconnect" );
-
-        json::object result;
-
-        result.add( interval_token, json::number( 1000 ) );
-
-        {
-            boost::mutex::scoped_lock lock( mutex_ );
-            result.add( timeout_token, json::number(
-                static_cast< int >( current_config_->long_polling_timeout().total_milliseconds() * 2 ) ) );
-            result.add( reconnect_token, json::string( tools::as_string( current_config_->reconnect_advice() ).c_str() ) );
-        }
-
-        return result;
-    }
-
-    template < class Timer >
     void connector< Timer >::remove_from_sessions( typename session_list_t::iterator pos )
     {
         sessions_.erase( pos );

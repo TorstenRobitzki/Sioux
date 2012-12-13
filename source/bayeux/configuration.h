@@ -72,57 +72,12 @@ namespace bayeux
 		 */
 		configuration& max_messages_size_per_client( std::size_t new_limit );
 
-		/**
-		 * @brief enumeration of the advice give to the client in case that a connect fails
-		 *
-		 * Currently there is no server logic involved in this value. It's just send to the client with a handshake
-		 * respond.
-		 */
-	    enum reconnect_advice_t
-	    {
-	        /**
-	         * a client MAY attempt to reconnect with a /meta/connect after the interval (as defined by "interval"
-	         * advice or client-default backoff), and with the same credentials.
-	         */
-	        retry,
-
-	        /**
-	         * the server has terminated any prior connection status and the client MUST reconnect with a
-	         * /meta/handshake message. A client MUST NOT automatically retry if handshake reconnect has been received.
-	         */
-	        handshake,
-
-	        /**
-	         * hard failure for the connect attempt. Do not attempt to reconnect at all. A client MUST respect reconnect
-	         * advice of none and MUST NOT automatically retry or handshake.
-	         */
-	        none
-	    };
-
-        /**
-         * @brief returns the current value for the reconnect advice
-         *
-         * That advice is given to every client with a handshake response.
-         * @pre connfiguration().reconnect_advice() == connfiguration::handshake
-         */
-	    reconnect_advice_t reconnect_advice() const;
-
-	    /**
-		 * @brief set a new value for the retry advice durring handshake
-		 * @post reconnect_advice() == new_advice
-		 * @post &c.reconnect_advice( A ) == &c
-		 */
-        configuration& reconnect_advice( reconnect_advice_t new_advice );
-
 	private:
 		boost::posix_time::time_duration	max_disconnected_time_;
 		boost::posix_time::time_duration    long_polling_timeout_;
 		unsigned 							max_messages_per_client_;
 		std::size_t							max_messages_size_per_client_;
-		reconnect_advice_t                  reconnect_advice_;
 	};
-
-    std::ostream& operator<<( std::ostream&, configuration::reconnect_advice_t );
 
 }
 

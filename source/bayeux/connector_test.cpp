@@ -335,30 +335,3 @@ BOOST_FIXTURE_TEST_CASE( sessions_do_timeout_when_shutting_down, basic_setup )
     connector.shut_down();
 }
 
-/*!
- * @test check the advice given, based on the current configuration
- */
-BOOST_FIXTURE_TEST_CASE( connectors_default_adivce_test, basic_setup )
-{
-    BOOST_CHECK_EQUAL( connector.advice(), json::parse_single_quoted(
-        "{"
-        "   'reconnect': 'handshake',"
-        "   'interval': 1000,"
-        "   'timeout': 40000"
-        "}") );
-}
-
-BOOST_AUTO_TEST_CASE( connectors_advice_test_with_changed_configuration )
-{
-    basic_setup setup(
-        bayeux::configuration()
-            .long_polling_timeout( boost::posix_time::seconds( 5u ) )
-            .reconnect_advice( bayeux::configuration::retry ) );
-
-    BOOST_CHECK_EQUAL( setup.connector.advice(), json::parse_single_quoted(
-        "{"
-        "   'reconnect': 'retry',"
-        "   'interval': 1000,"
-        "   'timeout': 10000"
-        "}") );
-}
