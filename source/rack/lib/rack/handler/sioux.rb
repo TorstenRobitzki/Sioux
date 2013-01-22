@@ -40,7 +40,7 @@ module Rack
                         sum + "#{header}: #{value}\r\n"
                     end + "\r\n"
                     
-                    [ status.to_int, header_text, body_text, error_log.string ]
+                    [ status.to_i, header_text, body_text, error_log.string ]
                 rescue StopIteration
                     []
                 end
