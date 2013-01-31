@@ -27,7 +27,7 @@ namespace server {
     {
     public:
         acceptator(boost::asio::io_service& s, Trait& trait, const boost::asio::ip::tcp::endpoint& ep)
-            : end_point_(ep)
+            : remote_end_point_(ep)
             , acceptor_(s, ep)
             , queue_(s)
             , trait_(trait)
@@ -57,21 +57,23 @@ namespace server {
             boost::function< void(boost::system::error_code) > f =
                 boost::bind( &acceptator::handler_connect, this->shared_from_this(), connection, _1 );
 
-            acceptor_.async_accept( connection->socket(), end_point_, f );
+            acceptor_.async_accept( connection->socket(), remote_end_point_, f );
         }
 
         void handler_connect( boost::shared_ptr<connection_t> connection, boost::system::error_code& error )
         {
             if ( !error )
             {
-                connection->trait().event_accepting_new_connection( end_point_, connection->socket().remote_endpoint() );
+                connection->trait().event_accepting_new_connection(
+                    connection->socket().local_endpoint(), remote_end_point_ );
 
                 connection->start();
                 issue_accept();
             }
-            else if ( error != boost::asio::error::operation_aborted && error != boost::asio::error::bad_descriptor && error != boost::asio::error::broken_pipe )
+            else if ( error != boost::asio::error::operation_aborted && error != boost::asio::error::bad_descriptor
+                && error != boost::asio::error::broken_pipe )
             {
-                trait_.error_accepting_new_connection( end_point_, error );
+                trait_.error_accepting_new_connection( connection->socket().local_endpoint(), error );
 
                 timer_.expires_from_now( trait_.reaccept_timeout() );
                 timer_.async_wait(
@@ -87,7 +89,7 @@ namespace server {
             issue_accept();
         }
 
-        boost::asio::ip::tcp::endpoint  end_point_;
+        boost::asio::ip::tcp::endpoint  remote_end_point_;
         boost::asio::ip::tcp::acceptor  acceptor_;
         boost::asio::io_service&        queue_;
         Trait&                          trait_;
