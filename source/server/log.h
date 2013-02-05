@@ -192,6 +192,13 @@ namespace server
         // uses std::cerr as output stream
         stream_error_log();
 
+        template < class Connection, class P1 >
+        void log_error( const Connection&, const char* function_name, const P1& p1 )
+        {
+            boost::mutex::scoped_lock lock(mutex_);
+            log_ << "in \"" << function_name << "\" p1: " << p1 << std::endl;
+        }
+
         template <class Connection, class P1, class P2>
         void log_error(const Connection&, const char* function_name, const P1& p1, const P2& p2)
         {

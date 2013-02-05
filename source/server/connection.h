@@ -285,7 +285,9 @@ namespace server
         assert( body_read_call_back_.empty() );
         assert( responses_.empty() );
     
-        connection_.close();
+        boost::system::error_code ec;
+        connection_.close( ec );
+
         trait_.event_connection_destroyed( *this );
     }
 
@@ -505,7 +507,11 @@ namespace server
             trait_.event_shutdown_read(*this);
             shutdown_read_ = true;
 
-            connection_.shutdown(boost::asio::ip::tcp::socket::shutdown_receive);
+            boost::system::error_code ec;
+            connection_.shutdown( boost::asio::ip::tcp::socket::shutdown_receive, ec );
+
+            if ( ec )
+                trait_.log_error( *this, "connection::shutdown_read", ec );
         }
     }
 
@@ -515,8 +521,18 @@ namespace server
         trait_.event_shutdown_close(*this);
 
         shutdown_read();
-        connection_.shutdown( boost::asio::ip::tcp::socket::shutdown_send );
-        connection_.close();
+
+        boost::system::error_code ec;
+        connection_.shutdown( boost::asio::ip::tcp::socket::shutdown_send, ec );
+
+        if ( ec )
+            trait_.log_error( *this, "connection::shutdown_close", "calling shutdown", ec );
+
+        boost::system::error_code close_ec;
+        connection_.close( close_ec );
+
+        if ( close_ec )
+            trait_.log_error( *this, "connection::shutdown_close", "calling close", ec );
     }
 
     template < class Trait, class Connection, class Timer >

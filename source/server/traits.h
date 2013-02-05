@@ -98,6 +98,11 @@ namespace server
 
         null_error_logger() {}
 
+        template < class Connection, class P1 >
+        void log_error( const Connection&, const char*, const P1& p1 )
+        {
+        }
+
         template <class Connection, class P1, class P2>
         void log_error(const Connection&, const char*, const P1&, const P2&)
         {
