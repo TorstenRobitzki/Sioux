@@ -56,7 +56,7 @@ namespace bayeux
         void bayeux_new_request( Connection&, const http::request_header& header )
         {
             boost::mutex::scoped_lock lock( mutex_ );
-            out_ << "bayeux_new_request: " << header.text() << std::endl;
+            out_ << "bayeux_new_request: " << request_url( header ) << std::endl;
         }
 
         template < class Connection >

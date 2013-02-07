@@ -277,7 +277,8 @@ namespace pubsub {
 	{
 		boost::mutex::scoped_lock lock(mutex_);
 
-		assert(state_ != unvalidated && state_ != invalid);
+		assert( state_ != unvalidated );
+		assert( state_ != invalid );
 
 		const subscriber_list::iterator pos = std::find(unauthorized_.begin(), unauthorized_.end(), auth.user_);
 
