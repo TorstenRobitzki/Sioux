@@ -345,6 +345,7 @@ private:
 
         server::test::read_plan                     read_plan_;
         server::test::write_plan                    write_plan_;
+        bool                                        closed_;
     };
 
     boost::shared_ptr<impl>  pimpl_;
@@ -539,6 +540,7 @@ socket<Iterator, Timer, Trait>::impl::impl(boost::asio::io_service& io_service)
  , io_service_(io_service)
  , read_timer_(io_service_)
  , write_timer_(io_service_)
+ , closed_( false )
 {
 }
 
@@ -575,6 +577,7 @@ socket<Iterator, Timer, Trait>::impl::impl(boost::asio::io_service&             
  , write_timer_(io_service_)
  , read_delay_(read_delay)
  , write_delay_(write_delay)
+ , closed_( false )
 {
     assert(times);
 }
@@ -610,6 +613,7 @@ socket<Iterator, Timer, Trait>::impl::impl(boost::asio::io_service&         io_s
  , io_service_(io_service)
  , read_timer_(io_service_)
  , write_timer_(io_service_)
+ , closed_( false )
 {
 }
 
@@ -639,6 +643,7 @@ socket<Iterator, Timer, Trait>::impl::impl(boost::asio::io_service& io_service, 
  , io_service_(io_service)
  , read_timer_(io_service_)
  , write_timer_(io_service_)
+ , closed_( false )
 {
 }
 
@@ -667,6 +672,7 @@ socket<Iterator, Timer, Trait>::impl::impl(boost::asio::io_service& io_service, 
  , io_service_(io_service)
  , read_timer_(io_service_)
  , write_timer_(io_service_)
+ , closed_( false )
 {
 }
         
@@ -697,6 +703,7 @@ socket<Iterator, Timer, Trait>::impl::impl(boost::asio::io_service& io_service, 
  , write_timer_(io_service_)
  , read_plan_(reads)
  , write_plan_(writes)
+ , closed_( false )
 {
 }
 
@@ -1084,6 +1091,8 @@ void socket<Iterator, Timer, Trait>::impl::close()
 template <class Iterator, class Timer, class Trait>
 void socket<Iterator, Timer, Trait>::impl::shutdown(boost::asio::ip::tcp::socket::shutdown_type what)
 {
+    assert( !closed_ );
+
     if ( what == boost::asio::ip::tcp::socket::shutdown_both || what == boost::asio::ip::tcp::socket::shutdown_receive )
     {
         shutdown_read_ = true;
