@@ -3,6 +3,8 @@
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 #include "pubsub/configuration.h"
+#include <ostream>
+#include <boost/date_time/posix_time/posix_time.hpp>
 
 namespace pubsub
 {
@@ -34,6 +36,11 @@ namespace pubsub
         return max_update_size_;
     }
 
+    void configuration::max_update_size( unsigned new_size )
+    {
+        max_update_size_ = new_size;
+    }
+
     bool configuration::authorization_required() const
     {
         return authorization_required_;
@@ -42,6 +49,21 @@ namespace pubsub
     void configuration::authorization_required(bool new_value)
     {
         authorization_required_ = new_value;
+    }
+
+    void configuration::print( std::ostream& out ) const
+    {
+        out << "node_timeout: " << node_timeout_;
+        out << "\nmin_update_period: " << min_update_period_;
+        out << "\nmax_update_size: " << max_update_size_;
+        out << "\nauthorization_required: " << authorization_required_;
+    }
+
+    std::ostream& operator<<( std::ostream& out, const configuration& config )
+    {
+        config.print( out );
+
+        return out;
     }
 
     ////////////////////////

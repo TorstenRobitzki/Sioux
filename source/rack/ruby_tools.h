@@ -23,7 +23,18 @@ namespace json
 
 namespace rack
 {
+    /**
+     * returns an integer entry out of a hash
+     * raises ruby exceptions, if no such entry exists
+     */
     int from_hash( VALUE hash, const char* entry );
+
+    /**
+     * returns a boolean entry out of a hash
+     * raises ruby exceptions, if no such entry exists
+     */
+    bool bool_from_hash( VALUE hash, const char* entry );
+
     VALUE rb_str_new_sub( const tools::substring& s );
     VALUE rb_str_new_std( const std::string& s );
 

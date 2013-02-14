@@ -6,6 +6,7 @@
 #define SIOUX_SOURCE_PUBSUB_CONFIGURATION_H
 
 #include <boost/date_time/posix_time/posix_time_types.hpp>
+#include <iosfwd>
 
 namespace pubsub
 {
@@ -43,6 +44,11 @@ namespace pubsub
         unsigned max_update_size() const;
 
         /**
+         * @brief sets the ratio of update costs to full nodes data size in %
+         */
+        void max_update_size( unsigned );
+
+        /**
          * @brief returns true, if the configured nodes require authorization to be accessed
          */
         bool authorization_required() const;
@@ -52,12 +58,24 @@ namespace pubsub
          * @post authorization_required() will return new_value
          */
         void authorization_required(bool new_value);
+
+        /**
+         * @brief prints the content of this object onto the given stream in a human readable manner
+         */
+        void print( std::ostream& out ) const;
+
     private:
         boost::posix_time::time_duration    node_timeout_;
         boost::posix_time::time_duration    min_update_period_;
         unsigned                            max_update_size_;
         bool                                authorization_required_;
     };
+
+    /**
+     * @brief prints the given configuration onto the given stream in a human readable manner
+     * @relates configuration
+     */
+    std::ostream& operator<<( std::ostream& out, const configuration& config );
 
     /**
      * @brief a configuration builder for nicer configuration syntax

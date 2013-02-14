@@ -11,20 +11,37 @@
 
 namespace rack
 {
-    int from_hash( VALUE hash, const char* entry )
+    static VALUE access_hash( VALUE hash, const char* entry )
     {
         static const ID func_name = rb_intern("[]");
         assert( func_name );
 
         VALUE ruby_result = rb_funcall( hash, func_name, 1, rb_str_new2( entry ) );
 
-        if ( !ruby_result )
+        if ( ruby_result == Qnil )
             rb_raise( rb_eArgError, "no entry named: %s found", entry );
+
+        return ruby_result;
+    }
+
+    int from_hash( VALUE hash, const char* entry )
+    {
+        VALUE ruby_result = access_hash( hash, entry );
 
         if ( TYPE( ruby_result ) != T_FIXNUM )
             rb_raise( rb_eTypeError, "expected Fixnum for %s", entry );
 
         return FIX2INT( ruby_result );
+    }
+
+    bool bool_from_hash( VALUE hash, const char* entry )
+    {
+        VALUE ruby_result = access_hash( hash, entry );
+
+        if ( TYPE( ruby_result ) != T_TRUE  && TYPE( ruby_result ) != T_FALSE )
+            rb_raise( rb_eTypeError, "expected boolean for %s", entry );
+
+        return TYPE( ruby_result ) == T_TRUE;
     }
 
     VALUE rb_str_new_sub( const tools::substring& s )

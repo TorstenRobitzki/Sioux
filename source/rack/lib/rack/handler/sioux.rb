@@ -50,18 +50,26 @@ module Rack
         class Sioux
             POSSIBLE_ENVIRONMENTS = %w{release debug converage}
             DEFAULTS = { 
-                'Host'          => 'localhost',
-                'Port'          => 8080,
-                'Adapter'       => nil
+                'Host'                          => 'localhost',
+                'Port'                          => 8080,
+                'Adapter'                       => nil,
+                'Pubsub.max_update_size'        => 0,
+                'Pubsub.authorization_required' => true
             }
             
+            def self.to_bool s
+                s == 'yes'
+            end
+            
             def self.run app, options = {}
-# TODO:             
-                options.each_key do | key |
-#                    raise "unrecongnized parameters to 'Sioux.run()': #{key} => #{options[ key ]}" unless DEFAULTS.has_key? key
-                end
-                
+                options = Hash[ options.collect{ |k,v| [k.to_s, v ] } ]                
                 options = DEFAULTS.merge options 
+                
+                # boolean options 
+                [ 'Pubsub.authorization_required' ].each do | bool_option |
+                    options[ bool_option ] = to_bool options[ bool_option ]
+                end
+
                 require 'bayeux_sioux'
 
                 server = Rack::Sioux::SiouxRubyImplementation.new
@@ -72,7 +80,9 @@ module Rack
                 {
                     "Host=hostname|ip-address" => "address of a single IP endpoint to bind to (default: #{DEFAULTS['localhost']})",
                     "Port=ip-port" => "port of a single IP endpoint to bind to (default: #{DEFAULTS['Port']})",
-                    'Adapter=object' => 'object validate and authorize reading access to the root-data object. (default: nil)' 
+                    'Adapter=object' => 'object validate and authorize reading access to the root-data object. (default: nil)',
+                    'Pubsub.max_update_size=SIZE' => 'the ratio of update costs to full nodes data size in %. (default: 0)',
+                    'Pubsub.authorization_required=yes|no' => 'describes whether or not a reading node access must be authorized. (default: yes)'
                 }
             end
         end

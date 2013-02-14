@@ -60,3 +60,14 @@ BOOST_AUTO_TEST_CASE(configure_authorization_required_by_configurator)
     c1 = configurator().authorization_required();
     BOOST_CHECK(c1.authorization_required());
 }
+
+BOOST_AUTO_TEST_CASE( change_max_update_size )
+{
+    configuration c1;
+
+    c1.max_update_size( 4u );
+    BOOST_CHECK_EQUAL( 4u, c1.max_update_size() );
+
+    c1.max_update_size( 55u );
+    BOOST_CHECK_EQUAL( 55u, c1.max_update_size() );
+}

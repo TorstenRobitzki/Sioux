@@ -134,10 +134,6 @@ namespace
         , connector_( *queue_, root_, session_generator_, *this, bayeux::configuration() )
         , server_( *queue_, 0, std::cout )
     {
-        logging::add_output( std::cout );
-
-        LOG_INFO( rack::log_context << "starting bayeux_server...." );
-
         server_.add_action( "/bayeux", boost::bind( &bayeux_server::on_bayeux_request, this, _1, _2 ) );
         server_.add_action( "/", boost::bind( &bayeux_server::on_request, this, _1, _2 ) );
 
@@ -245,9 +241,16 @@ namespace
         return result;
     }
 
-    pubsub::configuration bayeux_server::pubsub_config( VALUE /* configuration */ )
+    pubsub::configuration bayeux_server::pubsub_config( VALUE configuration )
     {
-        return pubsub::configuration();
+        pubsub::configuration result;
+
+        result.max_update_size( from_hash( configuration, "Pubsub.max_update_size" ) );
+        result.authorization_required( bool_from_hash( configuration, "Pubsub.authorization_required" ) );
+
+        LOG_INFO( log_context << "pubsub-configuration:\n" << result );
+
+        return result;
     }
 
     std::pair< bool, json::string > bayeux_server::handshake( const json::value& /* ext */, VALUE& session )
@@ -491,6 +494,9 @@ extern "C" VALUE run_bayeux( VALUE self, VALUE application, VALUE configuration 
 
     try
     {
+        logging::add_output( std::cout );
+        LOG_INFO( rack::log_context << "starting bayeux_server...." );
+
         bayeux_server server( application, self, configuration );
 
         rack::local_data_ptr local_ptr( self, server );
