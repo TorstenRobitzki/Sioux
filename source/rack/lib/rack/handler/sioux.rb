@@ -58,13 +58,13 @@ module Rack
             }
             
             def self.to_bool s
-                s == 'yes'
+                s == true || s == 'yes'
             end
             
             def self.run app, options = {}
                 options = Hash[ options.collect{ |k,v| [k.to_s, v ] } ]                
                 options = DEFAULTS.merge options 
-                
+
                 # boolean options 
                 [ 'Pubsub.authorization_required' ].each do | bool_option |
                     options[ bool_option ] = to_bool options[ bool_option ]

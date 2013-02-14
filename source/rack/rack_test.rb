@@ -7,7 +7,7 @@ require 'rack/lint'
 require 'net/http'
 
 require 'minitest/unit'
-require 'rack/handler/sioux'
+require_relative 'lib/rack/handler/sioux'
 require_relative '../bayeux/client'
 require_relative '../bayeux/network_test_cases'
 require_relative '../tests/bayeux_reply'
@@ -51,12 +51,15 @@ module SetupRackserver
         
         raise "Timeout waiting for sever!" unless stop
     end
-    
-    def setup adapter = nil, handler = nil
+
+    def setup adapter = nil, handler = nil, options = {}
+        options = { 'Environment' => 'debug', 'Host' => @@HOST, 'Port' => @@PORT, 'Adapter' => adapter }.merge options
+        
         @app = handler || RackTestHandler.new
         @server_loop = Thread.new do
             begin
-                Rack::Handler::Sioux.run( Rack::Lint.new( @app ), 'Environment' => 'debug', 'Host' => @@HOST, 'Port' => @@PORT, 'Adapter' => adapter )
+            puts "####starting server"
+                Rack::Handler::Sioux.run( Rack::Lint.new( @app ), options )
             rescue => error
                 puts "Error Rack::Handler::Sioux.run() #{error.message}"
                 puts error.backtrace.join("\n")        
@@ -280,6 +283,58 @@ class RackPublishIntegrationTest < MiniTest::Unit::TestCase
         assert_equal( { 'node' => 'name', 'param' => '42' }, @initialized_node )
     end
     
+end
+
+class PubsubAuthorizationRequestedParamter < MiniTest::Unit::TestCase
+
+    # adapter implementation    
+    def init root
+        @root = root
+    end
+    
+    def validate_node node
+        true
+    end
+    
+    def authorize user, node
+        @authorized_called = true
+        true
+    end
+    
+    def node_init node
+        [{ 'value' => 42 }, true, nil ]
+    end
+    
+    class Init
+        include SetupRackserver
+    end
+
+    def setup
+        @authorized_called = false
+        @root = nil
+        @init = Init.new  
+    end
+    
+    def teardown
+        @init.teardown
+    end
+    
+    def test_authorization_requested_if_configured
+        @init.setup self, nil, { 'Pubsub.authorization_required' => 'yes' }
+
+        @root.subscribe_for_testing( { 'node' => 'name', 'param' => '42' } )
+        sleep 1 
+        assert @authorized_called 
+    end
+
+    def test_authorization_not_requested_if_configured
+        @init.setup self, nil, { 'Pubsub.authorization_required' => 'no' }
+
+        @root.subscribe_for_testing( { 'node' => 'name', 'param' => '42' } )
+        sleep 1 
+        refute @authorized_called 
+    end
+        
 end
 
 class RackServerStartStopTests < MiniTest::Unit::TestCase
