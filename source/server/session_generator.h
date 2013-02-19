@@ -17,7 +17,10 @@ namespace server
 	{
 		static std::string to_text( const Socket& s )
 		{
-			return tools::as_string( s.remote_endpoint() );
+		    boost::system::error_code ec;
+		    const boost::asio::ip::tcp::endpoint ep = s.remote_endpoint( ec );
+
+			return ec ? tools::as_string( ec ) : tools::as_string( ep );
 		}
 	};
 
@@ -32,7 +35,7 @@ namespace server
 		/**
 		 * @brief this function is intended to generate a new session id with every call
 		 * @param network_connection_name a textual representation of the client end point (ip address and port for
-		 *        example). This can be used to form an own real per remote address.
+		 *        example). This can be used to form an own realm per remote address.
 		 */
 		virtual std::string operator()( const char* network_connection_name ) = 0;
 

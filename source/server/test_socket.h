@@ -70,6 +70,7 @@ public:
      */
     boost::asio::ip::tcp::endpoint remote_endpoint() const;
 
+    boost::asio::ip::tcp::endpoint remote_endpoint( boost::system::error_code & ec ) const;
 protected:
     ~socket_base() {}
 };
