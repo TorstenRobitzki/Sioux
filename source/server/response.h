@@ -136,6 +136,11 @@ namespace server
          * Do not call any function on the connection object.
          */
         virtual void start() = 0;
+
+        /**
+         * @brief returns a type name, to indicate what an instance is responding to.
+         */
+        virtual const char* name() const = 0;
     private:
         bool hurryed_;
     };

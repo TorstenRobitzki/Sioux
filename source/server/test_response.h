@@ -73,6 +73,11 @@ namespace test {
                 simulate_incomming_data();
         }
 
+        const char* name() const
+        {
+            return "server::test::response";
+        }
+
         void simulate_incomming_data()
         {
             self_.reset();

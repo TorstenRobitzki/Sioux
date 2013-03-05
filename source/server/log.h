@@ -149,10 +149,10 @@ namespace server
          * request events
          */
         template < class Connection >
-        void event_before_response_started( const Connection&, const http::request_header& request, const async_response& )
+        void event_before_response_started( const Connection&, const http::request_header& request, const async_response& response )
         {
             boost::mutex::scoped_lock lock(mutex_);
-            out_ << "event_before_response_started: " << request_url( request ) << std::endl;
+            out_ << "event_before_response_started: " << request_url( request ) << " response: " << response.name() << std::endl;
         }
 
         template < class Connection >

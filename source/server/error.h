@@ -30,6 +30,8 @@ namespace server
         explicit error_response(const boost::shared_ptr<Connection>& con, http::http_error_code ec);
 
         void start();
+
+        const char* name() const;
     private:
         void handle_written(
             const boost::system::error_code&    error,
@@ -54,6 +56,7 @@ namespace server
 
     private:
         void start();
+        const char* name() const;
 
         const boost::shared_ptr< Connection >   connection_;
         const http::http_error_code             code_;
@@ -83,6 +86,12 @@ namespace server
             *this);
     }
 
+    template < class Connection >
+    const char* error_response< Connection >::name() const
+    {
+            return "server::error_response";
+    }
+
     template <class Connection>
     void error_response<Connection>::handle_written(const boost::system::error_code&, std::size_t s)
     {
@@ -101,6 +110,12 @@ namespace server
     void defered_error_response< Connection >::start()
     {
         connection_->response_not_possible( *this, code_ );
+    }
+
+    template < class Connection >
+    const char* defered_error_response< Connection >::name() const
+    {
+        return "server::defered_error_response";
     }
 
 } // namespace server

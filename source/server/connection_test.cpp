@@ -295,6 +295,11 @@ namespace {
             timer_.async_wait( boost::bind( &lasy_response::end_delay, this, _1 ) );
         }
 
+        const char* name() const
+        {
+            return "connection_test.cpp::lasy_response";
+        }
+
         boost::shared_ptr< Connection >         connection_;
         boost::asio::deadline_timer             timer_;
 //        typename Trait::timeout_timer_type      timer_;

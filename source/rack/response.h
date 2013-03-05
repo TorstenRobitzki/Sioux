@@ -42,6 +42,7 @@ namespace rack
 
     private:
         void start();
+        const char* name() const;
 
         /*
          * This function will call the given call back interface call() function with the body received

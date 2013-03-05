@@ -129,6 +129,11 @@ namespace
         	}
         }
 
+        virtual const char* name() const
+        {
+            return "request_body_test.cpp::read_body";
+        }
+
         boost::shared_ptr< Connection >	connection_;
         bool							body_read_;
         bool							has_body_;

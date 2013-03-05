@@ -33,6 +33,7 @@ namespace file
 
     private:
         virtual void start();
+        virtual const char* name() const;
 
         const boost::shared_ptr< Connection >       connection_;
         const boost::filesystem::path               path_;
@@ -108,6 +109,12 @@ namespace file
         {
             /// @todo add loging
         }
+    }
+
+    template < class Connection >
+    const char* response< Connection >::name() const
+    {
+        return "file::response";
     }
 }
 

@@ -48,6 +48,12 @@ namespace rack
     }
 
     template < class Connection >
+    const char* response< Connection >::name() const
+    {
+        return "rack::response";
+    }
+
+    template < class Connection >
     void response< Connection >::body_read_handler(
         const boost::system::error_code& error,
         const char* buffer,

@@ -67,6 +67,7 @@ namespace proxy
     private:
         // async_response implementation
         void start();
+        const char* name() const;
 
         // if an error occured, while communication with the orgin server 
         // returns true, if a restart is issued
@@ -160,6 +161,12 @@ namespace proxy
 
         // while waiting for the response, the request to the orgin server can be assembled
         outbuffers_ = filtered_header(*request_);
+    }
+
+    template < class Connection, std::size_t BodyBufferSize >
+    const char* response<Connection, BodyBufferSize>::name() const
+    {
+        return "proxy::response";
     }
 
     template <class Connection, std::size_t BodyBufferSize>

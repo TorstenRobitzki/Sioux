@@ -106,6 +106,7 @@ namespace bayeux
 
         virtual void implement_hurry();
         virtual void start();
+        virtual const char* name() const;
 		void body_read_handler(
 			const boost::system::error_code& error,
 			const char* buffer,
@@ -247,7 +248,13 @@ namespace bayeux
         }
 	}
 
-	template < class Connection >
+    template < class Connection >
+    const char* response< Connection >::name() const
+    {
+        return "bayeux::response";
+    }
+
+    template < class Connection >
 	void response< Connection >::body_read_handler(
 		const boost::system::error_code& error,
 		const char* buffer,

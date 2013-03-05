@@ -3,6 +3,8 @@
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 #include "rack/ruby_land_queue.h"
+#include "rack/log.h"
+#include "tools/exception_handler.h"
 #include <boost/thread/reverse_lock.hpp>
 #include <ruby.h>
 
@@ -96,7 +98,15 @@ namespace rack
 
                     boost::reverse_lock< boost::mutex::scoped_lock > unlock( lock );
 
-                    current( application );
+                    try
+                    {
+                        current( application );
+                    }
+                    catch ( ... )
+                    {
+                        LOG_ERROR( log_context << "ruby_land_queue::process_request: "
+                            << tools::exception_text() );
+                    }
                 }
             }
 
