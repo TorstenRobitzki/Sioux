@@ -33,8 +33,6 @@ BOOST_AUTO_TEST_CASE(content_length_transfer)
     server::transfer_buffer<1000> buffer;
     buffer.start(header);
 
-    std::pair<char*, std::size_t> body = header.unparsed_buffer();
-
     buffer.data_read(header.unparsed_buffer().second);
     BOOST_CHECK(buffer.transmission_done());
 }
@@ -48,8 +46,6 @@ BOOST_AUTO_TEST_CASE(eof_transfer)
 
     server::transfer_buffer<1000> buffer;
     buffer.start(header);
-
-    std::pair<char*, std::size_t> body = header.unparsed_buffer();
 
     buffer.data_read(header.unparsed_buffer().second);
     BOOST_CHECK(!buffer.transmission_done());
