@@ -64,7 +64,7 @@ module SetupRackserver
                 puts "Error Rack::Handler::Sioux.run() #{error.message}"
                 puts error.backtrace.join("\n")        
             end
-         end
+        end
 
         wait_until_started 1
     end
