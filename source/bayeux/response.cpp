@@ -8,7 +8,7 @@
 #include "bayeux/node_channel.h"
 #include "bayeux/session.h"
 #include "pubsub/node.h"
-#include "server/test_timer.h"
+#include "asio_mocks/test_timer.h"
 
 namespace bayeux
 {
@@ -468,5 +468,5 @@ namespace bayeux
 
 
     template class response_base< boost::asio::deadline_timer >;
-    template class response_base< server::test::timer >;
+    template class response_base< asio_mocks::timer >;
 }

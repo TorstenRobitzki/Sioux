@@ -1,11 +1,7 @@
-// Copyright (c) Torrox GmbH & Co KG. All rights reserved.
-// Please note that the content of this file is confidential or protected by law.
-// Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
+#ifndef SIOUX_SOURCE_ASIO_MOCKS_TEST_SOCKET_H
+#define SIOUX_SOURCE_ASIO_MOCKS_TEST_SOCKET_H
 
-#ifndef SIOUX_SOURCE_SERVER_TEST_SOCKET_H
-#define SIOUX_SOURCE_SERVER_TEST_SOCKET_H
-
-#include "server/test_io_plan.h"
+#include "asio_mocks/test_io_plan.h"
 #include <boost/noncopyable.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/enable_shared_from_this.hpp>
@@ -29,13 +25,12 @@
 #   undef min
 #endif
 
-namespace server {
+namespace asio_mocks {
 
 /** 
- * @namespace server::test 
+ * @namespace asio_mocks
  * namespace for test equipment 
  */
-namespace test {
 
 enum error_on_connect_t { 
     connect_successfully,
@@ -344,12 +339,12 @@ private:
         boost::posix_time::time_duration            read_delay_;
         boost::posix_time::time_duration            write_delay_;
 
-        server::test::read_plan                     read_plan_;
-        server::test::write_plan                    write_plan_;
+        read_plan                                   read_plan_;
+        write_plan                                  write_plan_;
         bool                                        closed_;
     };
 
-    boost::shared_ptr<impl>  pimpl_;
+    boost::shared_ptr< impl >  pimpl_;
 };
 
 // implementation
@@ -1129,8 +1124,7 @@ std::pair<bool, boost::asio::ip::tcp::endpoint> socket<Iterator, Timer, Trait>::
     return std::make_pair(connected_, endpoint_);
 }
 
-} // namespace test
-} // namespace server
+} // namespace asio_mocks
 
 #endif
 

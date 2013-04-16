@@ -3,7 +3,7 @@
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 #include "proxy/proxy.h"
-#include "server/test_socket.h"
+#include "asio_mocks/test_socket.h"
 #include <boost/utility.hpp>
 #include <boost/asio/io_service.hpp>
 #include <list>
@@ -41,9 +41,9 @@ namespace test {
         /**
          * @brief constructs a proxy_config that will return the passed socket, if asked for a connection
          */
-        explicit connector( server::test::socket< const char* >& socket);
+        explicit connector( asio_mocks::socket< const char* >& socket);
 
-        typedef std::list< server::test::socket< const char* > > socket_list_t;
+        typedef std::list< asio_mocks::socket< const char* > > socket_list_t;
 
         explicit connector( socket_list_t& socket );
 

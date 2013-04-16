@@ -5,7 +5,7 @@
 namespace :rack do 
     ruby_extension 'bayeux_sioux',
         :sources        => FileList['./source/rack/*.cpp'],
-        :libraries      => [ 'bayeux', 'server', 'pubsub', 'http', 'json', 'tools' ], 
+        :libraries      => [ 'bayeux', 'server', 'pubsub', 'http', 'json', 'asio_mocks', 'tools' ], 
         :extern_libs    => [ 'boost_regex', 'boost_date_time', 'boost_system', 'boost_random', 'boost_thread', 'ruby' ]
     
     desc 'build the ruby extension shared library'

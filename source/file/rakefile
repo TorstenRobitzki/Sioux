@@ -3,6 +3,6 @@
 # Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 test 'file_test', 
-    :libraries      => ['file', 'server', 'http', 'tools'], 
+    :libraries      => ['file', 'server', 'http', 'asio_mocks', 'tools'], 
     :extern_libs    => ['boost_test_exec_monitor', 'boost_filesystem', 'boost_regex', 'boost_thread', 'boost_date_time', 'boost_system'], 
     :sources        => FileList['./source/file/*_test.cpp'] 

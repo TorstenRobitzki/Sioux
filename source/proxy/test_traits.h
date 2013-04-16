@@ -1,12 +1,8 @@
-// Copyright (c) Torrox GmbH & Co KG. All rights reserved.
-// Please note that the content of this file is confidential or protected by law.
-// Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
-
 #ifndef PROXY_TEST_TRAITS_H_
 #define PROXY_TEST_TRAITS_H_
 
-#include "server/test_socket.h"
-#include "server/test_timer.h"
+#include "asio_mocks/test_socket.h"
+#include "asio_mocks/test_timer.h"
 #include "server/test_response.h"
 #include "server/error.h"
 #include "server/traits.h"
@@ -33,7 +29,7 @@ namespace proxy {
      * @brief test traits, that uses a test::socket, a test::timer and records the incoming requests and outgoing responses.
      */
     template < class ResponseFactory >
-    class traits : public server::connection_traits< server::test::socket< const char* >, server::test::timer, ResponseFactory, server::null_event_logger >
+    class traits : public server::connection_traits< asio_mocks::socket< const char* >, asio_mocks::timer, ResponseFactory, server::null_event_logger >
     {
     public:
         traits( connector& p, boost::asio::io_service& io ) : pimpl_( new impl( p, io ) )

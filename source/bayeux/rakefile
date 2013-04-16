@@ -3,7 +3,7 @@
 # Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 test 'bayeux_test', 
-    :libraries => [ 'bayeux', 'server', 'pubsub', 'http', 'json', 'tools' ], 
+    :libraries => [ 'bayeux', 'server', 'pubsub', 'http', 'json', 'asio_mocks', 'tools' ], 
     :extern_libs => ['boost_date_time', 'boost_thread', 'boost_regex', 'boost_test_exec_monitor', 'boost_system'], 
     :sources =>  FileList['./source/bayeux/*_test.cpp'] 
 

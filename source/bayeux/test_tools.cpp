@@ -51,7 +51,7 @@ std::pair< bool, json::string > bayeux::test::adapter::publish( const json::stri
     return std::make_pair( true, json::string() );
 }
 
-server::test::read bayeux::test::msg( const std::string& txt )
+asio_mocks::read bayeux::test::msg( const std::string& txt )
 {
     std::string body( txt );
     std::replace( body.begin(), body.end(), '\'', '\"' );
@@ -65,7 +65,7 @@ server::test::read bayeux::test::msg( const std::string& txt )
      + "\r\n\r\n"
      +  body;
 
-    return server::test::read( result.begin(), result.end() );
+    return asio_mocks::read( result.begin(), result.end() );
 }
 
 namespace
@@ -104,7 +104,7 @@ namespace
                 const bayeux::test::response_t new_response = {
                     msg.first,
                     json::parse( msg.second.begin(), msg.second.end() ).upcast< json::array >(),
-                    server::test::current_time()
+                    asio_mocks::current_time()
                 };
 
                 result_.push_back( new_response );
@@ -121,8 +121,8 @@ namespace
     void empty_call_back( const boost::system::error_code& ) {}
 }
 
-std::vector< bayeux::test::response_t > bayeux::test::bayeux_session( const server::test::read_plan& input,
-    const server::test::write_plan& output, bayeux::test::context& context,
+std::vector< bayeux::test::response_t > bayeux::test::bayeux_session( const asio_mocks::read_plan& input,
+    const asio_mocks::write_plan& output, bayeux::test::context& context,
     const boost::posix_time::time_duration& timeout )
 {
     stream_decoder  decoder;
@@ -133,10 +133,10 @@ std::vector< bayeux::test::response_t > bayeux::test::bayeux_session( const serv
     boost::shared_ptr< connection_t > connection( new connection_t( socket, context.trait ) );
     connection->start();
 
-    const boost::posix_time::ptime end_of_test = server::test::current_time() + timeout;
+    const boost::posix_time::ptime end_of_test = asio_mocks::current_time() + timeout;
 
     // to wake up at the timeout time during simulation, a timer is scheduled
-    server::test::timer timer( context.queue );
+    asio_mocks::timer timer( context.queue );
     timer.expires_at( end_of_test );
     timer.async_wait( &empty_call_back );
 
@@ -157,22 +157,22 @@ std::vector< bayeux::test::response_t > bayeux::test::bayeux_session( const serv
             std::cerr << "error running bayeux_session" << std::endl;
         }
     }
-    while ( server::test::current_time() < end_of_test && server::test::advance_time() != 0
-        && server::test::current_time() <= end_of_test );
+    while ( asio_mocks::current_time() < end_of_test && asio_mocks::advance_time() != 0
+        && asio_mocks::current_time() <= end_of_test );
 
     return decoder.result();
 }
 
-std::vector< bayeux::test::response_t > bayeux::test::bayeux_session( const server::test::read_plan& input,
+std::vector< bayeux::test::response_t > bayeux::test::bayeux_session( const asio_mocks::read_plan& input,
     bayeux::test::context& context )
 {
-    return bayeux_session( input, server::test::write_plan(), context );
+    return bayeux_session( input, asio_mocks::write_plan(), context );
 }
 
-std::vector< bayeux::test::response_t > bayeux::test::bayeux_session( const server::test::read_plan& input )
+std::vector< bayeux::test::response_t > bayeux::test::bayeux_session( const asio_mocks::read_plan& input )
 {
     bayeux::test::context   context;
-    return bayeux_session( input, server::test::write_plan(), context );
+    return bayeux_session( input, asio_mocks::write_plan(), context );
 }
 
 json::array bayeux::test::bayeux_messages( const std::vector< bayeux::test::response_t >& http_response )

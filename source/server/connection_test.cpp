@@ -12,8 +12,9 @@
 #include "server/connection.h"
 #include "server/test_traits.h"
 #include "server/test_tools.h"
-#include "server/test_socket.h"
-#include "server/test_timer.h"
+#include "asio_mocks/test_socket.h"
+#include "asio_mocks/test_timer.h"
+#include "tools/elapse_timer.h"
 #include "http/test_request_texts.h"
 
 using namespace server::test;
@@ -63,7 +64,7 @@ BOOST_AUTO_TEST_CASE( read_big_buffer )
     for ( unsigned i = 0; i != 1000; ++i )
         input.insert(input.end(), begin(simple_get_11), end(simple_get_11));
 
-    typedef traits< server::test::response_factory, server::test::socket<std::vector<char>::const_iterator> > socket_t;
+    typedef traits< server::test::response_factory, asio_mocks::socket<std::vector<char>::const_iterator> > socket_t;
     boost::asio::io_service     queue;
     socket_t::connection_type   socket( queue, input.begin(), input.end() );
     traits<>                    traits;
@@ -86,7 +87,7 @@ BOOST_AUTO_TEST_CASE( read_buffer_overflow )
     for ( unsigned i = 0; i != 10000; ++i )
         input.insert( input.end(), begin( header ), end(header) );
 
-    typedef traits< server::test::response_factory, server::test::socket<std::vector<char>::const_iterator> > socket_t;
+    typedef traits< server::test::response_factory, asio_mocks::socket<std::vector<char>::const_iterator> > socket_t;
     boost::asio::io_service     queue;
     socket_t::connection_type   socket( queue, input.begin(), input.end() );
     traits<>                    traits;
@@ -145,10 +146,11 @@ BOOST_AUTO_TEST_CASE( closed_by_connection_header )
  */
 BOOST_AUTO_TEST_CASE( closed_when_idle_time_exceeded )
 {
-	using server::test::read;
+	using asio_mocks::read;
+    using asio_mocks::delay;
 
     boost::asio::io_service     queue;
-    read_plan                   reads;
+    asio_mocks::read_plan       reads;
     reads << read(begin(simple_get_11), end(simple_get_11))
           << delay(boost::posix_time::seconds(60))
           << read(begin(simple_get_11), end(simple_get_11))
@@ -160,7 +162,7 @@ BOOST_AUTO_TEST_CASE( closed_when_idle_time_exceeded )
     boost::weak_ptr<server::connection<traits<>, traits<>::connection_type> > connection(server::create_connection(socket, trait));
     BOOST_CHECK(!connection.expired());
 
-    elapse_timer time;
+    tools::elapse_timer time;
     queue.run();
 
     // 30sec is the default idle time
@@ -199,17 +201,18 @@ BOOST_AUTO_TEST_CASE( closed_by_client_disconnected )
  */
 BOOST_AUTO_TEST_CASE( timeout_while_writing_to_client )
 {
-	using server::test::read;
-	using server::test::write;
+	using asio_mocks::read;
+	using asio_mocks::write;
+    using asio_mocks::delay;
 
 	boost::asio::io_service     queue;
 
-    read_plan                   reads;
+	asio_mocks::read_plan       reads;
     reads << read(begin(simple_get_11), end(simple_get_11))
           << delay(boost::posix_time::seconds(60))
           << read("");
 
-    write_plan                  writes;
+    asio_mocks::write_plan       writes;
     writes << write(2) << delay(boost::posix_time::seconds(60));
 
     traits<>::connection_type   socket(queue, reads, writes);
@@ -218,7 +221,7 @@ BOOST_AUTO_TEST_CASE( timeout_while_writing_to_client )
     boost::weak_ptr<server::connection<traits<>, traits<>::connection_type> > connection(server::create_connection(socket, trait));
     BOOST_CHECK(!connection.expired());
 
-    elapse_timer time;
+    tools::elapse_timer time;
     queue.run();
 
     // 3sec is the default timeout
@@ -240,10 +243,11 @@ BOOST_AUTO_TEST_CASE( timeout_while_writing_to_client )
  */
 BOOST_AUTO_TEST_CASE( timeout_while_reading_from_client )
 {
-	using server::test::read;
+	using asio_mocks::read;
+    using asio_mocks::delay;
 
 	boost::asio::io_service     queue;
-    read_plan                   reads;
+	asio_mocks::read_plan       reads;
     reads << read( begin( simple_get_11 ), begin( simple_get_11 ) + ( sizeof simple_get_11 / 2 ) )
           << delay( boost::posix_time::seconds( 60 ) )
           << read( begin( simple_get_11 ), end( simple_get_11 ) )
@@ -255,7 +259,7 @@ BOOST_AUTO_TEST_CASE( timeout_while_reading_from_client )
     boost::weak_ptr<server::connection<traits<>, traits<>::connection_type> > connection(server::create_connection(socket, trait));
     BOOST_CHECK(!connection.expired());
 
-    elapse_timer time;
+    tools::elapse_timer time;
     queue.run();
 
     // 3sec is the default timeout
@@ -343,11 +347,12 @@ namespace {
  */
 BOOST_AUTO_TEST_CASE( no_readtimeout_when_responses_are_still_active )
 {
-    using server::test::read;
-    using server::test::disconnect_read;
+    using asio_mocks::read;
+    using asio_mocks::delay;
+    using asio_mocks::disconnect_read;
 
     boost::asio::io_service     queue;
-    read_plan                   reads;
+    asio_mocks::read_plan       reads;
     reads << read( begin( simple_get_11 ), end( simple_get_11 ) )
           << delay( boost::posix_time::minutes( 60 ) )
           << disconnect_read();
@@ -360,7 +365,7 @@ BOOST_AUTO_TEST_CASE( no_readtimeout_when_responses_are_still_active )
         server::create_connection( socket, trait ) );
     BOOST_CHECK( !connection.expired() );
 
-    elapse_timer time;
+    tools::elapse_timer time;
     queue.run();
 
     // 3sec is the default timeout; 35s the
@@ -381,11 +386,11 @@ BOOST_AUTO_TEST_CASE( no_readtimeout_when_responses_are_still_active )
  */
 BOOST_AUTO_TEST_CASE( no_timeout_applies_when_client_doesnt_block )
 {
-    using server::test::read;
-    using server::test::disconnect_read;
+    using asio_mocks::read;
+    using asio_mocks::disconnect_read;
 
     boost::asio::io_service     queue;
-    read_plan                   reads;
+    asio_mocks::read_plan       reads;
     reads << read( begin( simple_get_11 ), end( simple_get_11 ) )
           << disconnect_read();
 
@@ -396,10 +401,10 @@ BOOST_AUTO_TEST_CASE( no_timeout_applies_when_client_doesnt_block )
         server::create_connection( socket, trait ) );
     BOOST_CHECK( !connection.expired() );
 
-    elapse_timer time;
+    tools::elapse_timer time;
     queue.run();
 
-    BOOST_CHECK_LE(time.elapsed(), boost::posix_time::seconds(1));
+    BOOST_CHECK_LE( time.elapsed(), boost::posix_time::seconds( 1 ) );
 
     trait.reset_responses();
 

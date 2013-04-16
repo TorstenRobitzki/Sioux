@@ -16,12 +16,12 @@
 #include "pubsub/configuration.h"
 #include "pubsub/root.h"
 #include "pubsub/test_helper.h"
+#include "asio_mocks/test_io_plan.h"
+#include "asio_mocks/test_socket.h"
+#include "asio_mocks/test_timer.h"
 #include "server/error.h"
 #include "server/log.h"
-#include "server/test_io_plan.h"
 #include "server/test_session_generator.h"
-#include "server/test_socket.h"
-#include "server/test_timer.h"
 #include "server/traits.h"
 
 namespace boost {
@@ -64,7 +64,7 @@ namespace bayeux
                 return boost::shared_ptr< server::async_response >( new ::server::error_response< Connection >( con, ec ) );
             }
 
-            bayeux::connector< server::test::timer >&   bayeux_connector;
+            bayeux::connector< asio_mocks::timer >&   bayeux_connector;
         };
 
         /**
@@ -122,17 +122,17 @@ namespace bayeux
                 return std::cerr;
             }
 
-            bayeux::connector< server::test::timer >& connector() const
+            bayeux::connector< asio_mocks::timer >& connector() const
             {
                 return connector_;
             }
         private:
-            server::test::session_generator                     session_generator_;
-            mutable bayeux::connector< server::test::timer >    connector_;
+            server::test::session_generator                 session_generator_;
+            mutable bayeux::connector< asio_mocks::timer >  connector_;
         };
 
-        typedef server::test::timer         timer_t;
-        typedef server::test::socket< const char*, timer_t > socket_t;
+        typedef asio_mocks::timer         timer_t;
+        typedef asio_mocks::socket< const char*, timer_t > socket_t;
 
         // set to true_ for extended debug messages
         typedef boost::mpl::false_ extended_debugging;
@@ -183,7 +183,7 @@ namespace bayeux
                 , data( queue, pubsub_adapter, pubsub::configuration() )
                 , trait( queue, data, bayeux_adapter )
             {
-                server::test::reset_time();
+                asio_mocks::reset_time();
             }
 
             explicit context( const pubsub::configuration& config )
@@ -192,7 +192,7 @@ namespace bayeux
                 , data( queue, pubsub_adapter, config )
                 , trait( queue, data, bayeux_adapter )
             {
-                server::test::reset_time();
+                asio_mocks::reset_time();
             }
 
             context( const pubsub::configuration& config, const bayeux::configuration& bayeux_config )
@@ -201,7 +201,7 @@ namespace bayeux
                 , data( queue, pubsub_adapter, config )
                 , trait( queue, data, bayeux_adapter, bayeux_config )
             {
-                server::test::reset_time();
+                asio_mocks::reset_time();
             }
 
             template < class SessionData >
@@ -211,7 +211,7 @@ namespace bayeux
                 , data( queue, pubsub_adapter, pubsub::configuration() )
                 , trait( queue, data, adapt )
             {
-                server::test::reset_time();
+                asio_mocks::reset_time();
             }
         };
 
@@ -225,13 +225,13 @@ namespace bayeux
         /**
          * creates a http message out of a bayeux body
          */
-        server::test::read msg( const std::string& txt );
+        asio_mocks::read msg( const std::string& txt );
 
         /**
          * creates a http message out of a bayeux body
          */
         template < std::size_t S >
-        server::test::read msg( const char(&txt)[S] )
+        asio_mocks::read msg( const char(&txt)[S] )
         {
             return msg( std::string( txt ) );
         }
@@ -240,14 +240,14 @@ namespace bayeux
          * Takes the simulated client input, records the response and extracts the bayeux messages from the
          * http responses.
          */
-        std::vector< response_t > bayeux_session( const server::test::read_plan& input,
-            const server::test::write_plan& output, bayeux::test::context& context,
+        std::vector< response_t > bayeux_session( const asio_mocks::read_plan& input,
+            const asio_mocks::write_plan& output, bayeux::test::context& context,
             const boost::posix_time::time_duration& timeout = boost::posix_time::minutes( 60 ) );
 
-        std::vector< bayeux::test::response_t > bayeux_session( const server::test::read_plan& input,
+        std::vector< bayeux::test::response_t > bayeux_session( const asio_mocks::read_plan& input,
             bayeux::test::context& context );
 
-        std::vector< bayeux::test::response_t > bayeux_session( const server::test::read_plan& input );
+        std::vector< bayeux::test::response_t > bayeux_session( const asio_mocks::read_plan& input );
 
         /**
          * extracts the bayeux messages from the given list of reponses

@@ -5,7 +5,7 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 
-#include "server/test_timer.h"
+#include "asio_mocks/test_timer.h"
 #include "tools/io_service.h"
 
 namespace
@@ -22,7 +22,7 @@ namespace
 
       void operator()( const boost::system::error_code& error )
       {
-          expire_time_ = server::test::current_time();
+          expire_time_ = asio_mocks::current_time();
           error_       = error;
           called_      = true;
       }
@@ -61,30 +61,30 @@ BOOST_AUTO_TEST_CASE( check_timer_test_equipment )
 {
     timer_call_back xcb;
     xcb( boost::system::error_code() );
-    xcb.check_called_without_error_at( server::test::current_time() );
+    xcb.check_called_without_error_at( asio_mocks::current_time() );
 
-    BOOST_CHECK_EQUAL( boost::posix_time::time_from_string( "1970-01-01 00:00:00" ), server::test::current_time() );
+    BOOST_CHECK_EQUAL( boost::posix_time::time_from_string( "1970-01-01 00:00:00" ), asio_mocks::current_time() );
 
-    server::test::current_time( boost::posix_time::time_from_string( "2012-03-01 11:31:42" ) );
-    BOOST_CHECK_EQUAL( boost::posix_time::time_from_string( "2012-03-01 11:31:42" ), server::test::current_time() );
+    asio_mocks::current_time( boost::posix_time::time_from_string( "2012-03-01 11:31:42" ) );
+    BOOST_CHECK_EQUAL( boost::posix_time::time_from_string( "2012-03-01 11:31:42" ), asio_mocks::current_time() );
 }
 
 BOOST_AUTO_TEST_CASE( single_expiration_time )
 {
     boost::asio::io_service queue;
-    server::test::timer     timer( queue );
+    asio_mocks::timer     timer( queue );
 
-    const boost::posix_time::ptime expected_time = server::test::current_time() + boost::posix_time::seconds( 2 );
+    const boost::posix_time::ptime expected_time = asio_mocks::current_time() + boost::posix_time::seconds( 2 );
     BOOST_CHECK( timer.expires_at( expected_time ) == 0 );
 
     timer_call_back handler;
     timer.async_wait( boost::ref( handler ) );
 
-    server::test::current_time( expected_time - boost::posix_time::seconds( 1 ) );
+    asio_mocks::current_time( expected_time - boost::posix_time::seconds( 1 ) );
     tools::run( queue );
     handler.check_not_called();
 
-    server::test::current_time( expected_time );
+    asio_mocks::current_time( expected_time );
     tools::run( queue );
     handler.check_called_without_error_at( expected_time );
 }
@@ -92,15 +92,15 @@ BOOST_AUTO_TEST_CASE( single_expiration_time )
 BOOST_AUTO_TEST_CASE( multiple_expiration_times )
 {
     boost::asio::io_service queue;
-    server::test::timer     timer( queue );
+    asio_mocks::timer     timer( queue );
 
-    const boost::posix_time::ptime first_expected_time = server::test::current_time() + boost::posix_time::seconds( 2 );
+    const boost::posix_time::ptime first_expected_time = asio_mocks::current_time() + boost::posix_time::seconds( 2 );
     BOOST_CHECK( timer.expires_at( first_expected_time - boost::posix_time::milliseconds( 1 ) ) == 0 );
 
     timer_call_back first_handler;
     timer.async_wait( boost::ref( first_handler ) );
 
-    server::test::current_time( first_expected_time );
+    asio_mocks::current_time( first_expected_time );
     tools::run( queue );
     first_handler.check_called_without_error_at( first_expected_time );
 
@@ -110,7 +110,7 @@ BOOST_AUTO_TEST_CASE( multiple_expiration_times )
     timer_call_back second_handler;
     timer.async_wait( boost::ref( second_handler ) );
 
-    server::test::current_time( second_expected_time );
+    asio_mocks::current_time( second_expected_time );
     tools::run( queue );
     second_handler.check_called_without_error_at( second_expected_time );
 }
@@ -118,11 +118,11 @@ BOOST_AUTO_TEST_CASE( multiple_expiration_times )
 BOOST_AUTO_TEST_CASE( multiple_expiration_times_multiple_timers )
 {
     boost::asio::io_service queue;
-    server::test::timer     first_timer( queue );
-    server::test::timer     second_timer( queue );
+    asio_mocks::timer     first_timer( queue );
+    asio_mocks::timer     second_timer( queue );
 
-    const boost::posix_time::ptime first_expected_time  = server::test::current_time() + boost::posix_time::seconds( 1 );
-    const boost::posix_time::ptime second_expected_time = server::test::current_time() + boost::posix_time::seconds( 2 );
+    const boost::posix_time::ptime first_expected_time  = asio_mocks::current_time() + boost::posix_time::seconds( 1 );
+    const boost::posix_time::ptime second_expected_time = asio_mocks::current_time() + boost::posix_time::seconds( 2 );
     BOOST_CHECK( first_timer.expires_at( first_expected_time ) == 0 );
     BOOST_CHECK( second_timer.expires_at( second_expected_time ) == 0 );
 
@@ -131,12 +131,12 @@ BOOST_AUTO_TEST_CASE( multiple_expiration_times_multiple_timers )
     timer_call_back second_handler;
     second_timer.async_wait( boost::ref( second_handler ) );
 
-    server::test::current_time( first_expected_time );
+    asio_mocks::current_time( first_expected_time );
     tools::run( queue );
     first_handler.check_called_without_error_at( first_expected_time );
     second_handler.check_not_called();
 
-    server::test::current_time( second_expected_time );
+    asio_mocks::current_time( second_expected_time );
     tools::run( queue );
     first_handler.check_not_called();
     second_handler.check_called_without_error_at( second_expected_time );
@@ -149,7 +149,7 @@ BOOST_AUTO_TEST_CASE( dtor_invokes_cancel_cb )
     timer_call_back handler;
 
     {
-        server::test::timer timer( queue );
+        asio_mocks::timer timer( queue );
         BOOST_CHECK_EQUAL( timer.expires_from_now( boost::posix_time::seconds( 2 ) ), 0 );
 
         timer.async_wait( boost::ref( handler ) );
@@ -167,7 +167,7 @@ BOOST_AUTO_TEST_CASE( cancel_a_single_timer_cb )
     boost::asio::io_service queue;
 
     timer_call_back handler;
-    server::test::timer timer( queue );
+    asio_mocks::timer timer( queue );
     BOOST_CHECK_EQUAL( timer.expires_from_now( boost::posix_time::seconds( 2 ) ), 0 );
 
     timer.async_wait( boost::ref( handler ) );
@@ -187,7 +187,7 @@ BOOST_AUTO_TEST_CASE( cancel_multiple_timer_cbs )
 
     timer_call_back handlerA;
     timer_call_back handlerB;
-    server::test::timer timer( queue );
+    asio_mocks::timer timer( queue );
     BOOST_CHECK_EQUAL( timer.expires_from_now( boost::posix_time::seconds( 2 ) ), 0 );
 
     timer.async_wait( boost::ref( handlerA ) );
@@ -210,7 +210,7 @@ BOOST_AUTO_TEST_CASE( resetting_expiration_time_cancels_timer )
 
     timer_call_back handlerA;
     timer_call_back handlerB;
-    server::test::timer timer( queue );
+    asio_mocks::timer timer( queue );
     BOOST_CHECK_EQUAL( timer.expires_from_now( boost::posix_time::seconds( 2 ) ), 0 );
 
     timer.async_wait( boost::ref( handlerA ) );
@@ -226,13 +226,13 @@ BOOST_AUTO_TEST_CASE( resetting_expiration_time_cancels_timer )
     handlerA.check_canceled();
     handlerB.check_canceled();
 
-    server::test::current_time( boost::posix_time::time_from_string( "1970-01-01 00:00:02") );
+    asio_mocks::current_time( boost::posix_time::time_from_string( "1970-01-01 00:00:02") );
 
     tools::run( queue );
     handlerA.check_not_called();
     handlerB.check_not_called();
 
-    server::test::current_time( boost::posix_time::time_from_string( "1970-01-01 00:00:03") );
+    asio_mocks::current_time( boost::posix_time::time_from_string( "1970-01-01 00:00:03") );
 
     tools::run( queue );
     handlerA.check_not_called();
@@ -241,20 +241,20 @@ BOOST_AUTO_TEST_CASE( resetting_expiration_time_cancels_timer )
 
 BOOST_AUTO_TEST_CASE( advance_time_test )
 {
-    server::test::reset_time();
-    const boost::posix_time::ptime start_time = server::test::current_time();
+    asio_mocks::reset_time();
+    const boost::posix_time::ptime start_time = asio_mocks::current_time();
     const boost::posix_time::ptime t1 = start_time + boost::posix_time::seconds( 1 );
     const boost::posix_time::ptime t5 = start_time + boost::posix_time::seconds( 5 );
     const boost::posix_time::ptime t7 = start_time + boost::posix_time::seconds( 7 );
 
     boost::asio::io_service queue;
 
-    server::test::timer timerA( queue );
-    server::test::timer timerB( queue );
-    server::test::timer timerC( queue );
-    server::test::timer timerD( queue );
+    asio_mocks::timer timerA( queue );
+    asio_mocks::timer timerB( queue );
+    asio_mocks::timer timerC( queue );
+    asio_mocks::timer timerD( queue );
 
-    BOOST_CHECK_EQUAL( start_time, server::test::current_time() );
+    BOOST_CHECK_EQUAL( start_time, asio_mocks::current_time() );
 
     timer_call_back handlerA;
     timer_call_back handlerB;
@@ -272,8 +272,8 @@ BOOST_AUTO_TEST_CASE( advance_time_test )
     timerD.expires_at( t5 );
     timerD.async_wait( boost::ref( handlerD ) );
 
-    BOOST_REQUIRE_EQUAL( 1u, server::test::advance_time() );
-    BOOST_CHECK_EQUAL( t1, server::test::current_time() );
+    BOOST_REQUIRE_EQUAL( 1u, asio_mocks::advance_time() );
+    BOOST_CHECK_EQUAL( t1, asio_mocks::current_time() );
 
     tools::run( queue );
 
@@ -282,8 +282,8 @@ BOOST_AUTO_TEST_CASE( advance_time_test )
     handlerC.check_not_called();
     handlerD.check_not_called();
 
-    BOOST_REQUIRE_EQUAL( 2u, server::test::advance_time() );
-    BOOST_CHECK_EQUAL( t5, server::test::current_time() );
+    BOOST_REQUIRE_EQUAL( 2u, asio_mocks::advance_time() );
+    BOOST_CHECK_EQUAL( t5, asio_mocks::current_time() );
 
     tools::run( queue );
 
@@ -292,8 +292,8 @@ BOOST_AUTO_TEST_CASE( advance_time_test )
     handlerC.check_not_called();
     handlerD.check_called_without_error_at( t5 );
 
-    BOOST_REQUIRE_EQUAL( 1u, server::test::advance_time() );
-    BOOST_CHECK_EQUAL( t7, server::test::current_time() );
+    BOOST_REQUIRE_EQUAL( 1u, asio_mocks::advance_time() );
+    BOOST_CHECK_EQUAL( t7, asio_mocks::current_time() );
 
     tools::run( queue );
 

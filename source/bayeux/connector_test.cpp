@@ -12,7 +12,7 @@
 #include "pubsub/root.h"
 #include "pubsub/test_helper.h"
 #include "server/session_generator.h"
-#include "server/test_timer.h"
+#include "asio_mocks/test_timer.h"
 #include "tools/asstring.h"
 #include "tools/io_service.h"
 #include "json/json.h"
@@ -44,7 +44,7 @@ namespace
         std::string network_name_;
     };
 
-    typedef bayeux::connector< server::test::timer > connector_t;
+    typedef bayeux::connector< asio_mocks::timer > connector_t;
 
     template < class Connector >
     bool session_alive( Connector& con, const char *session_id )
@@ -60,7 +60,7 @@ namespace
 
     void advance_time( boost::asio::io_service& queue, unsigned delay_in_seconds )
     {
-        server::test::advance_time( boost::posix_time::seconds( delay_in_seconds ) );
+        asio_mocks::advance_time( boost::posix_time::seconds( delay_in_seconds ) );
         tools::run( queue );
     }
 
@@ -274,7 +274,7 @@ BOOST_FIXTURE_TEST_CASE( timeout_will_not_delete_session_if_in_use, setup_with_s
     connector.idle_session( session );
 
     // this will trigger the timeout call back, but will not execute the callback
-    server::test::advance_time( boost::posix_time::seconds( 5u ) );
+    asio_mocks::advance_time( boost::posix_time::seconds( 5u ) );
     session = connector.find_session( json::string( "1" ) );
     BOOST_CHECK( session );
 
@@ -299,11 +299,11 @@ BOOST_FIXTURE_TEST_CASE( shutdown_results_in_early_connection_timeout, setup_wit
     BOOST_REQUIRE( session->wait_for_events( response ).empty() );
 
     // and now, when calling shutdown, on the connector, the response_interface must be called immediately
-    boost::posix_time::ptime now = server::test::current_time();
+    boost::posix_time::ptime now = asio_mocks::current_time();
     connector.shut_down();
     tools::run( queue );
 
-    BOOST_CHECK_EQUAL( now, server::test::current_time() );
+    BOOST_CHECK_EQUAL( now, asio_mocks::current_time() );
     BOOST_REQUIRE_EQUAL( response->messages().size(), 1u );
     BOOST_CHECK( response->new_message().empty() );
 }

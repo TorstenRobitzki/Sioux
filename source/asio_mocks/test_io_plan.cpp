@@ -1,15 +1,9 @@
-// Copyright (c) Torrox GmbH & Co KG. All rights reserved.
-// Please note that the content of this file is confidential or protected by law.
-// Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
-
-#include "server/test_io_plan.h"
+#include "asio_mocks/test_io_plan.h"
 #include <cassert>
 
-namespace server
+namespace asio_mocks
 {
 
-namespace test
-{
     struct read_items
     {
         read_plan::item             item_;
@@ -279,7 +273,6 @@ namespace test
         return plan;
     }
 
-} // test
-} // namespace server
+} // asio_mocks
 
 

@@ -47,7 +47,7 @@ namespace
         }
     };
 
-    typedef server::test::socket< const char* > socket_t;
+    typedef asio_mocks::socket< const char* > socket_t;
 
     typedef server::connection_traits<
         socket_t,

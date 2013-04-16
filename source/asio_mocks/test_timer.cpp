@@ -2,7 +2,7 @@
 // Please note that the content of this file is confidential or protected by law.
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
-#include "server/test_timer.h"
+#include "asio_mocks/test_timer.h"
 
 #include <cassert>
 #include <boost/bind.hpp>
@@ -37,7 +37,7 @@ namespace
     {
     public:
         std::size_t expires_at( const time_t& expiration_time, boost::asio::io_service& queue,
-            const server::test::timer& timer )
+            const asio_mocks::timer& timer )
         {
             boost::mutex::scoped_lock lock( mutex_ );
             timer_data& data = find_timer( timer, queue );
@@ -52,7 +52,7 @@ namespace
         }
 
         void add_expiration_handler( const time_cb_t& handler, boost::asio::io_service& queue,
-            const server::test::timer& timer )
+            const asio_mocks::timer& timer )
         {
             boost::mutex::scoped_lock lock( mutex_ );
 
@@ -60,7 +60,7 @@ namespace
             data.call_backs_.push_back( handler );
         }
 
-        std::size_t cancel( boost::asio::io_service& queue, const server::test::timer& timer )
+        std::size_t cancel( boost::asio::io_service& queue, const asio_mocks::timer& timer )
         {
             timer_data callbacks;
 
@@ -139,7 +139,7 @@ namespace
             }
         }
 
-        timer_data& find_timer( const server::test::timer& timer, boost::asio::io_service& queue )
+        timer_data& find_timer( const asio_mocks::timer& timer, boost::asio::io_service& queue )
         {
             timer_map_t::iterator pos = timers_.find( &timer );
 
@@ -153,7 +153,7 @@ namespace
             return pos->second;
         }
 
-        timer_data remove_timer( const server::test::timer& timer, boost::asio::io_service& queue )
+        timer_data remove_timer( const asio_mocks::timer& timer, boost::asio::io_service& queue )
         {
             timer_map_t::iterator pos = timers_.find( &timer );
 
@@ -170,7 +170,7 @@ namespace
 
         mutable boost::mutex    mutex_;
 
-        typedef std::map< const server::test::timer*, timer_data > timer_map_t;
+        typedef std::map< const asio_mocks::timer*, timer_data > timer_map_t;
         timer_map_t             timers_;
         time_t                  current_time_;
     };
@@ -182,8 +182,8 @@ namespace
     }
 }
 
-namespace server {
-namespace test {
+namespace asio_mocks
+{
 
 
     timer::timer( boost::asio::io_service& q )
@@ -268,5 +268,4 @@ namespace test {
         return impl().advance_time();
     }
 
-}
 }

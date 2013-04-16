@@ -1,14 +1,11 @@
-// Copyright (c) Torrox GmbH & Co KG. All rights reserved.
-// Please note that the content of this file is confidential or protected by law.
-// Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 #include <boost/test/unit_test.hpp>
 #include "proxy/connector.h"
 #include "server/error_code.h"
-#include "server/test_resolver.h"
-#include "server/test_socket.h"
+#include "asio_mocks/test_resolver.h"
+#include "asio_mocks/test_socket.h"
+#include "asio_mocks/test_timer.h"
 #include "server/test_tools.h"
-#include "server/test_timer.h"
 #include "tools/iterators.h"
 #include "tools/io_service.h"
 #include <boost/bind.hpp>
@@ -18,7 +15,7 @@
 
 using namespace server::test;
 
-typedef server::test::socket< const char* > socket_t;
+typedef asio_mocks::socket< const char* > socket_t;
 typedef proxy::ip_connector< socket_t > ip_connector;
 
 namespace {
@@ -301,12 +298,12 @@ BOOST_AUTO_TEST_CASE(proxy_connection_limit2)
 
 BOOST_AUTO_TEST_CASE(proxy_connection_error)
 {
-    const boost::asio::ip::tcp::endpoint            addr(boost::asio::ip::address::from_string("192.168.1.1"), 88);
-    const proxy::configuration               config;
-    boost::asio::io_service                         queue;
+    const boost::asio::ip::tcp::endpoint    addr(boost::asio::ip::address::from_string("192.168.1.1"), 88);
+    const proxy::configuration              config;
+    boost::asio::io_service                 queue;
 
     // use a socket type, that will simulate a connect error
-    typedef server::test::socket<const char*, server::test::timer, socket_behaviour<connect_error<error_on_connect> > > socket_t;
+    typedef asio_mocks::socket<const char*, asio_mocks::timer, asio_mocks::socket_behaviour< asio_mocks::connect_error < asio_mocks::error_on_connect > > > socket_t;
     typedef proxy::ip_connector<socket_t> ip_connector;
 
     boost::shared_ptr<proxy::connector_base> proxy(
@@ -333,10 +330,10 @@ BOOST_AUTO_TEST_CASE(proxy_connection_timeout)
     boost::asio::io_service                         queue;
 
     // use a socket type, that will answer the connect request
-    typedef server::test::socket<
+    typedef asio_mocks::socket<
         const char*,
         boost::asio::deadline_timer,
-        socket_behaviour<connect_error<do_not_respond> > > socket_t;
+        asio_mocks::socket_behaviour< asio_mocks::connect_error< asio_mocks::do_not_respond > > > socket_t;
     typedef proxy::ip_connector<socket_t> ip_connector;
 
     boost::shared_ptr<proxy::connector_base> proxy(

@@ -62,8 +62,8 @@ namespace {
 BOOST_AUTO_TEST_CASE(simply_receiving_a_hello)
 {
 
-    typedef server::test::socket<const char*>                       socket_t;
-    typedef traits< hello_world_response_factory >                    trait_t;
+    typedef asio_mocks::socket<const char*>                         socket_t;
+    typedef traits< hello_world_response_factory >                  trait_t;
     typedef server::connection<trait_t>                             connection_t;
     typedef std::vector<boost::weak_ptr<server::async_response> >   response_list_t;
 
@@ -155,7 +155,7 @@ namespace {
  */
 BOOST_AUTO_TEST_CASE(non_fatal_error_while_responding)
 {
-    typedef server::test::socket<>              socket_t;
+    typedef asio_mocks::socket<>                socket_t;
     typedef traits< error_response_factory >    trait_t;
     typedef server::connection< trait_t >       connection_t;
 

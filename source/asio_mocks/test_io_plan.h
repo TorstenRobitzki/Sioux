@@ -1,9 +1,5 @@
-// Copyright (c) Torrox GmbH & Co KG. All rights reserved.
-// Please note that the content of this file is confidential or protected by law.
-// Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
-
-#ifndef SIOUX_SRC_SERVER_TEST_IO_PLAN_H
-#define SIOUX_SRC_SERVER_TEST_IO_PLAN_H
+#ifndef SIOUX_SRC_SERVER_ASIO_MOCKS_IO_PLAN_H
+#define SIOUX_SRC_SERVER_ASIO_MOCKS_IO_PLAN_H
 
 #include <boost/date_time/posix_time/posix_time_types.hpp>
 #include <boost/function.hpp>
@@ -12,10 +8,7 @@
 #include <utility>
 #include <vector>
 
-namespace server
-{
-
-namespace test
+namespace asio_mocks
 {
     /**
      * @brief plan for simulated reads from a socket, with the data to be read and delays between them
@@ -204,7 +197,6 @@ namespace test
      */
     write_plan operator<<( write_plan plan, const boost::system::error_code& ec );
 
-} // test
-} // namespace server
+} // namespace asio_mocks
 
 #endif

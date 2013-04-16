@@ -114,13 +114,13 @@ BOOST_AUTO_TEST_CASE( handshake_hook_is_called )
     bayeux::test::context context( adapter );
 
     const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{ 'channel' : '/meta/handshake',"
                 "  'version' : '1.0.0',"
                 "  'supportedConnectionTypes' : ['long-polling', 'callback-polling'],"
                 "  'id'      : 'connect_id' }" )
-            << server::test::disconnect_read(),
+            << asio_mocks::disconnect_read(),
         context ) );
 
     BOOST_CHECK_EQUAL( response, json::parse_single_quoted(
@@ -146,13 +146,13 @@ BOOST_AUTO_TEST_CASE( handshake_hook_result_is_applied )
     bayeux::test::context context( adapter );
 
     const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{ 'channel' : '/meta/handshake',"
                 "  'version' : '1.0.0',"
                 "  'supportedConnectionTypes' : ['long-polling', 'callback-polling'],"
                 "  'id'      : 'connect_id' }" )
-            << server::test::disconnect_read(),
+            << asio_mocks::disconnect_read(),
         context ) );
 
     BOOST_CHECK_EQUAL( response, json::parse_single_quoted(
@@ -175,14 +175,14 @@ BOOST_AUTO_TEST_CASE( handshake_hook_ext_is_transported )
     bayeux::test::context context( adapter );
 
     const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{ 'channel' : '/meta/handshake',"
                 "  'version' : '1.0.0',"
                 "  'supportedConnectionTypes' : ['long-polling', 'callback-polling'],"
                 "  'id'      : 'connect_id',"
                 "  'ext'     : 'foobar' }" )
-            << server::test::disconnect_read(),
+            << asio_mocks::disconnect_read(),
         context ) );
 
     BOOST_CHECK_EQUAL( response, json::parse_single_quoted(
@@ -214,7 +214,7 @@ BOOST_AUTO_TEST_CASE( publish_hook_is_called )
         "}";
 
     const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{ "
                 "   'channel' : '/meta/handshake',"
@@ -222,7 +222,7 @@ BOOST_AUTO_TEST_CASE( publish_hook_is_called )
                 "   'supportedConnectionTypes' : ['long-polling', 'callback-polling'],"
                 "   'id'      : 'connect_id' }" )
             << bayeux::test::msg( publish_message )
-            << server::test::disconnect_read(),
+            << asio_mocks::disconnect_read(),
         context ) );
 
     BOOST_CHECK_EQUAL( response, json::parse_single_quoted(
@@ -254,7 +254,7 @@ BOOST_AUTO_TEST_CASE( publish_hook_result_is_applied )
     bayeux::test::context context( adapter );
 
     const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{ "
                 "   'channel' : '/meta/handshake',"
@@ -268,7 +268,7 @@ BOOST_AUTO_TEST_CASE( publish_hook_result_is_applied )
                 "   'data'          : true,"
                 "   'id'            : 42"
                 "}" )
-            << server::test::disconnect_read(),
+            << asio_mocks::disconnect_read(),
         context ) );
 
     BOOST_CHECK_EQUAL( response, json::parse_single_quoted(
@@ -300,22 +300,22 @@ BOOST_AUTO_TEST_CASE( session_data_is_transported )
     bayeux::test::context context( adapter );
 
     bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{ "
                 "   'channel' : '/meta/handshake',"
                 "   'version' : '1.0.0',"
                 "   'supportedConnectionTypes' : ['long-polling', 'callback-polling'],"
                 "   'id'      : 'connect_id' }" )
-            << server::test::disconnect_read(),
-        server::test::write_plan(),
+            << asio_mocks::disconnect_read(),
+            asio_mocks::write_plan(),
         context, boost::posix_time::time_duration() );
 
     BOOST_CHECK( adapter.handshake_called( json::null(), json::string( "" ) ) );
     adapter.publish_result( std::make_pair( true, "" ), json::string( "Second Value" ) );
 
     bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{ "
                 "   'channel'       : '/foo/bar',"
@@ -323,14 +323,14 @@ BOOST_AUTO_TEST_CASE( session_data_is_transported )
                 "   'data'          : true,"
                 "   'id'            : 42"
                 "}" )
-            << server::test::disconnect_read(),
-        server::test::write_plan(),
+            << asio_mocks::disconnect_read(),
+        asio_mocks::write_plan(),
         context, boost::posix_time::time_duration() );
 
     BOOST_CHECK( adapter.published_called( json::string( "/foo/bar"), json::true_val(), json::string( "First Value" ) ) );
 
     bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{ "
                 "   'channel'       : '/foo/bar',"
@@ -338,7 +338,7 @@ BOOST_AUTO_TEST_CASE( session_data_is_transported )
                 "   'data'          : false,"
                 "   'id'            : 42"
                 "}" )
-            << server::test::disconnect_read(),
+            << asio_mocks::disconnect_read(),
         context );
 
     BOOST_CHECK( adapter.published_called( json::string( "/foo/bar"), json::false_val(), json::string( "Second Value" ) ) );

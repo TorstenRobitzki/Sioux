@@ -7,7 +7,7 @@
 #include <boost/bind.hpp>
 
 #include "bayeux/session.h"
-#include "server/test_timer.h"
+#include "asio_mocks/test_timer.h"
 #include "tools/scope_guard.h"
 
 namespace bayeux
@@ -226,6 +226,6 @@ namespace bayeux
     }
 
     template class connector<>;
-    template class connector< server::test::timer >;
+    template class connector< asio_mocks::timer >;
 }
 

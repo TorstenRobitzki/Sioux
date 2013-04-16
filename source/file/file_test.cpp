@@ -3,9 +3,9 @@
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 #include "file/file.h"
+#include "asio_mocks/test_socket.h"
+#include "asio_mocks/test_timer.h"
 #include "server/error.h"
-#include "server/test_socket.h"
-#include "server/test_timer.h"
 #include "server/log.h"
 #include "server/traits.h"
 #include "server/connection.h"
@@ -73,11 +73,11 @@ namespace
         file::file_root root_;
     };
 
-    typedef server::test::socket< const char* > socket_t;
+    typedef asio_mocks::socket< const char* > socket_t;
 
     typedef server::connection_traits<
         socket_t,
-        server::test::timer,
+        asio_mocks::timer,
         response_factory,
         server::null_event_logger,
         server::stream_error_log > trait_t;

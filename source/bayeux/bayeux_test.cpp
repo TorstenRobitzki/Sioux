@@ -21,12 +21,12 @@
 BOOST_AUTO_TEST_CASE( bayeux_handshake )
 {
 	std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
-		server::test::read_plan()
+		asio_mocks::read_plan()
 			<< bayeux::test::msg(
 				"{ 'channel' : '/meta/handshake',"
 				"  'version' : '1.0.0',"
 				"  'supportedConnectionTypes' : ['long-polling', 'callback-polling', 'iframe'] }" )
-			<< server::test::disconnect_read() );
+			<< asio_mocks::disconnect_read() );
 
 	BOOST_REQUIRE_EQUAL( 1u, response.size() );
 
@@ -65,12 +65,12 @@ static json::object failed_connect( const std::vector< bayeux::test::response_t 
 BOOST_AUTO_TEST_CASE( bayeux_connection_with_invalid_id_must_fail )
 {
 	const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
-		server::test::read_plan()
+		asio_mocks::read_plan()
 			<< bayeux::test::msg(
 				"{ 'channel' : '/meta/connect',"
 				"  'clientId' : '192.168.210.1:9999/42',"
 				"  'connectionType' : 'long-polling' }" )
-			<< server::test::disconnect_read() );
+			<< asio_mocks::disconnect_read() );
 
     BOOST_CHECK_EQUAL( failed_connect( response ).at( json::string( "clientId" ) ),
             json::string( "192.168.210.1:9999/42" ) );
@@ -79,12 +79,12 @@ BOOST_AUTO_TEST_CASE( bayeux_connection_with_invalid_id_must_fail )
 BOOST_AUTO_TEST_CASE( bayeux_connect_with_invalid_id_must_contain_a_advice )
 {
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{ 'channel' : '/meta/connect',"
                 "  'clientId' : '192.168.210.1:9999/42',"
                 "  'connectionType' : 'long-polling' }" )
-            << server::test::disconnect_read() );
+            << asio_mocks::disconnect_read() );
 
     BOOST_CHECK_EQUAL( failed_connect( response ).at( "advice" ),
         json::parse_single_quoted( "{ 'reconnect' : 'handshake' }" ) );
@@ -97,13 +97,13 @@ BOOST_AUTO_TEST_CASE( bayeux_connect_with_invalid_id_must_contain_a_advice )
 BOOST_AUTO_TEST_CASE( bayeux_connection_with_invalid_id_must_fail_with_custom_id )
 {
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{ 'channel' : '/meta/connect',"
                 "  'clientId' : '192.168.210.1:9999/42',"
                 "  'connectionType' : 'long-polling',"
                 "   'id' : 'test' }" )
-            << server::test::disconnect_read() );
+            << asio_mocks::disconnect_read() );
 
     const json::object connect_response = failed_connect( response );
     BOOST_CHECK_EQUAL( connect_response.at( json::string( "clientId" ) ), json::string( "192.168.210.1:9999/42" ) );
@@ -118,7 +118,7 @@ BOOST_AUTO_TEST_CASE( bayeux_connection_with_unsupported_connection_type_must_fa
     bayeux::test::context context;
 
 	const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
-		server::test::read_plan()
+		asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{ "
                 "   'channel' : '/meta/handshake',"
@@ -131,7 +131,7 @@ BOOST_AUTO_TEST_CASE( bayeux_connection_with_unsupported_connection_type_must_fa
 				"   'clientId' : '192.168.210.1:9999/0',"
 				"   'connectionType' : 'long-fooling' "
 				"}" )
-			<< server::test::disconnect_read(),
+			<< asio_mocks::disconnect_read(),
 		context );
 
 	BOOST_REQUIRE_EQUAL( 2u, response.size() );
@@ -155,7 +155,7 @@ BOOST_AUTO_TEST_CASE( bayeux_connection_with_unsupported_connection_type_must_fa
     bayeux::test::context context;
 
     const json::array response = bayeux_messages( bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "[{ "
                 "   'channel' : '/meta/handshake',"
@@ -167,7 +167,7 @@ BOOST_AUTO_TEST_CASE( bayeux_connection_with_unsupported_connection_type_must_fa
                 "   'connectionType' : 'long-fooling',"
                 "   'id' : 'foo'"
                 "}]" )
-            << server::test::disconnect_read(),
+            << asio_mocks::disconnect_read(),
         context ) );
 
     BOOST_REQUIRE_EQUAL( 2u, response.length() );
@@ -194,7 +194,7 @@ BOOST_AUTO_TEST_CASE( bayeux_simple_handshake_subscribe_connect )
 	context.pubsub_adapter.answer_initialization_request( bayeux::node_name_from_channel( "/foo/bar" ), json::null() );
 
 	const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
-		server::test::read_plan()
+		asio_mocks::read_plan()
 			<< bayeux::test::msg(
 				"{ 'channel' : '/meta/handshake',"
 				"  'version' : '1.0.0',"
@@ -208,7 +208,7 @@ BOOST_AUTO_TEST_CASE( bayeux_simple_handshake_subscribe_connect )
 				"{ 'channel' : '/meta/connect',"
 				"  'clientId' : '192.168.210.1:9999/0',"
 				"  'connectionType' : 'long-polling' }" )
-			<< server::test::disconnect_read(),
+			<< asio_mocks::disconnect_read(),
 		context ) );
 
 	BOOST_REQUIRE_EQUAL( 3u, response.length() );
@@ -245,7 +245,7 @@ BOOST_AUTO_TEST_CASE( subscribe_without_subject )
     bayeux::test::context context;
 
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{ 'channel' : '/meta/handshake',"
                 "  'version' : '1.0.0',"
@@ -254,7 +254,7 @@ BOOST_AUTO_TEST_CASE( subscribe_without_subject )
             << bayeux::test::msg(
                 "{ 'channel' : '/meta/subscribe',"
                 "  'clientId' : '192.168.210.1:9999/0' }" )
-            << server::test::disconnect_read(),
+            << asio_mocks::disconnect_read(),
         context );
 
     BOOST_REQUIRE_EQUAL( 1u, response.size() );
@@ -279,7 +279,7 @@ BOOST_AUTO_TEST_CASE( subscribe_without_client_id )
     bayeux::test::context context;
 
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{ 'channel' : '/meta/handshake',"
                 "  'version' : '1.0.0',"
@@ -287,7 +287,7 @@ BOOST_AUTO_TEST_CASE( subscribe_without_client_id )
             << bayeux::test::msg(
                 "{ 'channel' : '/meta/subscribe',"
                 "  'subscription' : '/foo/bar' }" )
-            << server::test::disconnect_read(),
+            << asio_mocks::disconnect_read(),
         context );
 
     BOOST_REQUIRE_EQUAL( 2u, response.size() );
@@ -321,7 +321,7 @@ BOOST_AUTO_TEST_CASE( subscribe_with_invalid_client_id )
     bayeux::test::context context;
 
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{ 'channel' : '/meta/handshake',"
                 "  'version' : '1.0.0',"
@@ -330,7 +330,7 @@ BOOST_AUTO_TEST_CASE( subscribe_with_invalid_client_id )
                 "{ 'channel' : '/meta/subscribe',"
                 "  'subscription' : '/foo/bar',"
                 "  'clientId'     : 'xxxxx' }" )
-            << server::test::disconnect_read(),
+            << asio_mocks::disconnect_read(),
         context );
 
     BOOST_REQUIRE_EQUAL( 2u, response.size() );
@@ -368,7 +368,7 @@ BOOST_AUTO_TEST_CASE( unsubscribe_after_subscription )
     context.pubsub_adapter.answer_initialization_request( bayeux::node_name_from_channel( "/foo/bar" ), json::number( 41 ) );
 
     const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{ 'channel' : '/meta/handshake',"
                 "  'version' : '1.0.0',"
@@ -391,8 +391,8 @@ BOOST_AUTO_TEST_CASE( unsubscribe_after_subscription )
                 "  'clientId' : '192.168.210.1:9999/0',"
                 "  'connectionType' : 'long-polling' }" )
             << update_node( context, "/foo/bar", json::number( 43 ) )
-            << server::test::disconnect_read(),
-        server::test::write_plan(),
+            << asio_mocks::disconnect_read(),
+        asio_mocks::write_plan(),
         context ) );
 
     BOOST_CHECK_EQUAL( response,
@@ -443,7 +443,7 @@ BOOST_AUTO_TEST_CASE( unsubscribe_without_beeing_subscribed )
     bayeux::test::context context;
 
     const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{ 'channel' : '/meta/handshake',"
                 "  'version' : '1.0.0',"
@@ -452,8 +452,8 @@ BOOST_AUTO_TEST_CASE( unsubscribe_without_beeing_subscribed )
                 "{ 'channel' : '/meta/unsubscribe',"
                 "  'clientId' : '192.168.210.1:9999/0',"
                 "  'subscription' : '/foo/bar' }" )
-            << server::test::disconnect_read(),
-        server::test::write_plan(),
+            << asio_mocks::disconnect_read(),
+        asio_mocks::write_plan(),
         context ) );
 
     BOOST_CHECK_EQUAL( response,
@@ -483,7 +483,7 @@ BOOST_AUTO_TEST_CASE( unsubscribe_without_beeing_subscribed_with_id )
     bayeux::test::context context;
 
     const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{ 'channel' : '/meta/handshake',"
                 "  'version' : '1.0.0',"
@@ -495,8 +495,8 @@ BOOST_AUTO_TEST_CASE( unsubscribe_without_beeing_subscribed_with_id )
                 "   'subscription'  : '/foo/bar',"
                 "   'id'            : { 'a': 15 }"
                 "}" )
-            << server::test::disconnect_read(),
-        server::test::write_plan(),
+            << asio_mocks::disconnect_read(),
+        asio_mocks::write_plan(),
         context ) );
 
     BOOST_CHECK_EQUAL( response,
@@ -527,7 +527,7 @@ BOOST_AUTO_TEST_CASE( unsubscribe_without_subject )
     bayeux::test::context context;
 
     const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{ 'channel' : '/meta/handshake',"
                 "  'version' : '1.0.0',"
@@ -535,8 +535,8 @@ BOOST_AUTO_TEST_CASE( unsubscribe_without_subject )
             << bayeux::test::msg(
                 "{ 'channel' : '/meta/unsubscribe',"
                 "  'clientId' : '192.168.210.1:9999/0' }" )
-            << server::test::disconnect_read(),
-        server::test::write_plan(),
+            << asio_mocks::disconnect_read(),
+        asio_mocks::write_plan(),
         context ) );
 
     BOOST_CHECK_EQUAL( response,
@@ -569,7 +569,7 @@ BOOST_AUTO_TEST_CASE( unsubscribe_without_client_id )
     bayeux::test::context context;
 
     const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{ 'channel' : '/meta/handshake',"
                 "  'version' : '1.0.0',"
@@ -577,8 +577,8 @@ BOOST_AUTO_TEST_CASE( unsubscribe_without_client_id )
             << bayeux::test::msg(
                 "{ 'channel' : '/meta/unsubscribe',"
                 "  'subscription' : '/foo/bar'  }" )
-            << server::test::disconnect_read(),
-        server::test::write_plan(),
+            << asio_mocks::disconnect_read(),
+        asio_mocks::write_plan(),
         context ) );
 
     BOOST_CHECK_EQUAL( response,
@@ -609,7 +609,7 @@ BOOST_AUTO_TEST_CASE( unsubscribe_with_invalid_client_id )
     bayeux::test::context context;
 
     const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{ 'channel' : '/meta/handshake',"
                 "  'version' : '1.0.0',"
@@ -618,8 +618,8 @@ BOOST_AUTO_TEST_CASE( unsubscribe_with_invalid_client_id )
                 "{ 'channel' : '/meta/unsubscribe',"
                 "  'clientId'      : 'xxxxx',"
                 "  'subscription' : '/foo/bar'  }" )
-            << server::test::disconnect_read(),
-        server::test::write_plan(),
+            << asio_mocks::disconnect_read(),
+        asio_mocks::write_plan(),
         context ) );
 
     BOOST_CHECK_EQUAL( response,
@@ -646,7 +646,7 @@ BOOST_AUTO_TEST_CASE( unsubscribe_with_invalid_client_id )
 static bool initial_data_reaches_the_subscribed_client_impl( bayeux::test::context& context )
 {
     json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "[{ "
                 "   'channel' : '/meta/handshake',"
@@ -675,7 +675,7 @@ static bool initial_data_reaches_the_subscribed_client_impl( bayeux::test::conte
                 "   'clientId' : '192.168.210.1:9999/0',"
                 "   'connectionType' : 'long-polling'"
                 "}" )
-            << server::test::disconnect_read(),
+            << asio_mocks::disconnect_read(),
             context ) );
 
     return response.contains(
@@ -734,7 +734,7 @@ BOOST_AUTO_TEST_CASE( bayeux_connect_blocks_until_an_event_happens )
     context.pubsub_adapter.answer_initialization_request( bayeux::node_name_from_channel( "/foo/bar" ), json::null() );
 
     json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "[{ "
                 "   'channel' : '/meta/handshake',"
@@ -759,7 +759,7 @@ BOOST_AUTO_TEST_CASE( bayeux_connect_blocks_until_an_event_happens )
                 "   'id' : 'second_connect'"
                 "}" )
              << update_node( context, "/foo/bar", json::number( 42 ) )
-             << server::test::disconnect_read(),
+             << asio_mocks::disconnect_read(),
         context ) );
 
     BOOST_REQUIRE( !response.empty() );
@@ -805,7 +805,7 @@ BOOST_AUTO_TEST_CASE( http_connection_get_closed_while_response_is_waiting )
     context.pubsub_adapter.answer_initialization_request( bayeux::node_name_from_channel( "/foo/bar" ), json::null() );
 
     bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "[{ "
                 "   'channel' : '/meta/handshake',"
@@ -822,14 +822,14 @@ BOOST_AUTO_TEST_CASE( http_connection_get_closed_while_response_is_waiting )
                 "   'clientId' : '192.168.210.1:9999/0',"
                 "   'connectionType' : 'long-polling'"
                 "}" )
-             << server::test::disconnect_read(),
-        server::test::write_plan(),
+             << asio_mocks::disconnect_read(),
+        asio_mocks::write_plan(),
         context,
         boost::posix_time::seconds( 1 ) );
 
     bayeux::test::socket_t    socket(
         context.queue,
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{ "
                 "   'channel' : '/meta/connect',"
@@ -837,9 +837,9 @@ BOOST_AUTO_TEST_CASE( http_connection_get_closed_while_response_is_waiting )
                 "   'connectionType' : 'long-polling'"
                 "}" )
             << update_node( context, "/foo/bar", json::number( 42 ) )
-            << server::test::disconnect_read(),
-        server::test::write_plan()
-            << server::test::write( 10 )
+            << asio_mocks::disconnect_read(),
+        asio_mocks::write_plan()
+            << asio_mocks::write( 10 )
             << make_error_code( boost::asio::error::connection_reset ) );
 
     typedef server::connection< bayeux::test::trait_t >                           connection_t;
@@ -863,7 +863,7 @@ BOOST_AUTO_TEST_CASE( http_connection_get_closed_while_response_is_waiting )
 BOOST_AUTO_TEST_CASE( incomplete_bayeux_request_should_result_in_http_error_response )
 {
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg("[{]") // a somehow broken message
             );
 
@@ -930,7 +930,7 @@ BOOST_AUTO_TEST_CASE( more_than_one_session_in_a_single_connection )
     context.pubsub_adapter.answer_initialization_request( bayeux::node_name_from_channel( "/foo/bar" ), json::null() );
 
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{"
                 "   'channel' : '/meta/handshake',"
@@ -978,7 +978,7 @@ BOOST_AUTO_TEST_CASE( more_than_one_session_in_a_single_connection )
                 "   'connectionType' : 'long-polling'"
                 "}]" )
              << update_node( context, "/foo/bar", json::number( 42 ) )
-             << server::test::disconnect_read(),
+             << asio_mocks::disconnect_read(),
         context );
 
     BOOST_REQUIRE_EQUAL( 6u, response.size() );
@@ -1041,7 +1041,7 @@ BOOST_AUTO_TEST_CASE( hurry_bayeux_connection_if_request_is_pipelined )
     bayeux::test::context context( pubsub::configurator().authorization_not_required() );
 
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{"
                 "   'channel' : '/meta/handshake',"
@@ -1065,7 +1065,7 @@ BOOST_AUTO_TEST_CASE( hurry_bayeux_connection_if_request_is_pipelined )
                 "   'clientId' : '192.168.210.1:9999/0',"
                 "   'subscription' : '/foo/chu' "
                 "}]" )
-            << server::test::disconnect_read(),
+            << asio_mocks::disconnect_read(),
             context );
 
     BOOST_REQUIRE_EQUAL( response.size(), 3u );
@@ -1081,14 +1081,14 @@ BOOST_AUTO_TEST_CASE( hurry_bayeux_connection_if_request_is_pipelined )
             "]" ) );
 }
 
-static const server::test::read meta_handshake = bayeux::test::msg(
+static const asio_mocks::read meta_handshake = bayeux::test::msg(
     "{"
     "   'channel' : '/meta/handshake',"
     "   'version' : '1.0.0',"
     "   'supportedConnectionTypes' : ['long-polling', 'callback-polling']"
     "}" );
 
-static server::test::read form_url_encoded_msg( const std::string& body )
+static asio_mocks::read form_url_encoded_msg( const std::string& body )
 {
     std::string message =
         "POST / HTTP/1.1\r\n"
@@ -1098,7 +1098,7 @@ static server::test::read form_url_encoded_msg( const std::string& body )
 
     message += tools::as_string( body.size() ) + "\r\n\r\n" + body;
 
-    return server::test::read( message );
+    return asio_mocks::read( message );
 }
 
 BOOST_AUTO_TEST_CASE( single_valued_containing_a_single_bayeux_message )
@@ -1113,10 +1113,10 @@ BOOST_AUTO_TEST_CASE( single_valued_containing_a_single_bayeux_message )
         "}" ).to_json() );
 
     bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << meta_handshake
             << form_url_encoded_msg( body )
-            << server::test::disconnect_read(),
+            << asio_mocks::disconnect_read(),
         context ) );
 
     BOOST_CHECK_EQUAL(
@@ -1149,10 +1149,10 @@ BOOST_AUTO_TEST_CASE( single_valued_containing_an_array_of_bayeux_messages )
         "}]").to_json() );
 
     bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << meta_handshake
             << form_url_encoded_msg( body )
-            << server::test::disconnect_read(),
+            << asio_mocks::disconnect_read(),
         context ) );
 
     BOOST_CHECK_EQUAL(
@@ -1193,10 +1193,10 @@ BOOST_AUTO_TEST_CASE( multi_valued_containing_a_several_invidiual_bayeux_message
             "}").to_json() );
 
     bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << meta_handshake
             << form_url_encoded_msg( body )
-            << server::test::disconnect_read(),
+            << asio_mocks::disconnect_read(),
         context ) );
 
     BOOST_CHECK_EQUAL(
@@ -1237,10 +1237,10 @@ BOOST_AUTO_TEST_CASE( multi_valued_containing_a_several_arrays_of_bayeux_message
             "}]").to_json() );
 
     bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << meta_handshake
             << form_url_encoded_msg( body )
-            << server::test::disconnect_read(),
+            << asio_mocks::disconnect_read(),
         context ) );
 
     BOOST_CHECK_EQUAL(
@@ -1281,10 +1281,10 @@ BOOST_AUTO_TEST_CASE( multi_valued_containing_a_mix_of_invidiual_bayeux_messages
             "}]").to_json() );
 
     bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << meta_handshake
             << form_url_encoded_msg( body )
-            << server::test::disconnect_read(),
+            << asio_mocks::disconnect_read(),
         context ) );
 
     BOOST_CHECK_EQUAL(
@@ -1333,10 +1333,10 @@ BOOST_AUTO_TEST_CASE( body_transported_by_url )
 
     bayeux::test::context context;
     bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << meta_handshake
-            << server::test::read( message )
-            << server::test::disconnect_read(),
+            << asio_mocks::read( message )
+            << asio_mocks::disconnect_read(),
         context ) );
 
     BOOST_CHECK_EQUAL(
@@ -1364,13 +1364,13 @@ BOOST_AUTO_TEST_CASE( body_transported_by_url )
 BOOST_AUTO_TEST_CASE( single_http_request_with_connect_not_beeing_the_last_element )
 {
     bayeux::test::context context( pubsub::configurator().authorization_not_required() );
-    const boost::posix_time::ptime   start_time = server::test::current_time();
+    const boost::posix_time::ptime   start_time = asio_mocks::current_time();
 
     context.pubsub_adapter.answer_validation_request( bayeux::node_name_from_channel( "/foo/bar" ), true );
     context.pubsub_adapter.answer_initialization_request( bayeux::node_name_from_channel( "/foo/bar" ), json::null() );
 
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{"
                 "   'channel' : '/meta/handshake',"
@@ -1388,8 +1388,8 @@ BOOST_AUTO_TEST_CASE( single_http_request_with_connect_not_beeing_the_last_eleme
                 "   'clientId'          : '192.168.210.1:9999/0',"
                 "   'subscription'      : '/foo/bar' "
                 "}]" )
-           << server::test::disconnect_read(),
-        server::test::write_plan(),
+           << asio_mocks::disconnect_read(),
+        asio_mocks::write_plan(),
         context );
 
     BOOST_REQUIRE_EQUAL( 2u, response.size() );
@@ -1420,10 +1420,10 @@ BOOST_AUTO_TEST_CASE( long_poll_time_out_test )
         pubsub::configurator().authorization_not_required(),
         bayeux::configuration().long_polling_timeout( timeout ) );
 
-    const boost::posix_time::ptime   start_time = server::test::current_time();
+    const boost::posix_time::ptime   start_time = asio_mocks::current_time();
 
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{"
                 "   'channel' : '/meta/handshake',"
@@ -1437,8 +1437,8 @@ BOOST_AUTO_TEST_CASE( long_poll_time_out_test )
                 "   'clientId' : '192.168.210.1:9999/0',"
                 "   'connectionType' : 'long-polling' "
                 "}]" )
-           << server::test::disconnect_read(),
-       server::test::write_plan(),
+           << asio_mocks::disconnect_read(),
+       asio_mocks::write_plan(),
        context,
        boost::posix_time::minutes( 5 ) );
 
@@ -1464,7 +1464,7 @@ BOOST_AUTO_TEST_CASE( long_poll_time_out_test )
 BOOST_AUTO_TEST_CASE( disconnect_test )
 {
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{"
                 "   'channel' : '/meta/handshake',"
@@ -1482,7 +1482,7 @@ BOOST_AUTO_TEST_CASE( disconnect_test )
                 "   'channel' : '/meta/disconnect',"
                 "   'clientId' : '192.168.210.1:9999/0'"
                 "}" )
-           << server::test::disconnect_read() );
+           << asio_mocks::disconnect_read() );
 
     BOOST_REQUIRE_EQUAL( 3u, response.size() );
 
@@ -1505,7 +1505,7 @@ BOOST_AUTO_TEST_CASE( disconnect_test )
 BOOST_AUTO_TEST_CASE( disconnect_with_id_test )
 {
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{"
                 "   'channel' : '/meta/handshake',"
@@ -1524,7 +1524,7 @@ BOOST_AUTO_TEST_CASE( disconnect_with_id_test )
                 "   'id'      : { 'sub' : 42 },"
                 "   'clientId' : '192.168.210.1:9999/0'"
                 "}" )
-           << server::test::disconnect_read() );
+           << asio_mocks::disconnect_read() );
 
     BOOST_REQUIRE_EQUAL( 3u, response.size() );
 
@@ -1548,13 +1548,13 @@ BOOST_AUTO_TEST_CASE( disconnect_with_id_test )
 BOOST_AUTO_TEST_CASE( disconnect_without_client_id )
 {
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{ "
                 "   'channel' : '/meta/disconnect',"
                 "   'clientId' : '192.168.210.1:9999/0'"
                 "}" )
-           << server::test::disconnect_read() );
+           << asio_mocks::disconnect_read() );
 
     BOOST_REQUIRE_EQUAL( 1u, response.size() );
 
@@ -1578,7 +1578,7 @@ BOOST_AUTO_TEST_CASE( disconnect_without_client_id )
 BOOST_AUTO_TEST_CASE( connect_packed_with_disconnect )
 {
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
-        server::test::read_plan()
+        asio_mocks::read_plan()
             << bayeux::test::msg(
                 "{"
                 "   'channel' : '/meta/handshake',"
@@ -1595,7 +1595,7 @@ BOOST_AUTO_TEST_CASE( connect_packed_with_disconnect )
                 "   'channel' : '/meta/disconnect',"
                 "   'clientId' : '192.168.210.1:9999/0'"
                 "}]" )
-           << server::test::disconnect_read() );
+           << asio_mocks::disconnect_read() );
 
     BOOST_REQUIRE_EQUAL( 2u, response.size() );
 

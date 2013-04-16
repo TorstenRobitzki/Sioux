@@ -5,8 +5,8 @@
 #ifndef SIOUX_SOURCE_SERVER_TEST_TRAIT_H
 #define SIOUX_SOURCE_SERVER_TEST_TRAIT_H
 
-#include "server/test_socket.h"
-#include "server/test_timer.h"
+#include "asio_mocks/test_socket.h"
+#include "asio_mocks/test_timer.h"
 #include "server/test_response.h"
 #include "server/error.h"
 #include "server/traits.h"
@@ -45,8 +45,8 @@ struct response_factory
  * The default behavior of an incoming request is to answer with a simple "Hello" string
  */
 template < class ResponseFactory = response_factory,
-           class Network = server::test::socket< const char* >,
-           class Timer = server::test::timer >
+           class Network = asio_mocks::socket< const char* >,
+           class Timer = asio_mocks::timer >
 class traits : public server::connection_traits< Network, Timer, ResponseFactory, server::null_event_logger >
 {
 public:

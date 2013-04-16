@@ -1,0 +1,8 @@
+# Copyright (c) Torrox GmbH & Co KG. All rights reserved.
+# Please note that the content of this file is confidential or protected by law.
+# Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
+
+test 'asio_mocks_test', 
+    :libraries      => [ 'asio_mocks', 'tools' ], 
+    :extern_libs => ['boost_date_time', 'boost_system', 'boost_thread', 'boost_test_exec_monitor'], 
+    :sources        => FileList[ './source/asio_mocks/*_test.cpp' ] 

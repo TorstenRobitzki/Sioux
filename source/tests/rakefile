@@ -3,7 +3,7 @@
 # Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 build_example 'bayeux_reply', 
-    :libraries => ['bayeux', 'pubsub', 'server', 'json', 'http', 'tools'], 
+    :libraries => ['bayeux', 'pubsub', 'server', 'json', 'http', 'asio_mocks', 'tools'], 
     :extern_libs => ['boost_date_time', 'boost_regex', 'boost_system', 'boost_thread'], 
     :sources =>  FileList['./source/tests/bayeux_reply.cpp'] 
 

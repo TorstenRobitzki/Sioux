@@ -16,13 +16,13 @@ connector::connector(boost::asio::io_service& queue, const std::string& simulate
  : io_service_(queue)
  , simulate_response_(simulate_response.begin(), simulate_response.end())
  , error_type_(no_error)
- , sockets_( 1, server::test::socket< const char* >(
+ , sockets_( 1, asio_mocks::socket< const char* >(
      queue, &simulate_response_[0], &simulate_response_[0] + simulate_response_.size() ) )
  , sockets_in_use_() 
 {
 }
 
-connector::connector( server::test::socket< const char* >& socket )
+connector::connector( asio_mocks::socket< const char* >& socket )
  : io_service_( socket.get_io_service() )
  , simulate_response_()
  , error_type_(no_error)
@@ -31,7 +31,7 @@ connector::connector( server::test::socket< const char* >& socket )
 {
 }
 
-connector::connector(socket_list_t& socket)
+connector::connector (socket_list_t& socket )
  : io_service_(socket.front().get_io_service())
  , simulate_response_()
  , error_type_(no_error)
@@ -44,7 +44,7 @@ connector::connector( boost::asio::io_service& queue, error_type error)
  : io_service_( queue )
  , simulate_response_()
  , error_type_(error)
- , sockets_(1, server::test::socket< const char* >( queue ) )
+ , sockets_(1, asio_mocks::socket< const char* >( queue ) )
  , sockets_in_use_()
 {
 }
@@ -102,7 +102,7 @@ void connector::async_get_proxy_connection(
 
     requested_orgin_ = std::make_pair(std::string(orgin_host.begin(), orgin_host.end()), orgin_port);
 
-    if ( connection_type != typeid (server::test::socket<const char*>) )
+    if ( connection_type != typeid (asio_mocks::socket<const char*>) )
         throw std::runtime_error("test::proxy_config::async_get_proxy_connection: invalid type"); 
 
     io_service_.post(boost::bind(&connector::call_cb, this, call_back));
@@ -113,12 +113,12 @@ void connector::release_connection(
     void*                               connection,
     const http::response_header*        header )
 {
-    if ( connection_type != typeid (server::test::socket<const char*>) )
+    if ( connection_type != typeid (asio_mocks::socket<const char*>) )
         throw std::runtime_error("test::proxy_config::release_connection: invalid type"); 
 
     const socket_list_t::iterator pos = std::find(
         sockets_in_use_.begin(), sockets_in_use_.end(),
-        *static_cast< server::test::socket< const char* >* >( connection ) );
+        *static_cast< asio_mocks::socket< const char* >* >( connection ) );
 
     assert( pos != sockets_in_use_.end() );
 

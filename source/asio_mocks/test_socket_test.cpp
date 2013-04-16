@@ -1,14 +1,12 @@
-// Copyright (c) Torrox GmbH & Co KG. All rights reserved.
-// Please note that the content of this file is confidential or protected by law.
-// Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
+#define BOOST_TEST_MAIN
 
 #include <boost/test/unit_test.hpp>
-#include "server/test_socket.h"
-#include "server/test_tools.h"
-#include "server/timeout.h"
+#include "asio_mocks/test_socket.h"
+#include "asio_mocks/io_completed.h"
 #include "http/test_request_texts.h"
 #include "tools/io_service.h"
 #include "tools/asstring.h"
+#include "tools/elapse_timer.h"
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/read.hpp>
@@ -16,15 +14,14 @@
 #include <boost/bind.hpp>
 #include <boost/lambda/lambda.hpp>
 
-using namespace server::test;
 using namespace http::test;
 
 BOOST_AUTO_TEST_CASE(read_timeout_test)
 {
-    io_completed result;
+    asio_mocks::io_completed result;
 
     boost::asio::io_service queue;
-    server::test::socket<const char*> sock(queue, begin(simple_get_11), end(simple_get_11), 5, 
+    asio_mocks::socket<const char*> sock(queue, begin(simple_get_11), end(simple_get_11), 5,
         boost::posix_time::seconds(1), boost::posix_time::time_duration());
     char b[sizeof simple_get_11];
 
@@ -41,10 +38,10 @@ BOOST_AUTO_TEST_CASE(read_timeout_test)
 
 BOOST_AUTO_TEST_CASE(write_timeout_test)
 {
-    io_completed result;
+    asio_mocks::io_completed result;
 
     boost::asio::io_service queue;
-    server::test::socket<const char*> sock(queue, begin(simple_get_11), end(simple_get_11), 5, 
+    asio_mocks::socket<const char*> sock(queue, begin(simple_get_11), end(simple_get_11), 5,
         boost::posix_time::time_duration(), boost::posix_time::seconds(1));
 
     const boost::posix_time::ptime t1 = boost::posix_time::microsec_clock::universal_time();
@@ -60,11 +57,11 @@ BOOST_AUTO_TEST_CASE(write_timeout_test)
 
 BOOST_AUTO_TEST_CASE(chancel_read_write)
 {
-    io_completed result_read;
-    io_completed result_write;
+    asio_mocks::io_completed result_read;
+    asio_mocks::io_completed result_write;
 
     boost::asio::io_service queue;
-    server::test::socket<const char*> sock(queue, begin(simple_get_11), end(simple_get_11), 5, boost::posix_time::seconds(1));
+    asio_mocks::socket<const char*> sock(queue, begin(simple_get_11), end(simple_get_11), 5, boost::posix_time::seconds(1));
     char b[sizeof simple_get_11];
 
     sock.async_read_some(boost::asio::buffer(b), result_read);
@@ -81,14 +78,16 @@ BOOST_AUTO_TEST_CASE(chancel_read_write)
 
 /**
  * @test reading with timeout, using the async_read_some_with_to() function
+ * @todo fixme move me to ns server
  */
+/*
 BOOST_AUTO_TEST_CASE(async_read_some_with_to_test)
 {
-    io_completed result;
+    asio_mocks::io_completed result;
 
     boost::asio::io_service     queue;
     boost::asio::deadline_timer timer(queue);
-    server::test::socket<const char*> sock(queue, begin(simple_get_11), end(simple_get_11), 5, boost::posix_time::seconds(1));
+    asio_mocks::socket<const char*> sock(queue, begin(simple_get_11), end(simple_get_11), 5, boost::posix_time::seconds(1));
     char b[sizeof simple_get_11];
 
     server::async_read_some_with_to(sock, boost::asio::buffer(b), result, timer, boost::posix_time::milliseconds(20));
@@ -98,6 +97,7 @@ BOOST_AUTO_TEST_CASE(async_read_some_with_to_test)
     BOOST_CHECK_EQUAL(0u, result.bytes_transferred);
     BOOST_CHECK_EQUAL(result.error, make_error_code(server::time_out));
 }
+*/
 
 /**
  * @test tests the use of testplans
@@ -106,25 +106,26 @@ BOOST_AUTO_TEST_CASE(async_read_some_with_to_test)
  */
 BOOST_AUTO_TEST_CASE(use_test_plan)
 {
-	using server::test::read;
-	using server::test::write;
+	using asio_mocks::read;
+	using asio_mocks::write;
+    using asio_mocks::delay;
 
-	read_plan reads;
+	asio_mocks::read_plan reads;
     reads << read("hallo Welt") << delay(boost::posix_time::millisec(1000)) << read("");
 
-    write_plan writes;
+    asio_mocks::write_plan writes;
     writes << delay(boost::posix_time::millisec(2000)) << write(20) << write(5);
 
     BOOST_REQUIRE( !reads.empty() );
     BOOST_REQUIRE( !writes.empty() );
 
     boost::asio::io_service     queue;
-    server::test::socket<const char*> sock(queue, reads, writes);
+    asio_mocks::socket<const char*> sock(queue, reads, writes);
 
-    io_completed first_read;
-    io_completed second_read;
-    io_completed first_write;
-    io_completed second_write;
+    asio_mocks::io_completed first_read;
+    asio_mocks::io_completed second_read;
+    asio_mocks::io_completed first_write;
+    asio_mocks::io_completed second_write;
 
     const boost::posix_time::ptime start_time = boost::posix_time::microsec_clock::universal_time();
 
@@ -170,8 +171,8 @@ BOOST_AUTO_TEST_CASE(use_test_plan)
 namespace {
     struct read_handler
     {
-        char*                               buffer;
-        server::test::socket<const char*>&  socket;
+        char*                             buffer;
+        asio_mocks::socket<const char*>&  socket;
 
         void operator()(const boost::system::error_code& error, std::size_t bytes_transferred)
         {
@@ -190,21 +191,22 @@ namespace {
 
 BOOST_AUTO_TEST_CASE(first_read_followed_by_delay_and_second_read)
 {
-	using server::test::read;
+	using asio_mocks::read;
+    using asio_mocks::delay;
 
 	boost::asio::io_service     queue;
-    read_plan                   reads;
-    reads << read(begin(simple_get_11_with_close_header), end(simple_get_11_with_close_header))
-          << delay(boost::posix_time::seconds(1))
-          << read(begin(simple_get_11_with_close_header), end(simple_get_11_with_close_header))
-          << read("");
+	asio_mocks::read_plan       reads;
+    reads << read( begin( simple_get_11_with_close_header ), end( simple_get_11_with_close_header ) )
+          << delay( boost::posix_time::seconds( 1 ) )
+          << read( begin( simple_get_11_with_close_header ), end( simple_get_11_with_close_header ) )
+          << read( "" );
 
-    char buffer[10 * sizeof simple_get_11_with_close_header];
+    char buffer[ 10 * sizeof simple_get_11_with_close_header ];
 
-    server::test::socket<const char*> socket(queue, reads);
-    read_handler h = {buffer, socket};
+    asio_mocks::socket< const char* > socket( queue, reads );
+    read_handler h = { buffer, socket };
 
-    elapse_timer time;
+    tools::elapse_timer time;
 
     socket.async_read_some(boost::asio::buffer(buffer), h);
     tools::run(queue);
@@ -219,12 +221,12 @@ BOOST_AUTO_TEST_CASE(first_read_followed_by_delay_and_second_read)
 BOOST_AUTO_TEST_CASE( simulate_read_error )
 {
 	boost::asio::io_service		queue;
-    server::test::socket<const char*> sock(queue, begin(simple_get_11), end(simple_get_11),
-    		make_error_code(boost::asio::error::operation_aborted), 5u,
-    		make_error_code(boost::asio::error::operation_aborted), 0 );
+    asio_mocks::socket<const char*> sock( queue, begin( simple_get_11 ), end( simple_get_11 ),
+    		make_error_code( boost::asio::error::operation_aborted ), 5u,
+    		make_error_code( boost::asio::error::operation_aborted ), 0 );
 
-    io_completed first_read;
-    io_completed second_read;
+    asio_mocks::io_completed first_read;
+    asio_mocks::io_completed second_read;
 
     char read_buffer[10] = {0};
 
@@ -244,7 +246,7 @@ BOOST_AUTO_TEST_CASE( simulate_read_error )
 BOOST_AUTO_TEST_CASE( remote_endpoint_returns_the_expected_value )
 {
 	BOOST_CHECK_EQUAL( "192.168.210.1:9999",
-			tools::as_string( server::test::socket<const char*>().remote_endpoint() ) );
+			tools::as_string( asio_mocks::socket<const char*>().remote_endpoint() ) );
 }
 
 static void increment( int& i )
@@ -258,18 +260,19 @@ static void increment( int& i )
 BOOST_AUTO_TEST_CASE( read_plan_execute_test )
 {
     namespace pt = boost::posix_time;
-    using server::test::read;
+    using asio_mocks::read;
+    using asio_mocks::delay;
 
     int i = 0;
-    read_plan   plan;
+    asio_mocks::read_plan   plan;
     plan << boost::bind( &increment, boost::ref( i ) ) << read( "a" )
-         << delay( pt::millisec(100) ) << read( "b" )
-         << delay( pt::millisec(200) ) << boost::bind( &increment, boost::ref( i ) ) << read( "c" )
+         << delay( pt::millisec( 100 ) ) << read( "b" )
+         << delay( pt::millisec( 200 ) ) << boost::bind( &increment, boost::ref( i ) ) << read( "c" )
          << boost::bind( &increment, boost::ref( i ) )
          << read( "d" );
 
     BOOST_REQUIRE_EQUAL( i, 0 );
-    read_plan::item item = plan.next_read();
+    asio_mocks::read_plan::item item = plan.next_read();
     BOOST_CHECK_EQUAL( i, 1 );
     BOOST_CHECK( item == std::make_pair( std::string( "a" ), pt::time_duration() ) );
 
@@ -295,9 +298,9 @@ BOOST_AUTO_TEST_CASE( write_callback_is_called )
     using namespace boost::lambda;
 
     boost::asio::io_service         queue;
-    server::test::socket<>          socket( queue, read_plan() );
+    asio_mocks::socket<>            socket( queue, asio_mocks::read_plan() );
     boost::asio::const_buffer       buffer;
-    io_completed                    io_result;
+    asio_mocks::io_completed        io_result;
 
     socket.write_callback( var( buffer ) = boost::lambda::_1 );
     BOOST_REQUIRE_EQUAL( buffer_size( buffer ), 0 );

@@ -3,6 +3,6 @@
 # Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 test 'proxy_test', 
-    :libraries => ['proxy', 'server', 'http', 'tools'], 
+    :libraries => ['proxy', 'server', 'http', 'asio_mocks', 'tools'], 
     :extern_libs => ['boost_date_time', 'boost_regex', 'boost_random', 'boost_system', 'boost_thread', 'boost_test_exec_monitor'], 
     :sources =>  FileList['./source/proxy/*_test.cpp'] 

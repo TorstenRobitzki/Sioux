@@ -1,7 +1,3 @@
-// Copyright (c) Torrox GmbH & Co KG. All rights reserved.
-// Please note that the content of this file is confidential or protected by law.
-// Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
-
 #include <boost/bind.hpp>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/system/error_code.hpp>
@@ -13,13 +9,13 @@
 
 #include "http/request.h"
 #include "http/test_request_texts.h"
+#include "asio_mocks/test_socket.h"
+#include "asio_mocks/test_timer.h"
 #include "server/connection.h"
 #include "server/error.h"
 #include "server/log.h"
 #include "server/response.h"
-#include "server/test_socket.h"
 #include "server/test_tools.h"
-#include "server/test_timer.h"
 #include "server/traits.h"
 #include "tools/io_service.h"
 #include "tools/iterators.h"
@@ -189,8 +185,8 @@ namespace
 	    int 				error_count_;
 	};
 
-	typedef server::test::socket<const char*>                       socket_t;
-	typedef server::test::timer                                     timer_t;
+	typedef asio_mocks::socket<const char*>                         socket_t;
+	typedef asio_mocks::timer                                       timer_t;
 	typedef server::null_event_logger								event_logger_t;
 //	typedef server::stream_event_log								event_logger_t;
 	typedef server::stream_error_log								error_logger_t;
@@ -499,11 +495,11 @@ BOOST_AUTO_TEST_CASE( timeout_while_receiving_a_request_body )
 	trait_t					trait;
 	boost::asio::io_service	queue;
 
-	server::test::read_plan plan;
+	asio_mocks::read_plan plan;
 	plan
-		<< server::test::read( tools::begin( http::test::simple_post ),	tools::end( http::test::simple_post ) -5 )
-		<< server::test::delay( boost::posix_time::seconds( 10 ) )
-		<< server::test::read( tools::end( http::test::simple_post ) -5, tools::end( http::test::simple_post ) -1 );
+		<< asio_mocks::read( tools::begin( http::test::simple_post ),	tools::end( http::test::simple_post ) -5 )
+		<< asio_mocks::delay( boost::posix_time::seconds( 10 ) )
+		<< asio_mocks::read( tools::end( http::test::simple_post ) -5, tools::end( http::test::simple_post ) -1 );
 
 	socket_t				socket( queue, plan );
 
@@ -546,11 +542,11 @@ BOOST_AUTO_TEST_CASE( missing_body_should_be_flagged_as_error )
     trait_t                 trait;
     boost::asio::io_service queue;
 
-    server::test::read_plan plan;
+    asio_mocks::read_plan plan;
     plan
-        << server::test::read(
+        << asio_mocks::read(
             tools::begin( simple_post_with_missing_body ), tools::end( simple_post_with_missing_body ) -1 )
-        << server::test::disconnect_read();
+        << asio_mocks::disconnect_read();
 
     socket_t                socket( queue, plan );
 

@@ -14,7 +14,7 @@
 #include "proxy/test_connector.h"
 #include "proxy/test_traits.h"
 #include "http/test_request_texts.h"
-#include "server/test_socket.h"
+#include "asio_mocks/test_socket.h"
 #include "server/test_traits.h"
 #include "server/test_tools.h"
 #include "tools/io_service.h"
@@ -43,7 +43,7 @@ namespace {
 template <std::size_t BufferSize>
 static std::vector<char> simulate_sized_proxy(
     const boost::shared_ptr< proxy::test::connector >&  proxy,
-          server::test::socket< const char* >&          output)
+          asio_mocks::socket< const char* >&            output)
 {
     typedef proxy_response_factory< BufferSize >        response_factory_factory_t;
     typedef proxy::test::traits< response_factory_factory_t > trait_t;
@@ -73,7 +73,7 @@ static std::string simulate_proxy(
     const boost::shared_ptr< proxy::test::connector >&      proxy,
     const tools::substring&                                 request)
 {
-    server::test::socket<> output(proxy->get_io_service(), request.begin(), request.end());
+    asio_mocks::socket<> output(proxy->get_io_service(), request.begin(), request.end());
 
     const std::vector<char> bin = simulate_sized_proxy<1024>(proxy, output);
 
@@ -239,7 +239,7 @@ BOOST_AUTO_TEST_CASE(error_while_writing_header_to_orgin_server)
     // more than one socket is used, because the proxy_response will retry the read
     for ( int num_of_sockets = 5; num_of_sockets; --num_of_sockets )
     {
-        server::test::socket<const char*> orgin_connection(
+        asio_mocks::socket<const char*> orgin_connection(
             queue, 
             begin(cached_response_apache), end(cached_response_apache),
             make_error_code(boost::system::errc::success), 10000,
@@ -267,7 +267,7 @@ BOOST_AUTO_TEST_CASE(error_while_reading_header_from_orgin_server)
         "host: 127.0.0.1:8080\r\n\r\n");
 
     boost::asio::io_service queue;
-    server::test::socket<const char*> orgin_connection(
+    asio_mocks::socket<const char*> orgin_connection(
         queue, 
         begin(cached_response_apache), end(cached_response_apache),
         boost::asio::error::connection_aborted, 15,
@@ -323,9 +323,9 @@ BOOST_AUTO_TEST_CASE(big_random_chunked_body)
 
     // test with an proxy buffer of 1024 bytes
     { 
-        server::test::socket<const char*>   client_connection(queue, begin(get_local_root_firefox), end(get_local_root_firefox), 
+        asio_mocks::socket<const char*>   client_connection(queue, begin(get_local_root_firefox), end(get_local_root_firefox),
                                 random, 5, 40);
-        server::test::socket<const char*>   proxy_connection(queue, &proxy_response[0], &proxy_response[0] + proxy_response.size(),
+        asio_mocks::socket<const char*>   proxy_connection(queue, &proxy_response[0], &proxy_response[0] + proxy_response.size(),
                                 random, 1, 2048);
 
         boost::shared_ptr<proxy::test::connector> proxy(new proxy::test::connector(proxy_connection));
@@ -338,9 +338,9 @@ BOOST_AUTO_TEST_CASE(big_random_chunked_body)
 
     // test with a proxy buffer of 200 bytes
     { 
-        server::test::socket<const char*>   client_connection(queue, begin(get_local_root_firefox), end(get_local_root_firefox), 
+        asio_mocks::socket<const char*>   client_connection(queue, begin(get_local_root_firefox), end(get_local_root_firefox),
                                 random, 5, 40);
-        server::test::socket<const char*>   proxy_connection(queue, &proxy_response[0], &proxy_response[0] + proxy_response.size(),
+        asio_mocks::socket<const char*>   proxy_connection(queue, &proxy_response[0], &proxy_response[0] + proxy_response.size(),
                                 random, 1, 2048);
 
         boost::shared_ptr<proxy::test::connector> proxy(new proxy::test::connector(proxy_connection));
@@ -353,9 +353,9 @@ BOOST_AUTO_TEST_CASE(big_random_chunked_body)
 
     // test with a proxy buffer of 20 kbytes
     { 
-        server::test::socket<const char*>   client_connection(queue, begin(get_local_root_firefox), end(get_local_root_firefox), 
+        asio_mocks::socket<const char*>   client_connection(queue, begin(get_local_root_firefox), end(get_local_root_firefox),
                                 random, 5, 40);
-        server::test::socket<const char*>   proxy_connection(queue, &proxy_response[0], &proxy_response[0] + proxy_response.size(),
+        asio_mocks::socket<const char*>   proxy_connection(queue, &proxy_response[0], &proxy_response[0] + proxy_response.size(),
                                 random, 1, 2048);
 
         boost::shared_ptr<proxy::test::connector> proxy(new proxy::test::connector(proxy_connection));
@@ -380,9 +380,9 @@ BOOST_AUTO_TEST_CASE(content_length_proxy_request)
 
     boost::asio::io_service queue;
 
-    server::test::socket<const char*>   client_connection(queue, begin(get_local_root_firefox), end(get_local_root_firefox), 
+    asio_mocks::socket<const char*>   client_connection(queue, begin(get_local_root_firefox), end(get_local_root_firefox),
                             random, 5, 40);
-    server::test::socket<const char*>   proxy_connection(queue, &proxy_response[0], &proxy_response[0] + proxy_response.size(),
+    asio_mocks::socket<const char*>   proxy_connection(queue, &proxy_response[0], &proxy_response[0] + proxy_response.size(),
                             random, 1, 2048);
 
     boost::shared_ptr<proxy::test::connector> proxy(new proxy::test::connector(proxy_connection));
@@ -405,9 +405,9 @@ BOOST_AUTO_TEST_CASE(close_connection_length_proxy_request)
 
     boost::asio::io_service queue;
 
-    server::test::socket<const char*>   client_connection(queue, begin(get_local_root_firefox), end(get_local_root_firefox), 
+    asio_mocks::socket<const char*>   client_connection(queue, begin(get_local_root_firefox), end(get_local_root_firefox),
                             random, 5, 40);
-    server::test::socket<const char*>   proxy_connection(queue, &proxy_response[0], &proxy_response[0] + proxy_response.size(),
+    asio_mocks::socket<const char*>   proxy_connection(queue, &proxy_response[0], &proxy_response[0] + proxy_response.size(),
                             random, 1, 2048);
 
     boost::shared_ptr<proxy::test::connector> proxy(new proxy::test::connector(proxy_connection));
@@ -424,14 +424,14 @@ BOOST_AUTO_TEST_CASE(request_an_other_connection_when_the_first_was_falty)
     proxy::test::connector::socket_list_t  orgin_connections;
 
     orgin_connections.push_back(
-        server::test::socket<const char*>(
+        asio_mocks::socket<const char*>(
             queue, 
             &chunked_response_example[0], &chunked_response_example[0],
             make_error_code(boost::asio::error::network_reset),0,
             make_error_code(boost::asio::error::network_reset),10000));
 
     orgin_connections.push_back(
-        server::test::socket<const char*>(
+        asio_mocks::socket<const char*>(
             queue, begin(chunked_response_example), end(chunked_response_example)));
 
     boost::shared_ptr<proxy::test::connector> connector(new proxy::test::connector(orgin_connections));
@@ -446,7 +446,7 @@ BOOST_AUTO_TEST_CASE(request_an_other_connection_when_the_first_was_falty)
 BOOST_AUTO_TEST_CASE(delayed_reading_from_orgin)
 {
     boost::asio::io_service             queue;
-    server::test::socket<const char*>   sock(queue, begin(chunked_response_example), end(chunked_response_example), 5, boost::posix_time::microsec(30));
+    asio_mocks::socket<const char*>   sock(queue, begin(chunked_response_example), end(chunked_response_example), 5, boost::posix_time::microsec(30));
 
     boost::shared_ptr<proxy::test::connector> connector(new proxy::test::connector(sock));
 
@@ -465,7 +465,7 @@ BOOST_AUTO_TEST_CASE(timeout_while_reading_from_orgin)
     // more than one socket is used, because the proxy_response will retry the read
     for ( int num_of_sockets = 5; num_of_sockets; --num_of_sockets )
     {
-        server::test::socket<const char*>   sock(queue, 
+        asio_mocks::socket<const char*>   sock(queue,
             begin(chunked_response_example), end(chunked_response_example), 5, 
             boost::posix_time::seconds(30), boost::posix_time::time_duration());
 
@@ -490,7 +490,7 @@ BOOST_AUTO_TEST_CASE(timeout_while_writing_to_orgin)
     // more than one socket is used, because the proxy_response will retry the read
     for ( int num_of_sockets = 5; num_of_sockets; --num_of_sockets )
     {
-        server::test::socket<const char*>   sock(queue, 
+        asio_mocks::socket<const char*>   sock(queue,
             begin(chunked_response_example), end(chunked_response_example), 5, 
             boost::posix_time::time_duration(), boost::posix_time::seconds(30));
 
