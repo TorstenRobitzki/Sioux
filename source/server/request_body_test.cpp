@@ -558,3 +558,45 @@ BOOST_AUTO_TEST_CASE( missing_body_should_be_flagged_as_error )
     BOOST_CHECK( get_body( trait.read_bodies_.front() ).has_error() );
     BOOST_CHECK_EQUAL( 0, get_body( trait.read_bodies_.front() ).body_size() );
 }
+
+/**
+ * @test make sure, an empty body will issue no read, but will call the completition handler
+ * The example is taken from an Safari Ajax HTML DELETE
+ */
+BOOST_AUTO_TEST_CASE( empty_body_should_result_in_callback_beeing_called )
+{
+    const char delete_with_empty_body[] =
+        "DELETE /messages/623 HTTP/1.1\r\n"
+        "Host: 127.0.0.1:8080\r\n"
+        "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_3) AppleWebKit/536.28.10 (KHTML, like Gecko) Version/6.0.3 Safari/536.28.10\r\n"
+        "Content-Length: 0\r\n"
+        "Accept: */*\r\n"
+        "Origin: http://127.0.0.1:8080\r\n"
+        "X-CSRF-Token: BXrs6yvcoyx8E7U43FhWXf7dfA3+RG3OX843qi7oFyQ=\r\n"
+        "X-Requested-With: XMLHttpRequest\r\n"
+        "Referer: http://127.0.0.1:8080/home\r\n"
+        "DNT: 1\r\n"
+        "Accept-Language: de-de\r\n"
+        "Accept-Encoding: gzip, deflate\r\n"
+        "Connection: keep-alive\r\n"
+        "\r\n";
+
+    trait_t                 trait;
+    boost::asio::io_service queue;
+
+    asio_mocks::read_plan plan;
+    plan
+        << asio_mocks::read(
+            tools::begin( delete_with_empty_body ), tools::end( delete_with_empty_body ) -1 )
+        << asio_mocks::disconnect_read();
+
+    socket_t                socket( queue, plan );
+
+    boost::shared_ptr< connection_t > connection( new connection_t( socket, trait ) );
+    connection->start();
+
+    tools::run( queue );
+    BOOST_REQUIRE_EQUAL( 1u, trait.read_bodies_.size() );
+    BOOST_CHECK( !get_body( trait.read_bodies_.front() ).has_error() );
+    BOOST_CHECK_EQUAL( 0, get_body( trait.read_bodies_.front() ).body_size() );
+}

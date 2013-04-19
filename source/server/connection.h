@@ -392,8 +392,18 @@ namespace server
 		assert( current_request_->body_expected() );
 		assert( body_read_call_back_.empty() );
 
-		body_read_call_back_ = handler;
 		body_decoder_.start( *current_request_ );
+
+		if ( body_decoder_.done() )
+		{
+            const boost::system::error_code no_error;
+            connection_.get_io_service().post( boost::bind< void >( handler, no_error, static_cast< const char* >( 0 ), 0 ) );
+		}
+		else
+		{
+	        body_read_call_back_ = handler;
+		}
+
     }
 
     template < class Trait, class Connection, class Timer >
