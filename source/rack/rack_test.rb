@@ -66,7 +66,7 @@ module SetupRackserver
             end
         end
 
-        wait_until_started 1
+        wait_until_started 2
     end
 
     def ignore_errors
