@@ -63,7 +63,7 @@ namespace rack
 
         if ( !error )
         {
-            body_.insert( body_.begin(), buffer, buffer + bytes_read_and_decoded );
+            body_.insert( body_.end(), buffer, buffer + bytes_read_and_decoded );
 
             if ( bytes_read_and_decoded != 0
                || ruby_land_queue_.push(

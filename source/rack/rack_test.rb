@@ -1,7 +1,3 @@
-# Copyright (c) Torrox GmbH & Co KG. All rights reserved.
-# Please note that the content of this file is confidential or protected by law.
-# Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
-
 require 'rack'
 require 'rack/lint'
 require 'net/http'
@@ -118,6 +114,20 @@ class RackIntegrationTest < MiniTest::Unit::TestCase
         assert_equal 'POST', @app.environment[ 'REQUEST_METHOD' ]
         assert_equal 'param1=5&param2=text', @app.environment[ 'rack.input' ].read
     end   
+    
+    def test_large_post_body
+        large_body = ( 0..5000 ).collect{ ( 65 + rand( 26 ) ).chr }.join
+        
+        req = Net::HTTP::Post.new( '/' )
+        req.body = large_body
+        
+        Net::HTTP.start(@@HOST, @@PORT) do |http|
+            http.request(req)
+        end
+        
+        assert_equal 'POST', @app.environment[ 'REQUEST_METHOD' ]
+        assert_equal large_body, @app.environment[ 'rack.input' ].read
+    end
     
     def test_rack_version
         Net::HTTP.get @@URI
