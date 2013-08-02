@@ -2,7 +2,7 @@ require 'date'
 
 RACK_GEM_SPEC = Gem::Specification.new do | gem |
     gem.name     = 'sioux'
-    gem.version  = '0.6.2'
+    gem.version  = '0.6.3'
     
     gem.date     = Date.today.to_s
     

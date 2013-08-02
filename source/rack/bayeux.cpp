@@ -91,6 +91,7 @@ namespace
                     const boost::shared_ptr< const http::request_header >&  request );
 
         static pubsub::configuration pubsub_config( VALUE configuration );
+        static bayeux::configuration bayeux_config( VALUE configuration );
 
         // bayeux::adapter implementation
         std::pair< bool, json::string > handshake( const json::value& ext, VALUE& session );
@@ -131,7 +132,7 @@ namespace
         , ruby_adapter_( rb_hash_lookup( configuration_, rb_str_new2( "Adapter" ) ) )
         , adapter_( ruby_adapter_, ruby_land_queue_ )
         , root_( *queue_, adapter_, pubsub_config( configuration ) )
-        , connector_( *queue_, root_, session_generator_, *this, bayeux::configuration() )
+        , connector_( *queue_, root_, session_generator_, *this, bayeux_config( configuration ) )
         , server_( *queue_, 0, std::cout )
     {
         server_.add_action( "/bayeux", boost::bind( &bayeux_server::on_bayeux_request, this, _1, _2 ) );
@@ -249,6 +250,17 @@ namespace
         result.authorization_required( bool_from_hash( configuration, "Pubsub.authorization_required" ) );
 
         LOG_INFO( log_context << "pubsub-configuration:\n" << result );
+
+        return result;
+    }
+
+    bayeux::configuration bayeux_server::bayeux_config( VALUE configuration )
+    {
+        bayeux::configuration result;
+
+        result.max_messages_size_per_client( from_hash( configuration, "Bayeux.max_messages_size_per_client" ) );
+
+        LOG_INFO( log_context << "bayeux-configuration:\n" << result );
 
         return result;
     }

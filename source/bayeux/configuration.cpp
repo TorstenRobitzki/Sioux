@@ -3,6 +3,7 @@
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 #include "bayeux/configuration.h"
+#include <boost/date_time/posix_time/posix_time.hpp>
 #include <ostream>
 
 namespace bayeux
@@ -62,5 +63,19 @@ namespace bayeux
 
 		return *this;
 	}
+
+    void configuration::print( std::ostream& out ) const
+    {
+        out << "max_disconnected_time: " << max_disconnected_time_;
+        out << "\nlong_polling_timeout: " << long_polling_timeout_;
+        out << "\nmax_messages_per_client: " << max_messages_per_client_;
+        out << "\nmax_messages_size_per_client: " << max_messages_size_per_client_ << "\n";
+    }
+
+    std::ostream& operator<<( std::ostream& out, const configuration& config )
+    {
+        config.print( out );
+        return out;
+    }
 
 }

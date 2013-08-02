@@ -25,6 +25,7 @@ namespace {
         connect_handler()
             : called(false)
             , connection()
+            , con_ptr( 0 )
             , error()
         {
         }
@@ -249,11 +250,11 @@ BOOST_AUTO_TEST_CASE(proxy_connection_limit)
  */
 BOOST_AUTO_TEST_CASE(proxy_connection_limit2)
 {
-    const boost::asio::ip::tcp::endpoint            addr(boost::asio::ip::address::from_string("192.168.1.1"), 88);
-    const proxy::configuration               config(
+    const boost::asio::ip::tcp::endpoint    addr(boost::asio::ip::address::from_string("192.168.1.1"), 88);
+    const proxy::configuration              config(
          proxy::configurator()
          .max_connections(5));
-    boost::asio::io_service                         queue;
+    boost::asio::io_service                 queue;
 
     boost::shared_ptr<proxy::connector_base> proxy(
         new ip_connector(queue, config, addr));

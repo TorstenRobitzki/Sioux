@@ -54,7 +54,8 @@ module Rack
                 'Port'                          => 8080,
                 'Adapter'                       => nil,
                 'Pubsub.max_update_size'        => 0,
-                'Pubsub.authorization_required' => true
+                'Pubsub.authorization_required' => true,
+                'Bayeux.max_messages_size_per_client' => 10 * 1024
             }
             
             def self.to_bool s
@@ -82,7 +83,8 @@ module Rack
                     "Port=ip-port" => "port of a single IP endpoint to bind to (default: #{DEFAULTS['Port']})",
                     'Adapter=object' => 'object validate and authorize reading access to the root-data object. (default: nil)',
                     'Pubsub.max_update_size=SIZE' => 'the ratio of update costs to full nodes data size in %. (default: 0)',
-                    'Pubsub.authorization_required=yes|no' => 'describes whether or not a reading node access must be authorized. (default: yes)'
+                    'Pubsub.authorization_required=yes|no' => 'describes whether or not a reading node access must be authorized. (default: yes)',
+                    'Bayeux.max_messages_size_per_client=SIZE' => 'maximum size of messages, that will be buffered for a client before messages will be discard. (default: 10240)'
                 }
             end
         end

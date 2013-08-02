@@ -72,6 +72,10 @@ namespace bayeux
 		 */
 		configuration& max_messages_size_per_client( std::size_t new_limit );
 
+		/**
+		 * @brief prints the configuration in a human readable manner
+		 */
+		void print( std::ostream& ) const;
 	private:
 		boost::posix_time::time_duration	max_disconnected_time_;
 		boost::posix_time::time_duration    long_polling_timeout_;
@@ -79,6 +83,11 @@ namespace bayeux
 		std::size_t							max_messages_size_per_client_;
 	};
 
+	/**
+	 * @brief prints the configuration in a human readable manner
+	 * @relates configuration
+	 */
+	std::ostream& operator<<( std::ostream& out, const configuration& config );
 }
 
 #endif /* CONFIGURATION_H_ */
