@@ -11,6 +11,7 @@
 namespace json
 {
     class value;
+    class number;
 
     /**
      * @brief calculates the shortes update sequence that will alter object a to become object b
@@ -32,19 +33,19 @@ namespace json
      * - number(5) : updates the range from the second to third index (exclusiv) with the 4th value
      *             example: [5,2,3,[1,2]] replaces one element with two elements (1 and 2)
      *
-     * For array and object, the edit operation applies the next but one array to the element with the name/index 
+     * For array and object, the edit operation applies the next but one array to the element with the name/index
      * of the next element
      * - number(6) : updates an element
      *             example: [6,2,[3,"Nase",[1]]] executes the update(insert) [3,"Nase",[1]] to the element with the index 2
      *
-     * For all othere value types, the function returns b. All array, string indixes are ment with 
-     * previous updates already commited. If the returned type is not an array, it's ment to replace the 
+     * For all othere value types, the function returns b. All array, string indixes are ment with
+     * previous updates already commited. If the returned type is not an array, it's ment to replace the
      * element on the left side. So [6,0,{}] would turn [[]] into [{}] or 1 applied to {} would result in 1.
      *
      * The first member or the returned pair indicates whether the function was able to find an update
      * sequence with the given max_size constrain. If it was possible, the first member will be true
      * and the the second member will be an array with a update sequence. If the function fails to
-     * calculate an update sequence, the first member will return false and the second member will be 
+     * calculate an update sequence, the first member will return false and the second member will be
      * set to b.
      */
     std::pair<bool, value> delta(const value& a, const value& b, std::size_t max_size);
@@ -56,6 +57,51 @@ namespace json
      * In all other cases, update_operations is returned.
      */
     value update(const value& input, const value& update_operations);
+
+    /**
+     * @brief Enumeration to name the update operations used by delta() and update()
+     * @relates delta
+     * @relates update
+     */
+    enum update_operation_code
+    {
+        update_at = 1,
+        delete_at = 2,
+        insert_at = 3,
+        delete_range = 4,
+        update_range = 5,
+        edit_at   =6
+    };
+
+    /**
+     * @brief returns a reference to a static const json::number(1)
+     */
+    const number& update_at_operation();
+
+    /**
+     * @brief returns a reference to a static const json::number(2)
+     */
+    const number& delete_at_operation();
+
+    /**
+     * @brief returns a reference to a static const json::number(3)
+     */
+    const number& insert_at_operation();
+
+    /**
+     * @brief returns a reference to a static const json::number(4)
+     */
+    const number& delete_range_operation();
+
+    /**
+     * @brief returns a reference to a static const json::number(5)
+     */
+    const number& update_range_operation();
+
+    /**
+     * @brief returns a reference to a static const json::number(6)
+     */
+    const number& edit_at_operation();
 
 } //namespace json 
 

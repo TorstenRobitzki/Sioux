@@ -4,6 +4,7 @@
 
 #include "json/delta.h"
 #include "json/json.h"
+#include "json/merge_operations.h"
 #include "tools/asstring.h"
 #include <stdexcept>
 #include <set>
@@ -11,217 +12,42 @@
 namespace json {
 
 
-    namespace {
-        enum update_operation_code
-        {
-            update_at = 1,
-            delete_at = 2,
-            insert_at = 3,
-            delete_range = 4,
-            update_range = 5,
-            edit_at   =6
-        };
-
-        static const number& update_at_operation()
-        {
-            static const number result( update_at );
-            return result;
-        }
-
-        static const number& delete_at_operation()
-        {
-            static const number result( delete_at );
-            return result;
-        }
-
-        static const number& insert_at_operation()
-        {
-            static const number result( insert_at );
-            return result;
-        }
-
-        static const number& delete_range_operation()
-        {
-            static const number result( delete_range );
-            return result;
-        }
-
-        static const number& update_range_operation()
-        {
-            static const number result( update_range );
-            return result;
-        }
-
-        static const number& edit_at_operation()
-        {
-            static const number result( edit_at );
-            return result;
-        }
-
-        int to_int(const value& val)
-        {
-            return val.upcast<number>().to_int();
-        }
-
-        value update_impl( const array& data, const array& update_operations )
-        {
-            array result( data.copy() );
-
-            for ( std::size_t index = 0; index < update_operations.length(); )
-            {
-                const int command = to_int( update_operations.at( index++ ) );
-
-                switch ( command )
-                {
-                case update_at:
-                    {
-                        const int update_idx = to_int( update_operations.at( index++ ) );
-                        result.at( update_idx ) = update_operations.at( index++ );
-                    }
-                    break;
-                case delete_at:
-                    {
-                        const int delete_idx = to_int( update_operations.at( index++ ) );
-                        result.erase( delete_idx, 1u );
-                    }
-                    break;
-                case insert_at:
-                    {
-                        const int insert_idx = to_int( update_operations.at( index++ ) );
-                        result.insert( insert_idx, update_operations.at( index++ ) );
-                    }
-                    break;
-                case delete_range:
-                    {
-                        const int start_idx = to_int( update_operations.at( index++ ) );
-                        const int end_idx   = to_int( update_operations.at( index++ ) );
-                        result.erase(start_idx, end_idx-start_idx);
-                    }
-                    break;
-                case update_range:
-                    {
-                              int start_idx = to_int( update_operations.at( index++ ) );
-                        const int end_idx   = to_int( update_operations.at( index++ ) );
-                        result.erase( start_idx, end_idx - start_idx );
-
-                        const array& fill = update_operations.at( index++ ).upcast< array >();
-                        for ( int i = 0, end = fill.length(); i != end; ++i, ++start_idx )
-                            result.insert( start_idx, fill.at( i ) );
-                    }
-                    break;
-                case edit_at:
-                    {
-                        const int update_idx = to_int( update_operations.at( index++ ) );
-                        const value& update_operation  = update_operations.at( index++ );
-
-                        result.at( update_idx ) = update( result.at( update_idx ), update_operation );
-                    }
-                    break;
-                default:
-                    throw std::runtime_error( "invalid update operation: " + tools::as_string( command ) );
-                }
-            }
-
-            return result;
-        }
-
-        value update_impl(const object& data, const array& update_operations)
-        {
-            object result(data);
-
-            for ( std::size_t index = 0; index < update_operations.length(); )
-            {
-                const int command = to_int(update_operations.at(index++));
-
-                switch ( command )
-                {
-                case update_at:
-                    {
-                        const string update_idx = update_operations.at(index++).upcast<string>();
-                        result.at(update_idx) = update_operations.at(index++);
-                    }
-                    break;
-                case delete_at:
-                    {
-                        const string delete_idx = update_operations.at(index++).upcast<string>();
-                        result.erase(delete_idx);
-                    }
-                    break;
-                case insert_at:
-                    {
-                        const string insert_idx = update_operations.at(index++).upcast<string>();
-                        result.add(insert_idx, update_operations.at(index++));
-                    }
-                    break;
-                case edit_at:
-                    {
-                        const string update_idx = update_operations.at(index++).upcast<string>();
-                        const value& update_operation  = update_operations.at(index++);
-
-                        result.at(update_idx) = update(result.at(update_idx), update_operation);
-                    }
-                    break;
-                default:
-                    throw std::runtime_error("invalid update operation: " + tools::as_string(command));
-                }
-            }
-
-            return result;
-        }
-
-        value update_impl(const value& a, const array& update_operations)
-        {
-            struct update_by_type : default_visitor
-            {
-                update_by_type(const array& update_instructions)
-                    : instructions_(update_instructions)
-                    , result_(update_instructions)
-                {
-                }
-
-                void visit(const object& val)
-                {
-                    result_ = update_impl(val, instructions_);
-                }
-
-                void visit(const array& val)
-                {
-                    result_ = update_impl(val, instructions_);
-                }
-
-                const array&    instructions_;
-                value           result_;
-            } visi(update_operations);
-
-            a.visit(visi);
-            return visi.result_;
-        }
-    }
-
-    value update(const value& a, const value& update_operations)
+    const number& update_at_operation()
     {
-        struct is_array_visitor : default_visitor
-        {
-            is_array_visitor(const value& a, const value& update_operations)
-                : arg_(a)
-                , result_(update_operations)
-            {
-            }
-
-            void visit(const array& update_operations) 
-            {
-                result_ = update_impl(arg_, update_operations);
-            }
-
-            const value&    arg_;
-            value           result_;
-
-        } v(a, update_operations);
-
-        update_operations.visit(v);
-
-        return v.result_;
+        static const number result( update_at );
+        return result;
     }
+
+    const number& delete_at_operation()
+    {
+        static const number result( delete_at );
+        return result;
+    }
+
+    const number& insert_at_operation()
+    {
+        static const number result( insert_at );
+        return result;
+    }
+
+    const number& delete_range_operation()
+    {
+        static const number result( delete_range );
+        return result;
+    }
+
+    const number& update_range_operation()
+    {
+        static const number result( update_range );
+        return result;
+    }
+
+    const number& edit_at_operation()
+    {
+        static const number result( edit_at );
+        return result;
+    }
+
 
     namespace {
         struct vertex;
@@ -250,21 +76,34 @@ namespace json {
             std::size_t                     total_costs;
             std::size_t                     costs;
 
+            // order by identity
             bool operator<( const vertex& rhs ) const
             {
                 return length < rhs.length
                     || length == rhs.length && index < rhs.index
-                    || length == rhs.length && index && rhs.index && total_costs < rhs.total_costs;
+                    || length == rhs.length && index && rhs.index && costs < rhs.costs;
             }
         };
 
+        // order by costs
         bool v_compare::operator()(vertex_list_t::const_iterator lhs, vertex_list_t::const_iterator rhs) const
         {
             return lhs->total_costs < rhs->total_costs;
         }
 
-        void add_open(const vertex& v, vertex_list_t& vlist, cost_list_t& clist)
+        void add_open( vertex v, vertex_list_t& vlist, cost_list_t& clist, std::size_t heuristic )
         {
+            if ( v.previous != vlist.end() )
+            {
+                v.costs = v.previous->costs + v.operation.size() -1;
+            }
+            else
+            {
+                v.costs = 1;
+            }
+
+            v.total_costs = v.costs + heuristic;
+
             vertex_list_t::iterator pos = vlist.find(v);
 
             if ( pos != vlist.end() )
@@ -325,7 +164,7 @@ namespace json {
         }
 
         vertex change_element( vertex_list_t::const_iterator ptr, int index, const value& a, const value& b,
-            const value& prev_op, std::size_t heuristic )
+            bool merge_with_last_operation )
         {
             assert(a != b);
 
@@ -333,58 +172,7 @@ namespace json {
             vertex_list_t::const_iterator   prev        = ptr->previous;
             const array                     last_update = ptr->operation;
 
-            if ( prev_op == update_at_operation() )
-            {
-                // combine a previous update with this update to a range update
-                array new_elements;
-                new_elements.add( last_update.at( 2 ) ).add( b );
-
-                result.add( update_range_operation() )
-                      .add( last_update.at( 1 ) )
-                      .add( number( index + 1 ) )
-                      .add( new_elements );
-            }
-            else if ( prev_op == insert_at_operation() )
-            {
-                // combine a previous insert with this update to a range update
-                array new_elements( last_update.at( 2 ) );
-                new_elements.add( b );
-
-                assert( index > 0 );
-
-                result.add( update_range_operation() )
-                      .add( number( index - 1 ) )
-                      .add( number( index ) )
-                      .add( new_elements );
-            }
-            else if ( prev_op == delete_at_operation() )
-            {
-            	// combine a previous delete with this update to a range update
-                result.add( update_range_operation() )
-                      .add( number( index ) )
-                      .add( number( index + 2 ) )
-                      .add( array( b ) );
-            }
-            else if ( prev_op == delete_range_operation() )
-            {
-                // combine a previous range delete with this update to a range update
-                result.add( update_range_operation() )
-                      .add( last_update.at( 1 ) )
-                      .add( increment( last_update.at( 2 ) ) )
-                      .add( array( b ) );
-            }
-            else if ( prev_op == update_range_operation() )
-            {
-                array new_elements( last_update.at( 3 ).upcast< array >().copy() );
-                new_elements.add( b );
-
-                // combine a previous update with this update to a range update
-                result.add( update_range_operation() )
-                      .add( last_update.at( 1 ) )
-                      .add( increment( last_update.at( 2 ) ) )
-                      .add( new_elements );
-            }
-            else
+            if ( !merge_with_last_operation || !details::merge_change_element( last_update, index, b, result ) )
             {
                 result.add( update_at_operation() ).add( number( index ) ).add( b );
                 prev = ptr;
@@ -413,13 +201,35 @@ namespace json {
                 }
             }
 
-            const vertex newv  = { ptr->length, index+1, result, prev, costs + heuristic, costs };
+            const vertex newv  = { ptr->length, index+1, result, prev };
 
             return newv;
         }
 
-        vertex insert_element( vertex_list_t::const_iterator ptr, int index, const value& b, const value& prev_op,
-            std::size_t heuristic )
+        std::pair< vertex, bool > edit_element( vertex_list_t::const_iterator ptr, int index, const value& a, const value& b,
+            bool merge_with_last_operation, std::size_t heuristic )
+        {
+            // limit the update to 2 * b.size(); because an update of a to b would for sure be cheaper
+            const std::pair< bool, value > edit_operation = delta( a, b, 2 * b.size() );
+
+            if ( edit_operation.first )
+            {
+                array result;
+                result.add( edit_at_operation() )
+                      .add( number( index ) )
+                      .add( edit_operation.second );
+
+                const std::size_t costs = ptr->previous->costs + result.size() -2 +1;
+
+                const vertex newv  = { ptr->length, index+1, result, ptr, costs + heuristic, costs };
+
+                return std::make_pair( newv, true );
+            }
+
+            return std::make_pair( vertex(), false );
+        }
+
+        vertex insert_element( vertex_list_t::const_iterator ptr, int index, const value& b, const value& prev_op )
         {
             array result;
             vertex_list_t::const_iterator prev = ptr->previous;
@@ -472,13 +282,12 @@ namespace json {
 
             assert( result.size() > 3 );
 
-            const size_t costs = prev->costs + result.size() -2 +1; // minus bracket plus a comma
-            const vertex newv  = { ptr->length + 1, index + 1, result, prev, costs + heuristic, costs };
+            const vertex newv  = { ptr->length + 1, index + 1, result, prev };
 
             return newv;
         }
 
-        vertex delete_element( vertex_list_t::const_iterator ptr, int index, const value& prev_op, std::size_t heuristic )
+        vertex delete_element( vertex_list_t::const_iterator ptr, int index, const value& prev_op )
         {
             array result;
             vertex_list_t::const_iterator prev = ptr->previous;
@@ -524,8 +333,7 @@ namespace json {
 
             assert( !result.empty() );
 
-            const size_t costs = prev->costs + result.size() -2 +1; // minus bracket plus a comma
-            const vertex newv  = { ptr->length - 1, index, result, prev, costs + heuristic, costs };
+            const vertex newv  = { ptr->length - 1, index, result, prev };
 
             return newv;
         }
@@ -538,43 +346,50 @@ namespace json {
 
             // find position, where a difference between the current state and the target state is
             int index = current_state->index;
+            bool merge_with_last_operation = true;
+
             for ( const int max_index = std::min(current_state->length, int(b.length()));
                 index != max_index && a.at(index - inserts_so_far) == b.at(index); ++index )
             {
                 last_op = null();
+                merge_with_last_operation = false;
             }
 
             if ( index == int(b.length()) && index == int(current_state->length) )
                 return true;
 
+            const bool not_at_endof_a = index != int(current_state->length);
+            const bool not_at_endof_b = index != int( b.length() );
+
+            if ( !not_at_endof_a && !not_at_endof_b )
+                return false;
+
             // try updating an element from a with an element from b
-            if ( index != int(b.length()) && index != int(current_state->length) )
+            if ( not_at_endof_a && not_at_endof_b )
             {
             	const vertex new_change = change_element(current_state, index, a.at(index-inserts_so_far), b.at(index),
-                    last_op, heuristic( a, b, index - inserts_so_far + 1, index + 1 ) );
+            	    merge_with_last_operation );
 
                 if ( new_change.costs <= max_size )
-                    add_open(new_change, vertices, open_list);
+                    add_open(new_change, vertices, open_list, heuristic( a, b, index - inserts_so_far + 1, index + 1 ) );
             }
 
             // insert an element from b to a at index
-            if ( index != int(b.length()))
+            if ( not_at_endof_b )
             {
-                const vertex new_insert = insert_element(current_state, index, b.at(index), 
-                    last_op, heuristic(a,b,index-inserts_so_far,index+1));
+                const vertex new_insert = insert_element( current_state, index, b.at( index ), last_op );
 
                 if ( new_insert.costs <= max_size )
-                	add_open(new_insert, vertices, open_list);
+                	add_open(new_insert, vertices, open_list, heuristic( a, b, index - inserts_so_far, index + 1) );
             }
 
             // delete an element from a at index
-            if ( index != int(current_state->length) )
+            if ( not_at_endof_a )
             {
-                const vertex new_delete = delete_element(current_state, index, 
-                    last_op, heuristic(a,b,index-inserts_so_far+1,index));
+                const vertex new_delete = delete_element( current_state, index, last_op );
 
                 if ( new_delete.costs <= max_size )
-                    add_open(new_delete, vertices, open_list);
+                    add_open(new_delete, vertices, open_list, heuristic( a, b, index - inserts_so_far + 1, index ) );
             }
 
             return false;
@@ -595,9 +410,9 @@ namespace json {
             {
                 vertex_list_t   vertices;
                 cost_list_t     open_list;
-                const vertex    start = {a.length(), 0, array(), vertices.end(), first_costs, 1};
+                const vertex    start = {a.length(), 0, array(), vertices.end() };
                 
-                add_open(start, vertices, open_list);
+                add_open(start, vertices, open_list, first_costs);
 
                 while ( !open_list.empty() )
                 {
