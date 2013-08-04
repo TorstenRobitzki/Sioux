@@ -91,36 +91,6 @@ namespace json {
             return lhs->total_costs < rhs->total_costs;
         }
 
-        void add_open( vertex v, vertex_list_t& vlist, cost_list_t& clist, std::size_t heuristic )
-        {
-            if ( v.previous != vlist.end() )
-            {
-                v.costs = v.previous->costs + v.operation.size() -1;
-            }
-            else
-            {
-                v.costs = 1;
-            }
-
-            v.total_costs = v.costs + heuristic;
-
-            vertex_list_t::iterator pos = vlist.find(v);
-
-            if ( pos != vlist.end() )
-            {
-                if ( v.total_costs < pos->total_costs )
-                {
-                    pos = vlist.insert(v).first;
-                    clist.insert(pos);
-                }
-            }
-            else 
-            {
-                pos = vlist.insert(vlist.begin(), v);
-                clist.insert(pos);
-            }
-        }
-
         // this function should never ever overestimate the costs of updating a to be equal to b
         std::size_t heuristic(const array& a, const array& b, int a_index, int b_index)
         {
@@ -144,6 +114,39 @@ namespace json {
         std::size_t heuristic(const array& a, const array& b)
         {
             return heuristic(a, b, 0, 0);
+        }
+
+        void add_open( vertex v, vertex_list_t& vlist, cost_list_t& clist, std::size_t heuristic, std::size_t max_size )
+        {
+            if ( v.previous != vlist.end() )
+            {
+                v.costs = v.previous->costs + v.operation.size() -1;
+            }
+            else
+            {
+                v.costs = 1;
+            }
+
+            v.total_costs = v.costs + heuristic;
+
+            if ( v.total_costs > max_size )
+                return;
+
+            vertex_list_t::iterator pos = vlist.find(v);
+
+            if ( pos != vlist.end() )
+            {
+                if ( v.total_costs < pos->total_costs )
+                {
+                    pos = vlist.insert(v).first;
+                    clist.insert(pos);
+                }
+            }
+            else 
+            {
+                pos = vlist.insert(vlist.begin(), v);
+                clist.insert(pos);
+            }
         }
 
         array assemble_result(vertex_list_t::const_iterator goal, const vertex_list_t& vertices)
@@ -179,35 +182,12 @@ namespace json {
             }
 
             assert( !result.empty() );
-            size_t costs = prev->costs + result.size() -2 +1; // minus bracket plus a comma
-
-            // lets try, if we can do better with an edit
-            const std::pair< bool, value > edit_operation = delta( a, b, costs-5 /* the minimum costs of the edit framing (,6,0,) */ );
-
-            if ( edit_operation.first )
-            {
-                array edit_result;
-                edit_result.add( edit_at_operation() )
-                           .add( number( index ) )
-                           .add( edit_operation.second );
-
-                const std::size_t edit_costs = prev->costs + edit_result.size() -2 +1;
-
-                if ( edit_costs < costs )
-                {
-                    result = edit_result;
-                    prev   = ptr;
-                    costs  = edit_costs;
-                }
-            }
-
             const vertex newv  = { ptr->length, index+1, result, prev };
 
             return newv;
         }
 
-        std::pair< vertex, bool > edit_element( vertex_list_t::const_iterator ptr, int index, const value& a, const value& b,
-            bool merge_with_last_operation, std::size_t heuristic )
+        std::pair< vertex, bool > edit_element( vertex_list_t::const_iterator ptr, int index, const value& a, const value& b )
         {
             // limit the update to 2 * b.size(); because an update of a to b would for sure be cheaper
             const std::pair< bool, value > edit_operation = delta( a, b, 2 * b.size() );
@@ -219,9 +199,7 @@ namespace json {
                       .add( number( index ) )
                       .add( edit_operation.second );
 
-                const std::size_t costs = ptr->previous->costs + result.size() -2 +1;
-
-                const vertex newv  = { ptr->length, index+1, result, ptr, costs + heuristic, costs };
+                const vertex newv  = { ptr->length, index+1, result, ptr };
 
                 return std::make_pair( newv, true );
             }
@@ -346,50 +324,46 @@ namespace json {
 
             // find position, where a difference between the current state and the target state is
             int index = current_state->index;
-            bool merge_with_last_operation = true;
 
             for ( const int max_index = std::min(current_state->length, int(b.length()));
                 index != max_index && a.at(index - inserts_so_far) == b.at(index); ++index )
             {
                 last_op = null();
-                merge_with_last_operation = false;
             }
-
-            if ( index == int(b.length()) && index == int(current_state->length) )
-                return true;
 
             const bool not_at_endof_a = index != int(current_state->length);
             const bool not_at_endof_b = index != int( b.length() );
 
             if ( !not_at_endof_a && !not_at_endof_b )
-                return false;
+                return true;
 
-            // try updating an element from a with an element from b
+            // try updating or editing an element from a with an element from b
             if ( not_at_endof_a && not_at_endof_b )
             {
-            	const vertex new_change = change_element(current_state, index, a.at(index-inserts_so_far), b.at(index),
-            	    merge_with_last_operation );
+                const json::value at_a = a.at( index - inserts_so_far );
+                const json::value at_b = b.at( index );
 
-                if ( new_change.costs <= max_size )
-                    add_open(new_change, vertices, open_list, heuristic( a, b, index - inserts_so_far + 1, index + 1 ) );
+            	const vertex new_change = change_element(current_state, index, at_a, at_b, last_op != null() );
+                add_open(new_change, vertices, open_list, heuristic( a, b, index - inserts_so_far + 1, index + 1 ), max_size );
+
+                std::pair< vertex, bool > new_edited = edit_element( current_state, index, at_a, at_b );
+
+                if ( new_edited.second )
+                    add_open(new_edited.first, vertices, open_list, heuristic( a, b, index - inserts_so_far + 1, index + 1 ), max_size );
             }
 
             // insert an element from b to a at index
             if ( not_at_endof_b )
             {
                 const vertex new_insert = insert_element( current_state, index, b.at( index ), last_op );
-
-                if ( new_insert.costs <= max_size )
-                	add_open(new_insert, vertices, open_list, heuristic( a, b, index - inserts_so_far, index + 1) );
+              	add_open(new_insert, vertices, open_list, heuristic( a, b, index - inserts_so_far, index + 1), max_size );
             }
 
             // delete an element from a at index
             if ( not_at_endof_a )
             {
                 const vertex new_delete = delete_element( current_state, index, last_op );
-
-                if ( new_delete.costs <= max_size )
-                    add_open(new_delete, vertices, open_list, heuristic( a, b, index - inserts_so_far + 1, index ) );
+                add_open(new_delete, vertices, open_list, heuristic( a, b, index - inserts_so_far + 1, index ), max_size );
             }
 
             return false;
@@ -412,7 +386,7 @@ namespace json {
                 cost_list_t     open_list;
                 const vertex    start = {a.length(), 0, array(), vertices.end() };
                 
-                add_open(start, vertices, open_list, first_costs);
+                add_open( start, vertices, open_list, first_costs, max_size );
 
                 while ( !open_list.empty() )
                 {

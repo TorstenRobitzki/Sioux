@@ -302,6 +302,11 @@ namespace json
         explicit array(const value& first_value);
 
         /**
+         * @brief creates an array with two elements
+         */
+        array( const value& first_value, const value& second_value );
+
+        /**
          * @brief constructs an array by copying the first references from an other array
          */
         array(const array& original, const std::size_t first_elements);

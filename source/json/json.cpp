@@ -774,6 +774,13 @@ namespace json
         add(first_value);
     }
 
+    array::array( const value& first_value, const value& second_value )
+        : value(new array_impl())
+    {
+        add( first_value );
+        add( second_value );
+    }
+
     array::array(impl* p)
         : value(p)
     {

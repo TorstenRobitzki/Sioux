@@ -13,7 +13,7 @@ namespace json {
 
         bool merge_change_element( const array& last_update, int index, const value& b, array& result )
         {
-            const value prev_op = last_update.empty() ? null() : last_update.at( 0 );
+            const value prev_op = last_update.at( 0 );
             bool merged = true;
 
             if ( prev_op == update_at_operation() )

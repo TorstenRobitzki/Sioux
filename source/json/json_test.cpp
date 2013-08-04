@@ -127,6 +127,11 @@ BOOST_AUTO_TEST_CASE( json_array_test )
 
     BOOST_CHECK_EQUAL("[\"Hallo\",[0]]", array.to_json());
     BOOST_CHECK_EQUAL(array.to_json().size(), array.size());
+
+    json::array pair( json::number( 5 ), json::number( 7 ) );
+    BOOST_CHECK_EQUAL( pair.length(), 2 );
+    BOOST_CHECK_EQUAL( pair.at( 0 ), json::number( 5 ) );
+    BOOST_CHECK_EQUAL( pair.at( 1 ), json::number( 7 ) );
 }
 
 BOOST_AUTO_TEST_CASE( json_array_copy_at_begin_test )
