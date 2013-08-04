@@ -90,6 +90,14 @@ namespace
         BOOST_REQUIRE( merged.get() );
         check_equal_effect( op1, op2, *merged );
     }
+
+    void check_size( const json::operations::update_operation& op )
+    {
+        json::array out;
+        op.serialize( out );
+
+        BOOST_CHECK_EQUAL( out.size(), op.size() );
+    }
 }
 
 BOOST_AUTO_TEST_CASE( update_operation_visiting )
@@ -471,4 +479,46 @@ BOOST_AUTO_TEST_CASE( merge_update_range_with_delete )
     BOOST_CHECK( merge( update1, delete4 ).get() == 0 );
     BOOST_CHECK( merge( update1, delete5 ).get() == 0 );
 }
+
+BOOST_AUTO_TEST_CASE( update_at_size )
+{
+    check_size( json::operations::update_at( 1, json::string( "asdasd" ) ) );
+    check_size( json::operations::update_at( 12, json::null() ) );
+    check_size( json::operations::update_at( 999, json::true_val() ) );
+}
+
+BOOST_AUTO_TEST_CASE( edit_at_size )
+{
+    check_size( json::operations::edit_at( 0, json::array( json::number(12), json::string( "asdasdasd" ) ) ) );
+    check_size( json::operations::edit_at( 14, json::array( json::number(1), json::false_val() ) ) );
+}
+
+BOOST_AUTO_TEST_CASE( delete_at_size )
+{
+    check_size( json::operations::delete_at( 0 ) );
+    check_size( json::operations::delete_at( 7 ) );
+    check_size( json::operations::delete_at( 1000 ) );
+}
+
+BOOST_AUTO_TEST_CASE( insert_at_size )
+{
+    check_size( json::operations::insert_at( 0, json::null() ) );
+    check_size( json::operations::insert_at( 14, json::string( "asdasdasda" ) ) );
+    check_size( json::operations::insert_at( 99, json::number( 99 ) ) );
+}
+
+BOOST_AUTO_TEST_CASE( update_range_size )
+{
+    check_size( json::operations::update_range( 0, 0, json::array( json::number( 12 ), json::null() ) ) );
+    check_size( json::operations::update_range( 7, 44, json::array() ) );
+    check_size( json::operations::update_range( 100, 999, json::array( json::string( "Es war einmal ein Baer..." ) ) ) );
+}
+
+BOOST_AUTO_TEST_CASE( delete_range_size )
+{
+    check_size( json::operations::delete_range( 1, 2 ) );
+    check_size( json::operations::delete_range( 12, 99 ) );
+    check_size( json::operations::delete_range( 44, 100 ) );
+}
+
 

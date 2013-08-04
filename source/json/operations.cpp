@@ -1,6 +1,7 @@
 #include "json/internal/operations.h"
 #include "json/delta.h"
 #include "tools/asstring.h"
+#include <cmath>
 
 namespace json
 {
@@ -19,6 +20,15 @@ namespace operations {
             }
         };
 
+        int length( int val )
+        {
+            assert( val >= 0 );
+
+            if ( val == 0 )
+                return 1;
+
+            return static_cast< int >( std::log10( val ) ) + 1;
+        }
     }
 
     //////////////////////////
@@ -107,6 +117,11 @@ namespace operations {
         return result.result;
     }
 
+    std::size_t update_at::size() const
+    {
+        return length( position_ ) + new_value_.size() + 5;
+    }
+
     /////////////////
     // class edit_at
     edit_at::edit_at( int position, const value& update_instructions )
@@ -123,6 +138,11 @@ namespace operations {
     void edit_at::serialize( array& output ) const
     {
         output.add( edit_at_operation() ).add( json::number( position_ ) ).add( update_instructions_ );
+    }
+
+    std::size_t edit_at::size() const
+    {
+        return length( position_ ) + update_instructions_.size() + 5;
     }
 
     ///////////////////
@@ -187,6 +207,11 @@ namespace operations {
 
         result.dispatch( *this, other );
         return result.result;
+    }
+
+    std::size_t delete_at::size() const
+    {
+        return length( position_ ) + 4;
     }
 
     ///////////////////
@@ -265,6 +290,11 @@ namespace operations {
         return result.result;
     }
 
+    std::size_t insert_at::size() const
+    {
+        return length( position_ ) + new_value_.size() + 5;
+    }
+
     //////////////////////
     // class delete_range
     delete_range::delete_range( int from, int to )
@@ -336,6 +366,11 @@ namespace operations {
 
         result.dispatch( *this, other );
         return result.result;
+    }
+
+    std::size_t delete_range::size() const
+    {
+        return length( from_ ) + length( to_ ) + 5;
     }
 
     //////////////////////
@@ -450,6 +485,11 @@ namespace operations {
 
         result.dispatch( *this, other );
         return result.result;
+    }
+
+    std::size_t update_range::size() const
+    {
+        return length( from_ ) + length( to_ ) + new_values_.size() + 6;
     }
 
     array& operator<<( array& output, const update_operation& op )

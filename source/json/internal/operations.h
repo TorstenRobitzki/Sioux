@@ -23,6 +23,14 @@ namespace json {
             virtual void serialize( array& ) const = 0;
 
             /**
+             * @brief the serialized size of the operations
+             *
+             * Returns the number of characters, of the serialized form of this operation, when the options is
+             * serialized into an empty array.
+             */
+            virtual std::size_t size() const = 0;
+
+            /**
              * @brief merges this and other into one operation that has the very same effect.
              *
              * The default implementation returns 0; The result must have the same effect on an json
@@ -48,6 +56,7 @@ namespace json {
             void accept( visitor& ) const;
             void serialize( array& ) const;
             boost::shared_ptr< update_operation > merge( const update_operation& other ) const;
+            std::size_t size() const;
 
             int     position_;
             value   new_value_;
@@ -60,6 +69,7 @@ namespace json {
         private:
             void accept( visitor& ) const;
             void serialize( array& ) const;
+            std::size_t size() const;
 
             int     position_;
             value   update_instructions_;
@@ -75,6 +85,7 @@ namespace json {
             void accept( visitor& ) const;
             void serialize( array& ) const;
             boost::shared_ptr< update_operation > merge( const update_operation& other ) const;
+            std::size_t size() const;
 
             int     position_;
         };
@@ -90,6 +101,7 @@ namespace json {
             void accept( visitor& ) const;
             void serialize( array& ) const;
             boost::shared_ptr< update_operation > merge( const update_operation& other ) const;
+            std::size_t size() const;
 
             int     position_;
             value   new_value_;
@@ -106,6 +118,7 @@ namespace json {
             void accept( visitor& ) const;
             void serialize( array& ) const;
             boost::shared_ptr< update_operation > merge( const update_operation& other ) const;
+            std::size_t size() const;
 
             int from_;
             int to_;
@@ -123,6 +136,7 @@ namespace json {
             void accept( visitor& ) const;
             void serialize( array& ) const;
             boost::shared_ptr< update_operation > merge( const update_operation& other ) const;
+            std::size_t size() const;
 
             int     from_;
             int     to_;
