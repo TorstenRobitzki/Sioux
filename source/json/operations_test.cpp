@@ -254,6 +254,7 @@ BOOST_AUTO_TEST_CASE( merge_delete_with_delete )
     check_equal_effect( delete1, delete3 );
 
     BOOST_CHECK( merge( delete1, delete4 ).get() == 0 );
+    BOOST_CHECK( merge( delete3, delete2 ).get() == 0 );
 }
 
 BOOST_AUTO_TEST_CASE( insert_operation_visiting )

@@ -301,6 +301,9 @@ namespace operations {
         : from_( from )
         , to_( to )
     {
+        assert( from >= 0 );
+        assert( to >= 0 );
+
         if ( to < from )
             throw std::invalid_argument( "from must be smaller than to delete_range(" + tools::as_string( from )
                 + ", " + tools::as_string( to ) + ")" );
@@ -380,6 +383,9 @@ namespace operations {
         , to_( to )
         , new_values_( values )
     {
+        assert( from_ >= 0 );
+        assert( to_ >= 0 );
+
         if ( to < from )
             throw std::invalid_argument( "from must be smaller than to update_range(" + tools::as_string( from )
                 + ", " + tools::as_string( to ) + ")" );

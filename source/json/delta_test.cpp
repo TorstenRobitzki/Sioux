@@ -72,15 +72,16 @@ BOOST_AUTO_TEST_CASE(edit_operations)
 }
 namespace 
 {
-    bool apply_delta_and_update(const json::value& a, const json::value& b)
+    void check_delta_and_update(const json::value& a, const json::value& b)
     {
         const std::pair<bool, json::value> delta = json::delta(a, b, std::numeric_limits<std::size_t>::max());
-        return delta.first && update(a, delta.second) == b;
+        BOOST_REQUIRE( delta.first );
+        BOOST_CHECK_EQUAL( update(a, delta.second), b );
     }
 
-    bool apply_delta_and_update(const std::string& a, const std::string& b)
+    void check_delta_and_update(const std::string& a, const std::string& b)
     {
-        return apply_delta_and_update(json::parse(a), json::parse(b));
+        return check_delta_and_update(json::parse(a), json::parse(b));
     }
 
     std::string delta( const std::string& a, const std::string& b )
@@ -110,14 +111,23 @@ BOOST_AUTO_TEST_CASE(update_array_will_result_in_unchanged_paramter)
 	BOOST_CHECK_EQUAL(original, json::parse(original_text));
 }
 
-BOOST_AUTO_TEST_CASE(simple_delta)
+BOOST_AUTO_TEST_CASE( single_insert )
 {
-    // single insert, delete and update 
-    BOOST_CHECK(apply_delta_and_update("[]", "[1]"));
-    BOOST_CHECK(apply_delta_and_update("[1]", "[]"));
-    BOOST_CHECK(apply_delta_and_update("[1]", "[2]"));
+    check_delta_and_update( "[]", "[1]" );
+}
 
-    // check that single delete and converting to range delete works
+BOOST_AUTO_TEST_CASE( single_delete )
+{
+    check_delta_and_update( "[1]", "[]" );
+}
+
+BOOST_AUTO_TEST_CASE( single_update )
+{
+    check_delta_and_update( "[1]", "[2]" );
+}
+
+BOOST_AUTO_TEST_CASE( single_delete_and_conversion_to_range_delete )
+{
     BOOST_CHECK_EQUAL("[2,0]", delta("[1,2,3]", "[2,3]"));
     BOOST_CHECK_EQUAL("[2,1]", delta("[1,2,3]", "[1,3]"));
     BOOST_CHECK_EQUAL("[2,2]", delta("[1,2,3]", "[1,2]"));
@@ -126,8 +136,10 @@ BOOST_AUTO_TEST_CASE(simple_delta)
     BOOST_CHECK_EQUAL("[4,2,4]", delta("[1,2,3,4,5,6]", "[1,2,5,6]"));
     BOOST_CHECK_EQUAL("[4,2,4]", delta("[1,2,3,4]", "[1,2]"));
     BOOST_CHECK_EQUAL("[4,0,2]", delta("[1,2,3,4]", "[3,4]"));
+}
 
-    // single updates and converting to range updates 
+BOOST_AUTO_TEST_CASE( single_updates_and_convertion_to_range_updates )
+{
     BOOST_CHECK_EQUAL("[1,0,9]", delta("[1,2,3]", "[9,2,3]"));
     BOOST_CHECK_EQUAL("[1,1,9]", delta("[1,2,3]", "[1,9,3]"));
     BOOST_CHECK_EQUAL("[1,2,9]", delta("[1,2,3]", "[1,2,9]"));
@@ -141,8 +153,10 @@ BOOST_AUTO_TEST_CASE(simple_delta)
     BOOST_CHECK_EQUAL("[5,3,5,[9,9,9,9]]", delta("[1,2,3,4,5,6,7]", "[1,2,3,9,9,9,9,6,7]"));
     BOOST_CHECK_EQUAL("[5,1,6,[9]]", delta("[1,2,3,4,5,6,7]", "[1,9,7]"));
     BOOST_CHECK_EQUAL("[5,1,6,[20,9,20]]", delta("[1,2,3,4,5,6,7]", "[1,20,9,20,7]"));
+}
 
-    // in some cases, repeating elements in an update array may be shorter then two updates
+BOOST_AUTO_TEST_CASE( repeating_elements_in_an_update_may_be_shorter_then_two_updates )
+{
     BOOST_CHECK_EQUAL("[5,2,5,[9,9,4,9,9]]", delta("[1,2,3,4,5,6,7]", "[1,2,9,9,4,9,9,6,7]"));
 }
 
@@ -169,6 +183,15 @@ BOOST_AUTO_TEST_CASE(object_delta)
     BOOST_CHECK_EQUAL("[2,\"A\",1,\"B\",2,2,\"C\",3,\"D\",1]", delta("{\"A\":1,\"B\":1,\"C\":1}", "{\"B\":2,\"D\":1}"));
 }
 
+#ifdef NDEBUG
+
+/*
+ * last time executed on my laptop:
+ * 0.514734s wall, 0.510000s user + 0.000000s system = 0.510000s CPU (99.1%)
+ *
+ * after refactoring:
+ * 0.279367s wall, 0.280000s user + 0.000000s system = 0.280000s CPU (100.2%)
+ */
 BOOST_AUTO_TEST_CASE( delta_performance_test )
 {
     static const unsigned array_size = 10 * 1000 * 1000;
@@ -186,3 +209,5 @@ BOOST_AUTO_TEST_CASE( delta_performance_test )
     BOOST_CHECK( result.first );
     BOOST_CHECK_EQUAL( result.second, json::parse( "[2,5000000]" ) );
 }
+
+#endif
