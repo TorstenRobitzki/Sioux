@@ -1,6 +1,5 @@
 #include "json/delta.h"
 #include "json/json.h"
-#include "json/merge_operations.h"
 #include "json/internal/operations.h"
 #include "tools/asstring.h"
 #include <stdexcept>
