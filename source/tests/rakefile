@@ -13,7 +13,7 @@ build_example 'hello_world',
     :sources =>  FileList['./source/tests/hello_world.cpp'] 
 
 build_example 'chat', 
-    :libraries => ['bayeux', 'pubsub', 'server', 'json', 'http', 'tools'], 
+    :libraries => ['bayeux', 'pubsub', 'server', 'json', 'file', 'asio_mocks', 'http', 'tools'], 
     :extern_libs => ['boost_filesystem', 'boost_date_time', 'boost_regex', 'boost_random', 'boost_system', 'boost_thread'], 
     :sources =>  FileList['./source/tests/chat.cpp'] 
 

@@ -46,7 +46,7 @@ namespace bayeux
 		/**
 		 * @brief maximum number of messages, that will be buffered for a client before messages will be discard.
 		 *
-		 * If messages have to be discard, older messages get discard first.
+		 * If messages have to be discard, older messages get discarded first.
 		 */
 		unsigned max_messages_per_client() const;
 
