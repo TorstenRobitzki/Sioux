@@ -22,7 +22,7 @@ Currently this isn't an "out of the box" product. I've build the project under O
 Examples
 ========
 
-Have a look at /source/tests/chat.cpp as a C++ chat example and /source/tests/ruby_chat.rb for the same in ruby.
+Have a look at /source/tests/chat.cpp as a C++ chat example and /source/tests/rack_chat.rb for the same in ruby.
 
 Licence  
 =======
