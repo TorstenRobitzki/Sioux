@@ -14,6 +14,7 @@
 #include "server/connection.h"
 #include "tools/asstring.h"
 #include "tools/io_service.h"
+#include "asio_mocks/json_msg.h"
 
 /**
  * @test simulate a handshake to the server
@@ -22,7 +23,7 @@ BOOST_AUTO_TEST_CASE( bayeux_handshake )
 {
 	std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
 		asio_mocks::read_plan()
-			<< bayeux::test::msg(
+			<< asio_mocks::json_msg(
 				"{ 'channel' : '/meta/handshake',"
 				"  'version' : '1.0.0',"
 				"  'supportedConnectionTypes' : ['long-polling', 'callback-polling', 'iframe'] }" )
@@ -66,7 +67,7 @@ BOOST_AUTO_TEST_CASE( bayeux_connection_with_invalid_id_must_fail )
 {
 	const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
 		asio_mocks::read_plan()
-			<< bayeux::test::msg(
+			<< asio_mocks::json_msg(
 				"{ 'channel' : '/meta/connect',"
 				"  'clientId' : '192.168.210.1:9999/42',"
 				"  'connectionType' : 'long-polling' }" )
@@ -80,7 +81,7 @@ BOOST_AUTO_TEST_CASE( bayeux_connect_with_invalid_id_must_contain_a_advice )
 {
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ 'channel' : '/meta/connect',"
                 "  'clientId' : '192.168.210.1:9999/42',"
                 "  'connectionType' : 'long-polling' }" )
@@ -98,7 +99,7 @@ BOOST_AUTO_TEST_CASE( bayeux_connection_with_invalid_id_must_fail_with_custom_id
 {
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ 'channel' : '/meta/connect',"
                 "  'clientId' : '192.168.210.1:9999/42',"
                 "  'connectionType' : 'long-polling',"
@@ -119,13 +120,13 @@ BOOST_AUTO_TEST_CASE( bayeux_connection_with_unsupported_connection_type_must_fa
 
 	const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
 		asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ "
                 "   'channel' : '/meta/handshake',"
                 "   'version' : '1.0.0',"
                 "   'supportedConnectionTypes' : ['long-polling', 'callback-polling'] "
                 "}" )
-			<< bayeux::test::msg(
+			<< asio_mocks::json_msg(
 				"{ "
 				"   'channel' : '/meta/connect',"
 				"   'clientId' : '192.168.210.1:9999/0',"
@@ -156,7 +157,7 @@ BOOST_AUTO_TEST_CASE( bayeux_connection_with_unsupported_connection_type_must_fa
 
     const json::array response = bayeux_messages( bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "[{ "
                 "   'channel' : '/meta/handshake',"
                 "   'version' : '1.0.0',"
@@ -195,16 +196,16 @@ BOOST_AUTO_TEST_CASE( bayeux_simple_handshake_subscribe_connect )
 
 	const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
 		asio_mocks::read_plan()
-			<< bayeux::test::msg(
+			<< asio_mocks::json_msg(
 				"{ 'channel' : '/meta/handshake',"
 				"  'version' : '1.0.0',"
 				"  'supportedConnectionTypes' : ['long-polling', 'callback-polling'],"
 				"  'id'      : 'connect_id' }" )
-			<< bayeux::test::msg(
+			<< asio_mocks::json_msg(
 				"{ 'channel' : '/meta/subscribe',"
 			    "  'clientId' : '192.168.210.1:9999/0',"
 				"  'subscription' : '/foo/bar' }" )
-			<< bayeux::test::msg(
+			<< asio_mocks::json_msg(
 				"{ 'channel' : '/meta/connect',"
 				"  'clientId' : '192.168.210.1:9999/0',"
 				"  'connectionType' : 'long-polling' }" )
@@ -246,12 +247,12 @@ BOOST_AUTO_TEST_CASE( subscribe_without_subject )
 
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ 'channel' : '/meta/handshake',"
                 "  'version' : '1.0.0',"
                 "  'supportedConnectionTypes' : ['long-polling', 'callback-polling'],"
                 "  'id'      : 'connect_id' }" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ 'channel' : '/meta/subscribe',"
                 "  'clientId' : '192.168.210.1:9999/0' }" )
             << asio_mocks::disconnect_read(),
@@ -280,11 +281,11 @@ BOOST_AUTO_TEST_CASE( subscribe_without_client_id )
 
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ 'channel' : '/meta/handshake',"
                 "  'version' : '1.0.0',"
                 "  'supportedConnectionTypes' : ['long-polling', 'callback-polling'] }" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ 'channel' : '/meta/subscribe',"
                 "  'subscription' : '/foo/bar' }" )
             << asio_mocks::disconnect_read(),
@@ -322,11 +323,11 @@ BOOST_AUTO_TEST_CASE( subscribe_with_invalid_client_id )
 
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ 'channel' : '/meta/handshake',"
                 "  'version' : '1.0.0',"
                 "  'supportedConnectionTypes' : ['long-polling', 'callback-polling'] }" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ 'channel' : '/meta/subscribe',"
                 "  'subscription' : '/foo/bar',"
                 "  'clientId'     : 'xxxxx' }" )
@@ -369,24 +370,24 @@ BOOST_AUTO_TEST_CASE( unsubscribe_after_subscription )
 
     const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ 'channel' : '/meta/handshake',"
                 "  'version' : '1.0.0',"
                 "  'supportedConnectionTypes' : ['long-polling', 'callback-polling'] }" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ 'channel' : '/meta/subscribe',"
                 "  'clientId' : '192.168.210.1:9999/0',"
                 "  'subscription' : '/foo/bar' }" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ 'channel' : '/meta/connect',"
                 "  'clientId' : '192.168.210.1:9999/0',"
                 "  'connectionType' : 'long-polling' }" )
             << update_node( context, "/foo/bar", json::number( 42 ) )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ 'channel' : '/meta/unsubscribe',"
                 "  'clientId' : '192.168.210.1:9999/0',"
                 "  'subscription' : '/foo/bar' }" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ 'channel' : '/meta/connect',"
                 "  'clientId' : '192.168.210.1:9999/0',"
                 "  'connectionType' : 'long-polling' }" )
@@ -444,11 +445,11 @@ BOOST_AUTO_TEST_CASE( unsubscribe_without_beeing_subscribed )
 
     const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ 'channel' : '/meta/handshake',"
                 "  'version' : '1.0.0',"
                 "  'supportedConnectionTypes' : ['long-polling', 'callback-polling'] }" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ 'channel' : '/meta/unsubscribe',"
                 "  'clientId' : '192.168.210.1:9999/0',"
                 "  'subscription' : '/foo/bar' }" )
@@ -484,11 +485,11 @@ BOOST_AUTO_TEST_CASE( unsubscribe_without_beeing_subscribed_with_id )
 
     const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ 'channel' : '/meta/handshake',"
                 "  'version' : '1.0.0',"
                 "  'supportedConnectionTypes' : ['long-polling', 'callback-polling'] }" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{  "
                 "   'channel'       : '/meta/unsubscribe',"
                 "   'clientId'      : '192.168.210.1:9999/0',"
@@ -528,11 +529,11 @@ BOOST_AUTO_TEST_CASE( unsubscribe_without_subject )
 
     const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ 'channel' : '/meta/handshake',"
                 "  'version' : '1.0.0',"
                 "  'supportedConnectionTypes' : ['long-polling', 'callback-polling'] }" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ 'channel' : '/meta/unsubscribe',"
                 "  'clientId' : '192.168.210.1:9999/0' }" )
             << asio_mocks::disconnect_read(),
@@ -570,11 +571,11 @@ BOOST_AUTO_TEST_CASE( unsubscribe_without_client_id )
 
     const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ 'channel' : '/meta/handshake',"
                 "  'version' : '1.0.0',"
                 "  'supportedConnectionTypes' : ['long-polling', 'callback-polling'] }" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ 'channel' : '/meta/unsubscribe',"
                 "  'subscription' : '/foo/bar'  }" )
             << asio_mocks::disconnect_read(),
@@ -610,11 +611,11 @@ BOOST_AUTO_TEST_CASE( unsubscribe_with_invalid_client_id )
 
     const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ 'channel' : '/meta/handshake',"
                 "  'version' : '1.0.0',"
                 "  'supportedConnectionTypes' : ['long-polling', 'callback-polling'] }" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ 'channel' : '/meta/unsubscribe',"
                 "  'clientId'      : 'xxxxx',"
                 "  'subscription' : '/foo/bar'  }" )
@@ -647,7 +648,7 @@ static bool initial_data_reaches_the_subscribed_client_impl( bayeux::test::conte
 {
     json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "[{ "
                 "   'channel' : '/meta/handshake',"
                 "   'version' : '1.0.0',"
@@ -657,19 +658,19 @@ static bool initial_data_reaches_the_subscribed_client_impl( bayeux::test::conte
                 "   'clientId' : '192.168.210.1:9999/0',"
                 "   'subscription' : '/foo/bar' "
                 "}]" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ "
                 "   'channel' : '/meta/connect',"
                 "   'clientId' : '192.168.210.1:9999/0',"
                 "   'connectionType' : 'long-polling'"
                 "}" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ "
                 "   'channel' : '/meta/connect',"
                 "   'clientId' : '192.168.210.1:9999/0',"
                 "   'connectionType' : 'long-polling'"
                 "}" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ "
                 "   'channel' : '/meta/connect',"
                 "   'clientId' : '192.168.210.1:9999/0',"
@@ -735,7 +736,7 @@ BOOST_AUTO_TEST_CASE( bayeux_connect_blocks_until_an_event_happens )
 
     json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "[{ "
                 "   'channel' : '/meta/handshake',"
                 "   'version' : '1.0.0',"
@@ -745,13 +746,13 @@ BOOST_AUTO_TEST_CASE( bayeux_connect_blocks_until_an_event_happens )
                 "   'clientId' : '192.168.210.1:9999/0',"
                 "   'subscription' : '/foo/bar' "
                 "}]" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ "
                 "   'channel' : '/meta/connect',"
                 "   'clientId' : '192.168.210.1:9999/0',"
                 "   'connectionType' : 'long-polling'"
                 "}" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ "
                 "   'channel' : '/meta/connect',"
                 "   'clientId' : '192.168.210.1:9999/0',"
@@ -806,7 +807,7 @@ BOOST_AUTO_TEST_CASE( http_connection_get_closed_while_response_is_waiting )
 
     bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "[{ "
                 "   'channel' : '/meta/handshake',"
                 "   'version' : '1.0.0',"
@@ -816,7 +817,7 @@ BOOST_AUTO_TEST_CASE( http_connection_get_closed_while_response_is_waiting )
                 "   'clientId' : '192.168.210.1:9999/0',"
                 "   'subscription' : '/foo/bar' "
                 "}]" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ "
                 "   'channel' : '/meta/connect',"
                 "   'clientId' : '192.168.210.1:9999/0',"
@@ -830,7 +831,7 @@ BOOST_AUTO_TEST_CASE( http_connection_get_closed_while_response_is_waiting )
     bayeux::test::socket_t    socket(
         context.queue,
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ "
                 "   'channel' : '/meta/connect',"
                 "   'clientId' : '192.168.210.1:9999/0',"
@@ -864,7 +865,7 @@ BOOST_AUTO_TEST_CASE( incomplete_bayeux_request_should_result_in_http_error_resp
 {
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg("[{]") // a somehow broken message
+            << asio_mocks::json_msg("[{]") // a somehow broken message
             );
 
     BOOST_REQUIRE_EQUAL( 0u, response.size() );
@@ -931,14 +932,14 @@ BOOST_AUTO_TEST_CASE( more_than_one_session_in_a_single_connection )
 
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{"
                 "   'channel' : '/meta/handshake',"
                 "   'version' : '1.0.0',"
                 "   'supportedConnectionTypes' : ['long-polling', 'callback-polling'],"
                 "   'id'      : 'id_first_handshake'"
                 "}" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "[{"
                 "   'channel' : '/meta/subscribe',"
                 "   'clientId' : '192.168.210.1:9999/0',"
@@ -948,14 +949,14 @@ BOOST_AUTO_TEST_CASE( more_than_one_session_in_a_single_connection )
                 "   'clientId' : '192.168.210.1:9999/0',"
                 "   'connectionType' : 'long-polling' "
                 "}]" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "[{ "
                 "   'channel' : '/meta/handshake',"
                 "   'version' : '1.0.0',"
                 "   'supportedConnectionTypes' : ['long-polling', 'callback-polling'],"
                 "   'id'      : 'id_second_handshake'"
                 "}]")
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "[{ "
                 "   'channel'      : '/meta/subscribe',"
                 "   'clientId'     : '192.168.210.1:9999/1',"
@@ -965,13 +966,13 @@ BOOST_AUTO_TEST_CASE( more_than_one_session_in_a_single_connection )
                 "   'clientId'     : '192.168.210.1:9999/1',"
                 "   'connectionType' : 'long-polling' "
                 "}]" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "[{ "
                 "   'channel' : '/meta/connect',"
                 "   'clientId' : '192.168.210.1:9999/0',"
                 "   'connectionType' : 'long-polling'"
                 "}]" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "[{ "
                 "   'channel'  : '/meta/connect',"
                 "   'clientId' : '192.168.210.1:9999/1',"
@@ -1042,14 +1043,14 @@ BOOST_AUTO_TEST_CASE( hurry_bayeux_connection_if_request_is_pipelined )
 
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{"
                 "   'channel' : '/meta/handshake',"
                 "   'version' : '1.0.0',"
                 "   'supportedConnectionTypes' : ['long-polling', 'callback-polling'],"
                 "   'id'      : 'id_first_handshake'"
                 "}" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "[{"
                 "   'channel' : '/meta/subscribe',"
                 "   'clientId' : '192.168.210.1:9999/0',"
@@ -1059,7 +1060,7 @@ BOOST_AUTO_TEST_CASE( hurry_bayeux_connection_if_request_is_pipelined )
                 "   'clientId' : '192.168.210.1:9999/0',"
                 "   'connectionType' : 'long-polling' "
                 "}]" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "[{"
                 "   'channel' : '/meta/subscribe',"
                 "   'clientId' : '192.168.210.1:9999/0',"
@@ -1081,7 +1082,7 @@ BOOST_AUTO_TEST_CASE( hurry_bayeux_connection_if_request_is_pipelined )
             "]" ) );
 }
 
-static const asio_mocks::read meta_handshake = bayeux::test::msg(
+static const asio_mocks::read meta_handshake = asio_mocks::json_msg(
     "{"
     "   'channel' : '/meta/handshake',"
     "   'version' : '1.0.0',"
@@ -1371,13 +1372,13 @@ BOOST_AUTO_TEST_CASE( single_http_request_with_connect_not_beeing_the_last_eleme
 
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{"
                 "   'channel' : '/meta/handshake',"
                 "   'version' : '1.0.0',"
                 "   'supportedConnectionTypes' : ['long-polling', 'callback-polling']"
                 "}" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "[{ "
                 "   'channel'           : '/meta/connect',"
                 "   'clientId'          : '192.168.210.1:9999/0',"
@@ -1424,14 +1425,14 @@ BOOST_AUTO_TEST_CASE( long_poll_time_out_test )
 
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{"
                 "   'channel' : '/meta/handshake',"
                 "   'version' : '1.0.0',"
                 "   'supportedConnectionTypes' : ['long-polling', 'callback-polling'],"
                 "   'id'      : 'id_first_handshake'"
                 "}" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "[{ "
                 "   'channel' : '/meta/connect',"
                 "   'clientId' : '192.168.210.1:9999/0',"
@@ -1465,19 +1466,19 @@ BOOST_AUTO_TEST_CASE( disconnect_test )
 {
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{"
                 "   'channel' : '/meta/handshake',"
                 "   'version' : '1.0.0',"
                 "   'supportedConnectionTypes' : ['long-polling', 'callback-polling']"
                 "}" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ "
                 "   'channel' : '/meta/connect',"
                 "   'clientId' : '192.168.210.1:9999/0',"
                 "   'connectionType' : 'long-polling' "
                 "}" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ "
                 "   'channel' : '/meta/disconnect',"
                 "   'clientId' : '192.168.210.1:9999/0'"
@@ -1506,19 +1507,19 @@ BOOST_AUTO_TEST_CASE( disconnect_with_id_test )
 {
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{"
                 "   'channel' : '/meta/handshake',"
                 "   'supportedConnectionTypes' : ['long-polling'],"
                 "   'version' : '1.0.0'"
                 "}" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ "
                 "   'channel' : '/meta/connect',"
                 "   'clientId' : '192.168.210.1:9999/0',"
                 "   'connectionType' : 'long-polling' "
                 "}" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ "
                 "   'channel' : '/meta/disconnect',"
                 "   'id'      : { 'sub' : 42 },"
@@ -1549,7 +1550,7 @@ BOOST_AUTO_TEST_CASE( disconnect_without_client_id )
 {
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ "
                 "   'channel' : '/meta/disconnect',"
                 "   'clientId' : '192.168.210.1:9999/0'"
@@ -1579,13 +1580,13 @@ BOOST_AUTO_TEST_CASE( connect_packed_with_disconnect )
 {
     const std::vector< bayeux::test::response_t > response = bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{"
                 "   'channel' : '/meta/handshake',"
                 "   'supportedConnectionTypes' : ['long-polling'],"
                 "   'version' : '1.0.0'"
                 "}" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "[{ "
                 "   'channel' : '/meta/connect',"
                 "   'clientId' : '192.168.210.1:9999/0',"

@@ -51,23 +51,6 @@ std::pair< bool, json::string > bayeux::test::adapter::publish( const json::stri
     return std::make_pair( true, json::string() );
 }
 
-asio_mocks::read bayeux::test::msg( const std::string& txt )
-{
-    std::string body( txt );
-    std::replace( body.begin(), body.end(), '\'', '\"' );
-
-    const std::string result =
-        "POST / HTTP/1.1\r\n"
-        "Host: bayeux-server.de\r\n"
-        "Content-Type: application/json\r\n"
-        "Content-Length: "
-     + tools::as_string( body.size() )
-     + "\r\n\r\n"
-     +  body;
-
-    return asio_mocks::read( result.begin(), result.end() );
-}
-
 namespace
 {
     class stream_decoder

@@ -223,20 +223,6 @@ namespace bayeux
         };
 
         /**
-         * creates a http message out of a bayeux body
-         */
-        asio_mocks::read msg( const std::string& txt );
-
-        /**
-         * creates a http message out of a bayeux body
-         */
-        template < std::size_t S >
-        asio_mocks::read msg( const char(&txt)[S] )
-        {
-            return msg( std::string( txt ) );
-        }
-
-        /**
          * Takes the simulated client input, records the response and extracts the bayeux messages from the
          * http responses.
          */

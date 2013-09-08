@@ -371,7 +371,7 @@ namespace json
         /**
          * @brief searches the given value‚ in the array. operator== is used to compare v with the elements in the array
          * @return the function returns the position of the element found in the array
-         * @pred this->find( v ) == -1 || this->at( this->find( v ) ) == v
+         * @pre this->find( v ) == -1 || this->at( this->find( v ) ) == v
          */
         int find( const value& v ) const;
 

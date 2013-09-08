@@ -1,11 +1,8 @@
-// Copyright (c) Torrox GmbH & Co KG. All rights reserved.
-// Please note that the content of this file is confidential or protected by law.
-// Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
-
 #include <boost/test/unit_test.hpp>
 
 #include "bayeux/adapter.h"
 #include "bayeux/test_tools.h"
+#include "asio_mocks/json_msg.h"
 
 namespace test
 {
@@ -115,7 +112,7 @@ BOOST_AUTO_TEST_CASE( handshake_hook_is_called )
 
     const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ 'channel' : '/meta/handshake',"
                 "  'version' : '1.0.0',"
                 "  'supportedConnectionTypes' : ['long-polling', 'callback-polling'],"
@@ -147,7 +144,7 @@ BOOST_AUTO_TEST_CASE( handshake_hook_result_is_applied )
 
     const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ 'channel' : '/meta/handshake',"
                 "  'version' : '1.0.0',"
                 "  'supportedConnectionTypes' : ['long-polling', 'callback-polling'],"
@@ -176,7 +173,7 @@ BOOST_AUTO_TEST_CASE( handshake_hook_ext_is_transported )
 
     const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ 'channel' : '/meta/handshake',"
                 "  'version' : '1.0.0',"
                 "  'supportedConnectionTypes' : ['long-polling', 'callback-polling'],"
@@ -215,13 +212,13 @@ BOOST_AUTO_TEST_CASE( publish_hook_is_called )
 
     const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ "
                 "   'channel' : '/meta/handshake',"
                 "   'version' : '1.0.0',"
                 "   'supportedConnectionTypes' : ['long-polling', 'callback-polling'],"
                 "   'id'      : 'connect_id' }" )
-            << bayeux::test::msg( publish_message )
+            << asio_mocks::json_msg( publish_message )
             << asio_mocks::disconnect_read(),
         context ) );
 
@@ -255,13 +252,13 @@ BOOST_AUTO_TEST_CASE( publish_hook_result_is_applied )
 
     const json::array response = bayeux::test::bayeux_messages( bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ "
                 "   'channel' : '/meta/handshake',"
                 "   'version' : '1.0.0',"
                 "   'supportedConnectionTypes' : ['long-polling', 'callback-polling'],"
                 "   'id'      : 'connect_id' }" )
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ "
                 "   'channel'       : '/foo/bar',"
                 "   'clientId'      : '192.168.210.1:9999/0',"
@@ -301,7 +298,7 @@ BOOST_AUTO_TEST_CASE( session_data_is_transported )
 
     bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ "
                 "   'channel' : '/meta/handshake',"
                 "   'version' : '1.0.0',"
@@ -316,7 +313,7 @@ BOOST_AUTO_TEST_CASE( session_data_is_transported )
 
     bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ "
                 "   'channel'       : '/foo/bar',"
                 "   'clientId'      : '192.168.210.1:9999/0',"
@@ -331,7 +328,7 @@ BOOST_AUTO_TEST_CASE( session_data_is_transported )
 
     bayeux::test::bayeux_session(
         asio_mocks::read_plan()
-            << bayeux::test::msg(
+            << asio_mocks::json_msg(
                 "{ "
                 "   'channel'       : '/foo/bar',"
                 "   'clientId'      : '192.168.210.1:9999/0',"
