@@ -1,0 +1,8 @@
+# Copyright (c) Torrox GmbH & Co KG. All rights reserved.
+# Please note that the content of this file is confidential or protected by law.
+# Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
+
+test 'pubsub_http_test', 
+    :libraries => ['pubsub_http', 'pubsub', 'http', 'json', 'tools'], 
+    :extern_libs => [ 'boost_regex', 'boost_thread', 'boost_system', 'boost_test_exec_monitor'], 
+    :sources =>  FileList['./source/pubsub_http/*_test.cpp'] 
