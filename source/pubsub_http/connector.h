@@ -187,6 +187,18 @@ namespace http
             const boost::shared_ptr< const ::http::request_header >&  header );
 
     };
+
+
+
+    template < class Timer >
+    template < class Connection >
+    boost::shared_ptr< server::async_response > connector< Timer >::create_response(
+        const boost::shared_ptr< Connection >&                    connection,
+        const boost::shared_ptr< const ::http::request_header >&  header )
+    {
+        return boost::shared_ptr< server::async_response > ();
+    }
+
 }
 }
 
