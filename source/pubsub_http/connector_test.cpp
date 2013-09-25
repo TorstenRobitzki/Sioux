@@ -8,6 +8,7 @@
 #include "http/response.h"
 #include "http/http.h"
 #include "http/decode_stream.h"
+#include "http/test_request_texts.h"
 #include "json/json.h"
 #include "asio_mocks/test_timer.h"
 #include "asio_mocks/json_msg.h"
@@ -30,13 +31,17 @@ namespace {
             const boost::shared_ptr< Connection >&                    connection,
             const boost::shared_ptr< const http::request_header >&    header )
         {
+            boost::shared_ptr< server::async_response > result;
+
             if ( header->state() == http::message::ok )
             {
-                return connector.create_response( connection, header );
+                result = connector.create_response( connection, header );
             }
 
-            return boost::shared_ptr< server::async_response >(
-                    new server::error_response< Connection >( connection, http::http_bad_request ) );
+            if ( !result.get() )
+                result = error_response( connection, http::http_bad_request );
+
+            return result;
         }
 
         template < class Connection >
@@ -52,7 +57,8 @@ namespace {
 
     struct response_t
     {
-        boost::shared_ptr< http::response_header > header;
+        boost::shared_ptr< http::response_header >  header;
+        std::vector< char >                         body;
     };
 
     typedef server::connection_traits<
@@ -77,9 +83,11 @@ namespace {
                 http::decode_stream< http::response_header >( socket.bin_output() );
 
             if ( http_answer.size() != 1 )
+            {
                 throw std::runtime_error( "expected exactly one response, got: " + tools::as_string( http_answer.size() ) );
+            }
 
-            const response_t result = { http_answer.front().first };
+            const response_t result = { http_answer.front().first, http_answer.front().second };
 
             return result;
         }
@@ -88,12 +96,15 @@ namespace {
         response_t http_post( const char* json_msg )
         {
             return http_post(
-                asio_mocks::read_plan() << asio_mocks::read( json::parse_single_quoted( json_msg ).to_json() ) );
+                asio_mocks::read_plan()
+             << asio_mocks::json_msg( json::parse_single_quoted( json_msg ).to_json() )
+             << asio_mocks::disconnect_read() );
         }
 
         json::object http_response( const char* json_msg )
         {
-            return json::object();
+            response_t response = http_post( json_msg );
+            return json::parse( response.body.begin(), response.body.end() ).upcast< json::object >();
         }
 
         boost::asio::io_service queue_;
@@ -113,19 +124,37 @@ namespace {
 
 } // namespace
 
-BOOST_FIXTURE_TEST_CASE( http_error_code_when_sending_a_empty_message, context )
+BOOST_FIXTURE_TEST_CASE( request_without_body_is_a_bad_request, context )
+{
+    using namespace http::test;
+
+    const response_t resp = http_post(
+           asio_mocks::read_plan()
+        << asio_mocks::read( begin( simple_get_11 ), end( simple_get_11 ) )
+        << asio_mocks::disconnect_read() );
+    BOOST_CHECK_EQUAL( resp.header->code(), http::http_bad_request );
+}
+
+BOOST_FIXTURE_TEST_CASE( http_error_code_when_sending_an_empty_message, context )
 {
     BOOST_CHECK_EQUAL( http_post( "{}" ).header->code(), http::http_bad_request );
 }
 
+BOOST_FIXTURE_TEST_CASE( http_error_code_when_sending_an_array, context )
+{
+    BOOST_CHECK_EQUAL( http_post( "['cmd']" ).header->code(), http::http_bad_request );
+}
+
 BOOST_FIXTURE_TEST_CASE( server_creates_session_id_with_first_message, context )
 {
+    std::cout << "test" << std::endl;
     const json::object response = http_response(
         "{"
         "   'cmd': [ { 'subscribe': { 'a':1 ,'b':2 }, 'version': 34 } ]"
         "}" );
 
-//    BOOST_CHECK_EQUAL( response.at( json::string( "id" ) ), json::string( "/0" ) );
+    BOOST_REQUIRE( response.find( json::string( "id" ) ) );
+    BOOST_CHECK_EQUAL( response.at( json::string( "id" ) ), json::string( "/0" ) );
 }
 
 

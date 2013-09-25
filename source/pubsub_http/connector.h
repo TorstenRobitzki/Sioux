@@ -3,6 +3,8 @@
 
 #include <boost/shared_ptr.hpp>
 #include <boost/asio/deadline_timer.hpp>
+#include "pubsub_http/response.h"
+#include "http/request.h"
 
 namespace http {
     class request_header;
@@ -180,6 +182,10 @@ namespace http
          *
          * @param connection the connection used to send the response
          * @param header the request
+         *
+         * @return returns a async_response object, that will communicate the results of the received
+         *         requests. If the request was invalid, the function returns a zero pointer and the
+         *         caller should create a bad_request response instead.
          */
         template < class Connection >
         boost::shared_ptr< server::async_response > create_response(
@@ -188,15 +194,16 @@ namespace http
 
     };
 
-
-
     template < class Timer >
     template < class Connection >
     boost::shared_ptr< server::async_response > connector< Timer >::create_response(
         const boost::shared_ptr< Connection >&                    connection,
         const boost::shared_ptr< const ::http::request_header >&  header )
     {
-        return boost::shared_ptr< server::async_response > ();
+        if ( header->body_expected() )
+            return boost::shared_ptr< server::async_response > ( new response< Connection >( connection ) );
+
+        return boost::shared_ptr< server::async_response >();
     }
 
 }
