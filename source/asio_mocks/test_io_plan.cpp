@@ -93,6 +93,12 @@ namespace asio_mocks
     {
     }
 
+    read_plan::read_plan( const read& r )
+        : pimpl_( new impl )
+    {
+        add( r.data );
+    }
+
     read_plan::item read_plan::next_read()
     {
     	assert( pimpl_.get() );

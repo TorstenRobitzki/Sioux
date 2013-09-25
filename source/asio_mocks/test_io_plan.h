@@ -10,6 +10,8 @@
 
 namespace asio_mocks
 {
+    class read;
+
     /**
      * @brief plan for simulated reads from a socket, with the data to be read and delays between them
      */
@@ -20,6 +22,11 @@ namespace asio_mocks
          * @brief an empty plan
          */
         read_plan();
+
+        /**
+         * @brief implizit conversion from read to read_plan
+         */
+        read_plan( const read& );
 
         typedef std::pair< std::string, boost::posix_time::time_duration > item;
 
