@@ -175,5 +175,16 @@ BOOST_FIXTURE_TEST_CASE( server_creates_session_id_with_first_message, context )
     BOOST_CHECK_EQUAL( response.at( json::string( "id" ) ), json::string( "/0" ) );
 }
 
+BOOST_FIXTURE_TEST_CASE( server_will_responde_with_a_new_session_id_if_the_used_one_is_unknown, context )
+{
+    const json::object response = http_response(
+        "{"
+        "   'cmd': [ { 'subscribe': { 'a':1 ,'b':2 }, 'version': 34 } ],"
+        "   'id': 4711 "
+        "}" );
+
+    BOOST_REQUIRE( response.find( json::string( "id" ) ) );
+    BOOST_CHECK_EQUAL( response.at( json::string( "id" ) ), json::string( "/0" ) );
+}
 
 

@@ -25,7 +25,8 @@ namespace pubsub
 
     Implements a protocol similar to bayeux, but simpler and with observing data, not receiving messages in mind.
     A client subscribes to a versioned data object. The protocol does not guarantie, that the client will see every
-    update to the subscribed object.
+    update to the subscribed object. The protocol does not guarantie that changes made to two observed objects are
+    communicated to the client in the order, in which the changes where made.
 
     ## Protocol
 
