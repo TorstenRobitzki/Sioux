@@ -20,6 +20,8 @@ namespace http
      */
     class response_base : public server::async_response
     {
+    protected:
+        bool check_protocol_message( const json::object& message ) const;
     private:
         virtual const char* name() const;
     };
@@ -105,9 +107,9 @@ namespace http
     {
         server::report_error_guard< Connection > guard( *connection_, *this, ::http::http_bad_request );
 
-        const std::pair< bool, json::object > protocol = p.try_cast< json::object >();
+        const std::pair< bool, json::object > message = p.try_cast< json::object >();
 
-        if ( protocol.first && !protocol.second.empty() )
+        if ( message.first && !message.second.empty() && check_protocol_message( message.second ) )
         {
             json::object response_body;
             response_body.add( json::string( "id" ), json::string( "/0" ) );

@@ -132,6 +132,7 @@ BOOST_FIXTURE_TEST_CASE( request_without_body_is_a_bad_request, context )
            asio_mocks::read_plan()
         << asio_mocks::read( begin( simple_get_11 ), end( simple_get_11 ) )
         << asio_mocks::disconnect_read() );
+
     BOOST_CHECK_EQUAL( resp.header->code(), http::http_bad_request );
 }
 
@@ -145,9 +146,26 @@ BOOST_FIXTURE_TEST_CASE( http_error_code_when_sending_an_array, context )
     BOOST_CHECK_EQUAL( http_post( "['cmd']" ).header->code(), http::http_bad_request );
 }
 
+BOOST_FIXTURE_TEST_CASE( object_has_to_contain_only_valid_field_names, context )
+{
+    BOOST_CHECK_EQUAL( http_post( "{ 'foo': 1 }" ).header->code(), http::http_bad_request );
+    BOOST_CHECK_EQUAL( http_post( "{ 'bar': 'asd' }" ).header->code(), http::http_bad_request );
+    BOOST_CHECK_EQUAL( http_post( "{ 'init': [] }" ).header->code(), http::http_bad_request );
+}
+
+BOOST_FIXTURE_TEST_CASE( object_has_to_contain_no_extra_fields, context )
+{
+    const response_t response = http_post(
+        "{"
+            "'cmd': [ { 'subscribe': 1 } ],"
+            "'extra': 1 "
+        "}");
+
+    BOOST_CHECK_EQUAL( response.header->code(), http::http_bad_request );
+}
+
 BOOST_FIXTURE_TEST_CASE( server_creates_session_id_with_first_message, context )
 {
-    std::cout << "test" << std::endl;
     const json::object response = http_response(
         "{"
         "   'cmd': [ { 'subscribe': { 'a':1 ,'b':2 }, 'version': 34 } ]"
