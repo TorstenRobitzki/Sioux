@@ -21,7 +21,7 @@ namespace http
     class response_base : public server::async_response
     {
     protected:
-        bool check_protocol_message( const json::object& message ) const;
+        bool check_session_or_commands_given( const json::object& message ) const;
     private:
         virtual const char* name() const;
     };
@@ -109,7 +109,7 @@ namespace http
 
         const std::pair< bool, json::object > message = p.try_cast< json::object >();
 
-        if ( message.first && !message.second.empty() && check_protocol_message( message.second ) )
+        if ( message.first && !message.second.empty() && check_session_or_commands_given( message.second ) )
         {
             json::object response_body;
             response_body.add( json::string( "id" ), json::string( "/0" ) );

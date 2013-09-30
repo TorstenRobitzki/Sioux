@@ -93,7 +93,7 @@ namespace {
         }
 
         // posts the given text as http message and returns the whole response
-        response_t http_post( const char* json_msg )
+        response_t http_post_json_msg( const char* json_msg )
         {
             return http_post(
                 asio_mocks::read_plan()
@@ -101,9 +101,9 @@ namespace {
              << asio_mocks::disconnect_read() );
         }
 
-        json::object http_response( const char* json_msg )
+        json::object json_post( const char* json_msg )
         {
-            response_t response = http_post( json_msg );
+            response_t response = http_post_json_msg( json_msg );
             return json::parse( response.body.begin(), response.body.end() ).upcast< json::object >();
         }
 
@@ -138,24 +138,24 @@ BOOST_FIXTURE_TEST_CASE( request_without_body_is_a_bad_request, context )
 
 BOOST_FIXTURE_TEST_CASE( http_error_code_when_sending_an_empty_message, context )
 {
-    BOOST_CHECK_EQUAL( http_post( "{}" ).header->code(), http::http_bad_request );
+    BOOST_CHECK_EQUAL( http_post_json_msg( "{}" ).header->code(), http::http_bad_request );
 }
 
 BOOST_FIXTURE_TEST_CASE( http_error_code_when_sending_an_array, context )
 {
-    BOOST_CHECK_EQUAL( http_post( "['cmd']" ).header->code(), http::http_bad_request );
+    BOOST_CHECK_EQUAL( http_post_json_msg( "['cmd']" ).header->code(), http::http_bad_request );
 }
 
 BOOST_FIXTURE_TEST_CASE( object_has_to_contain_only_valid_field_names, context )
 {
-    BOOST_CHECK_EQUAL( http_post( "{ 'foo': 1 }" ).header->code(), http::http_bad_request );
-    BOOST_CHECK_EQUAL( http_post( "{ 'bar': 'asd' }" ).header->code(), http::http_bad_request );
-    BOOST_CHECK_EQUAL( http_post( "{ 'init': [] }" ).header->code(), http::http_bad_request );
+    BOOST_CHECK_EQUAL( http_post_json_msg( "{ 'foo': 1 }" ).header->code(), http::http_bad_request );
+    BOOST_CHECK_EQUAL( http_post_json_msg( "{ 'bar': 'asd' }" ).header->code(), http::http_bad_request );
+    BOOST_CHECK_EQUAL( http_post_json_msg( "{ 'init': [] }" ).header->code(), http::http_bad_request );
 }
 
 BOOST_FIXTURE_TEST_CASE( object_has_to_contain_no_extra_fields, context )
 {
-    const response_t response = http_post(
+    const response_t response = http_post_json_msg(
         "{"
             "'cmd': [ { 'subscribe': 1 } ],"
             "'extra': 1 "
@@ -164,9 +164,14 @@ BOOST_FIXTURE_TEST_CASE( object_has_to_contain_no_extra_fields, context )
     BOOST_CHECK_EQUAL( response.header->code(), http::http_bad_request );
 }
 
+BOOST_FIXTURE_TEST_CASE( if_list_of_commands_is_empty_a_session_id_must_be_given, context )
+{
+    BOOST_CHECK_EQUAL( http_post_json_msg( "{ 'cmd': [] }" ).header->code(), http::http_bad_request );
+}
+
 BOOST_FIXTURE_TEST_CASE( server_creates_session_id_with_first_message, context )
 {
-    const json::object response = http_response(
+    const json::object response = json_post(
         "{"
         "   'cmd': [ { 'subscribe': { 'a':1 ,'b':2 }, 'version': 34 } ]"
         "}" );
@@ -177,7 +182,7 @@ BOOST_FIXTURE_TEST_CASE( server_creates_session_id_with_first_message, context )
 
 BOOST_FIXTURE_TEST_CASE( server_will_responde_with_a_new_session_id_if_the_used_one_is_unknown, context )
 {
-    const json::object response = http_response(
+    const json::object response = json_post(
         "{"
         "   'cmd': [ { 'subscribe': { 'a':1 ,'b':2 }, 'version': 34 } ],"
         "   'id': 4711 "
@@ -187,4 +192,29 @@ BOOST_FIXTURE_TEST_CASE( server_will_responde_with_a_new_session_id_if_the_used_
     BOOST_CHECK_EQUAL( response.at( json::string( "id" ) ), json::string( "/0" ) );
 }
 
+BOOST_FIXTURE_TEST_CASE( server_will_stick_to_the_session_id, context )
+{
+    json_post(
+        "{"
+        "   'cmd': [ { 'subscribe': { 'a':1 ,'b':2 }, 'version': 34 } ]"
+        "}" );
+
+    const json::object response = json_post(
+        "{"
+        "   'id': '/0' "
+        "}" );
+
+    BOOST_REQUIRE( response.find( json::string( "id" ) ) );
+    BOOST_CHECK_EQUAL( response.at( json::string( "id" ) ), json::string( "/0" ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( server_refused_invalid_commands, context )
+{
+    BOOST_CHECK_EQUAL( http_post_json_msg( "{ 'cmd': [ {} ] }" ).header->code(), http::http_bad_request );
+    BOOST_CHECK_EQUAL( http_post_json_msg( "{ 'cmd': [ { 'shutdow': true } ] }" ).header->code(), http::http_bad_request );
+    BOOST_CHECK_EQUAL( http_post_json_msg(
+        "{ "
+        "   'cmd': [ { 'subscribe': { 'a':1 ,'b':2 } }, { 'shutdow': true } ]"
+        " }" ).header->code(), http::http_bad_request );
+}
 
