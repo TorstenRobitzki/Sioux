@@ -16,6 +16,9 @@ namespace internal {
         if ( !name.first )
             return ( response.add( error_token, json::string( "node name must be an object" ) ), false );
 
+        if ( name.second.empty() )
+            return ( response.add( error_token, json::string( "node name must not be empty" ) ), false );
+
         node_name = name.second;
 
         return true;
@@ -34,6 +37,12 @@ namespace internal {
 
     json::value unsubscribe::execute( const json::object& command ) const
     {
+        json::object response;
+        json::object node_name;
+
+        if ( !check_node_name( command, unsubscribe_token, node_name, response ) )
+            return response;
+
         return json::null();
     }
 }

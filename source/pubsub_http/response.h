@@ -1,70 +1,28 @@
 #ifndef SIOUX_SOURCE_PUBSUB_HTTP_RESPONSE_H
 #define SIOUX_SOURCE_PUBSUB_HTTP_RESPONSE_H
 
-#include "server/response.h"
+#include "pubsub_http/response_decl.h"
+#include "pubsub_http/sessions.h"
 #include "json/json.h"
 #include "http/server_header.h"
 #include "tools/asstring.h"
+#include "server/session_generator.h"
 #include <vector>
 #include <boost/bind.hpp>
 #include <boost/enable_shared_from_this.hpp>
-#include <boost/system/error_code.hpp>
 
 namespace pubsub
 {
 namespace http
 {
 
-    /**
-     * @brief connection type independend part of the response implemenation
-     */
-    class response_base : public server::async_response
-    {
-    protected:
-        bool check_session_or_commands_given( const json::object& message ) const;
-        json::array process_commands( const json::object& message ) const;
-        json::object build_response( const json::string& session_id, const json::array& response ) const;
-
-    private:
-        json::value process_command( const json::value& command ) const;
-        virtual const char* name() const;
-    };
-
-    /**
-     * @brief class responsible to parse the input and create the protocol output
-     */
     template < class Connection >
-    class response : public response_base, public boost::enable_shared_from_this< response< Connection > >
-    {
-    public:
-        explicit response( const boost::shared_ptr< Connection >& c );
-    private:
-
-        virtual void start();
-
-        void body_read_handler(
-            const boost::system::error_code& error,
-            const char* buffer,
-            std::size_t bytes_read_and_decoded );
-
-        void protocol_body_read_handler( const json::value& );
-
-        void write_reponse( const json::object& );
-
-        void response_written( const boost::system::error_code& ec, std::size_t size );
-
-        json::parser                                parser_;
-        const boost::shared_ptr< Connection >       connection_;
-
-        // a buffer for free texts for the http response
-        std::string                                 response_buffer_;
-        // a concatenated list of snippets that form the http response
-        std::vector< boost::asio::const_buffer >    response_;
-    };
-
-    template < class Connection >
-    response< Connection >::response( const boost::shared_ptr< Connection >& c )
-        : connection_( c )
+    response< Connection >::response( const boost::shared_ptr< Connection >& c, sessions& s )
+        : session_list_( s )
+        , parser_()
+        , connection_( c )
+        , response_buffer_()
+        , response_()
     {
         assert( c.get() );
     }
@@ -112,15 +70,16 @@ namespace http
         server::report_error_guard< Connection > guard( *connection_, *this, ::http::http_bad_request );
 
         const std::pair< bool, json::object > message = p.try_cast< json::object >();
+        json::string  session_id;
 
-        if ( message.first && !message.second.empty() && check_session_or_commands_given( message.second ) )
+        if ( message.first && !message.second.empty() && check_session_or_commands_given( message.second, session_id ) )
         {
-            const json::string  session_id( "/0" );
-            const json::array   response = process_commands( message.second );
+            const session current_session( session_list_, session_id,
+                server::socket_end_point_trait< typename Connection::socket_t >::to_text( connection_->socket() ) );
 
-            json::object response_body = build_response( session_id, response );
+            const json::array response = process_commands( message.second );
 
-            write_reponse( response_body );
+            write_reponse( build_response( current_session.id(), response ) );
 
             guard.dismiss();
         }

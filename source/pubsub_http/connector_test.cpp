@@ -14,6 +14,7 @@
 #include "asio_mocks/json_msg.h"
 #include "server/test_traits.h"
 #include "server/connection.h"
+#include "server/test_session_generator.h"
 #include "tools/io_service.h"
 
 namespace {
@@ -110,6 +111,7 @@ namespace {
         boost::asio::io_service queue_;
         pubsub::test::adapter   adapter_;
         pubsub::root            data_;
+        server::test::session_generator                      session_generator_;
         mutable pubsub::http::connector< asio_mocks::timer > connector_;
 
         context()
@@ -117,7 +119,8 @@ namespace {
             , queue_()
             , adapter_( queue_ )
             , data_( queue_, adapter_, pubsub::configuration() )
-            , connector_( queue_, data_ )
+            , session_generator_()
+            , connector_( queue_, data_, session_generator_ )
         {
         }
     };
@@ -200,7 +203,7 @@ BOOST_FIXTURE_TEST_CASE( server_creates_session_id_with_first_message, context )
         "}" );
 
     BOOST_REQUIRE( response.find( json::string( "id" ) ) );
-    BOOST_CHECK_EQUAL( response.at( json::string( "id" ) ), json::string( "/0" ) );
+    BOOST_CHECK_EQUAL( response.at( json::string( "id" ) ), json::string( "192.168.210.1:9999/0" ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( server_will_responde_with_a_new_session_id_if_the_used_one_is_unknown, context )
@@ -212,7 +215,7 @@ BOOST_FIXTURE_TEST_CASE( server_will_responde_with_a_new_session_id_if_the_used_
         "}" );
 
     BOOST_REQUIRE( response.find( json::string( "id" ) ) );
-    BOOST_CHECK_EQUAL( response.at( json::string( "id" ) ), json::string( "/0" ) );
+    BOOST_CHECK_EQUAL( response.at( json::string( "id" ) ), json::string( "192.168.210.1:9999/0" ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( server_will_stick_to_the_session_id, context )
@@ -224,11 +227,11 @@ BOOST_FIXTURE_TEST_CASE( server_will_stick_to_the_session_id, context )
 
     const json::object response = json_post(
         "{"
-        "   'id': '/0' "
+        "   'id': '192.168.210.1:9999/0' "
         "}" );
 
     BOOST_REQUIRE( response.find( json::string( "id" ) ) );
-    BOOST_CHECK_EQUAL( response.at( json::string( "id" ) ), json::string( "/0" ) );
+    BOOST_CHECK_EQUAL( response.at( json::string( "id" ) ), json::string( "192.168.210.1:9999/0" ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( server_refused_invalid_commands, context )
@@ -248,7 +251,41 @@ BOOST_FIXTURE_TEST_CASE( the_node_name_of_an_subscribe_msg_has_to_be_an_object, 
     BOOST_CHECK_EQUAL( response,
         json::parse_single_quoted(
             "{"
-            "   'id': '/0',"
+            "   'id': '192.168.210.1:9999/0',"
             "   'resp': [ { 'subscribe': 1, 'error': 'node name must be an object' } ]"
             "}" ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( the_node_name_of_an_unsubscribe_msg_has_to_be_an_object, context )
+{
+    const json::object response = json_post( "{ 'cmd': [ { 'unsubscribe': 'abc' } ] }" );
+
+    BOOST_CHECK_EQUAL( response,
+        json::parse_single_quoted(
+            "{"
+            "   'id': '192.168.210.1:9999/0',"
+            "   'resp': [ { 'unsubscribe': 'abc', 'error': 'node name must be an object' } ]"
+            "}" ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_node_name_must_not_be_empty, context )
+{
+    const json::object response = json_post( "{ 'cmd': [ { 'unsubscribe': {} } ] }" );
+
+    BOOST_CHECK_EQUAL( response,
+        json::parse_single_quoted(
+            "{"
+            "   'id': '192.168.210.1:9999/0',"
+            "   'resp': [ { 'unsubscribe': {}, 'error': 'node name must not be empty' } ]"
+            "}" ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( a_new_session_gets_a_new_session_id, context )
+{
+    json_post( "{ 'cmd': [ { 'subscribe': { 'a':1 ,'b':2 } } ] }" );
+    const json::object response = json_post( "{ 'cmd': [ { 'subscribe': { 'a':1 ,'b':2 } } ] }" );
+
+    BOOST_REQUIRE( response.find( json::string( "id" ) ) );
+    BOOST_CHECK_EQUAL( response.at( json::string( "id" ) ), json::string( "192.168.210.1:9999/1" ) );
+
 }

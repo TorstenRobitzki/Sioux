@@ -81,7 +81,7 @@ static bool check_cmd_not_empty_and_valid( const json::value* const cmd_field )
     return result;
 }
 
-bool response_base::check_session_or_commands_given( const json::object& message ) const
+bool response_base::check_session_or_commands_given( const json::object& message, json::string& session_id ) const
 {
     const std::vector< json::string > keys = message.keys();
 
@@ -91,10 +91,23 @@ bool response_base::check_session_or_commands_given( const json::object& message
             return false;
     }
 
-    const json::value* const session_id = message.find( id_token );
-    const json::value* const cmd_field  = message.find( cmd_token );
+    const json::value* const session_id_field = message.find( id_token );
+    const json::value* const cmd_field        = message.find( cmd_token );
 
-    return session_id || check_cmd_not_empty_and_valid( cmd_field );
+    bool valid_session_given = false;
+
+    if ( session_id_field )
+    {
+        std::pair< bool, json::string > id_as_string = session_id_field->try_cast< json::string >();
+
+        if ( id_as_string.first && !id_as_string.second.empty() )
+        {
+            session_id          = id_as_string.second;
+            valid_session_given = true;
+        }
+    }
+
+    return valid_session_given || check_cmd_not_empty_and_valid( cmd_field );
 }
 
 json::value response_base::process_command( const json::value& command ) const

@@ -3,8 +3,10 @@
 
 #include <boost/shared_ptr.hpp>
 #include <boost/asio/deadline_timer.hpp>
-#include "pubsub_http/response.h"
+#include "pubsub_http/response_decl.h"
+#include "pubsub_http/sessions.h"
 #include "http/request.h"
+#include "server/secure_session_generator.h"
 
 namespace http {
     class request_header;
@@ -179,6 +181,11 @@ namespace http
         connector( boost::asio::io_service& queue, pubsub::root& data );
 
         /**
+         * @brief overload for using a specific session id generator
+         */
+        connector( boost::asio::io_service& queue, pubsub::root& data, server::session_generator& session_id_generator );
+
+        /**
          * @brief creates a new response object for a given http request.
          *
          * @param connection the connection used to send the response
@@ -193,6 +200,9 @@ namespace http
             const boost::shared_ptr< Connection >&                    connection,
             const boost::shared_ptr< const ::http::request_header >&  header );
 
+    private:
+        server::secure_session_generator    default_session_generator_;
+        sessions                            session_list_;
     };
 
     template < class Timer >
@@ -202,13 +212,15 @@ namespace http
         const boost::shared_ptr< const ::http::request_header >&  header )
     {
         if ( header->body_expected() )
-            return boost::shared_ptr< server::async_response > ( new response< Connection >( connection ) );
+            return boost::shared_ptr< server::async_response > ( new response< Connection >( connection, session_list_ ) );
 
         return boost::shared_ptr< server::async_response >();
     }
 
 }
 }
+
+#include "pubsub_http/response.h"
 
 #endif
 
