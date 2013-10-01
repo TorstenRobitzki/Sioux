@@ -122,6 +122,29 @@ namespace {
         }
     };
 
+/*
+    json::array extract_cmd_responses( const json::value& response )
+    {
+        const std::pair< bool, json::object > response_as_obj = response.try_cast< json::object >();
+        BOOST_REQUIRE( response_as_obj.first );
+
+        const json::value* cmds = response_as_obj.second.find( json::string( "resp" ) );
+        BOOST_REQUIRE( cmds );
+
+        const std::pair< bool, json::array > cmd_list = cmds->try_cast< json::array >();
+        BOOST_REQUIRE( cmd_list.first );
+
+        return cmd_list.second;
+    }
+
+    json::object extract_cmd_response( const json::value& response, std::size_t index = 0 )
+    {
+        const json::array list = extract_cmd_responses( response );
+        BOOST_REQUIRE( list.length() > index );
+
+        return list.at( index );
+    }
+*/
 } // namespace
 
 BOOST_FIXTURE_TEST_CASE( request_without_body_is_a_bad_request, context )
@@ -218,3 +241,14 @@ BOOST_FIXTURE_TEST_CASE( server_refused_invalid_commands, context )
         " }" ).header->code(), http::http_bad_request );
 }
 
+BOOST_FIXTURE_TEST_CASE( the_node_name_of_an_subscribe_msg_has_to_be_an_object, context )
+{
+    const json::object response = json_post( "{ 'cmd': [ { 'subscribe': 1 } ] }" );
+
+    BOOST_CHECK_EQUAL( response,
+        json::parse_single_quoted(
+            "{"
+            "   'id': '/0',"
+            "   'resp': [ { 'subscribe': 1, 'error': 'node name must be an object' } ]"
+            "}" ) );
+}

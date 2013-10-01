@@ -22,7 +22,11 @@ namespace http
     {
     protected:
         bool check_session_or_commands_given( const json::object& message ) const;
+        json::array process_commands( const json::object& message ) const;
+        json::object build_response( const json::string& session_id, const json::array& response ) const;
+
     private:
+        json::value process_command( const json::value& command ) const;
         virtual const char* name() const;
     };
 
@@ -111,8 +115,10 @@ namespace http
 
         if ( message.first && !message.second.empty() && check_session_or_commands_given( message.second ) )
         {
-            json::object response_body;
-            response_body.add( json::string( "id" ), json::string( "/0" ) );
+            const json::string  session_id( "/0" );
+            const json::array   response = process_commands( message.second );
+
+            json::object response_body = build_response( session_id, response );
 
             write_reponse( response_body );
 
@@ -150,6 +156,18 @@ namespace http
         {
             connection_->response_completed( *this );
         }
+    }
+
+    namespace internal {
+
+        extern const json::string id_token;
+        extern const json::string cmd_token;
+        extern const json::string response_token;
+        extern const json::string error_token;
+
+        extern const json::string subscribe_token;
+        extern const json::string unsubscribe_token;
+
     }
 }
 }

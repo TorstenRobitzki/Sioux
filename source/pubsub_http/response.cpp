@@ -9,10 +9,19 @@ namespace pubsub
 namespace http
 {
 
-static const json::string id_token( "id" );
-static const json::string cmd_token( "cmd" );
-static const json::string subscribe_token( "subscribe" );
-static const json::string unsubscribe_token( "unsubscribe" );
+namespace internal {
+
+    const json::string id_token( "id" );
+    const json::string cmd_token( "cmd" );
+    const json::string response_token( "resp" );
+    const json::string error_token( "error" );
+
+    const json::string subscribe_token( "subscribe" );
+    const json::string unsubscribe_token( "unsubscribe" );
+
+}
+
+using namespace ::pubsub::http::internal;
 
 static const internal::subscribe    subscribe_cmd;
 static const internal::unsubscribe  unsubscribe_cmd;
@@ -86,6 +95,49 @@ bool response_base::check_session_or_commands_given( const json::object& message
     const json::value* const cmd_field  = message.find( cmd_token );
 
     return session_id || check_cmd_not_empty_and_valid( cmd_field );
+}
+
+json::value response_base::process_command( const json::value& command ) const
+{
+    json::object cmd = command.upcast< json::object >();
+
+    const internal::command* const executer = find_command( cmd );
+    assert( executer ); // the command was already looked up before
+
+    return executer->execute( cmd );
+}
+
+json::array response_base::process_commands( const json::object& message ) const
+{
+    const json::value* const cmd_field = message.find( cmd_token );
+
+    json::array result;
+
+    if ( !cmd_field )
+        return result;
+
+    const json::array commands = cmd_field->upcast< json::array >();
+
+    for ( std::size_t cmd_idx = 0, num_cmds = commands.length(); cmd_idx != num_cmds; ++cmd_idx )
+    {
+        const json::value response = process_command( commands.at( cmd_idx ) );
+
+        if ( response != json::null() )
+            result.add( response );
+    }
+
+    return result;
+}
+
+json::object response_base::build_response( const json::string& session_id, const json::array& response ) const
+{
+    json::object result;
+    result.add( id_token, session_id );
+
+    if ( !response.empty() )
+        result.add( response_token, response );
+
+    return result;
 }
 
 const char* response_base::name() const
