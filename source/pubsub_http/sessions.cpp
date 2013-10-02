@@ -139,7 +139,7 @@ namespace http {
     {
         timed_session< TimeoutTimer >* const session = static_cast< timed_session< TimeoutTimer >* >( s );
         session->timer_.expires_from_now( session_timeout );
-        session->timer_.async_wait( boost::bind( &sessions< TimeoutTimer >::timeout_session, this, s->id() ) );
+        session->timer_.async_wait( boost::bind( &sessions< TimeoutTimer >::timeout_session, this, s->id(), _1 ) );
     }
 
     template < class TimeoutTimer >
@@ -151,17 +151,20 @@ namespace http {
     }
 
     template < class TimeoutTimer >
-    void sessions< TimeoutTimer >::timeout_session( const json::string& session_id )
+    void sessions< TimeoutTimer >::timeout_session( const json::string& session_id, const boost::system::error_code& error )
     {
-        boost::mutex::scoped_lock lock( mutex_ );
-
-        const session_list_t::iterator pos = sessions_.find( session_id );
-
-        // if the session is now in use, it was used, just before the timeout callback gets executed
-        if ( pos != sessions_.end() && pos->second->use() )
+        if ( !error )
         {
-            delete pos->second;
-            sessions_.erase( pos );
+            boost::mutex::scoped_lock lock( mutex_ );
+
+            const session_list_t::iterator pos = sessions_.find( session_id );
+
+            // if the session is now in use, it was used, just before the timeout callback gets executed
+            if ( pos != sessions_.end() && pos->second->use() )
+            {
+                delete pos->second;
+                sessions_.erase( pos );
+            }
         }
     }
 

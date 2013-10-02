@@ -60,7 +60,7 @@ namespace http {
         /**
          * @brief the session was not used for a longer period and will be deleted
          */
-        void timeout_session( const json::string& session_id );
+        void timeout_session( const json::string& session_id, const boost::system::error_code& error );
 
         boost::asio::io_service&    queue_;
 
