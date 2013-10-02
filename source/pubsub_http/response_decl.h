@@ -24,6 +24,7 @@ namespace http
         virtual const char* name() const;
     };
 
+    template < class TimeoutTimer >
     class sessions;
 
     /**
@@ -33,7 +34,7 @@ namespace http
     class response : public response_base, public boost::enable_shared_from_this< response< Connection > >
     {
     public:
-        response( const boost::shared_ptr< Connection >& c, sessions& s );
+        response( const boost::shared_ptr< Connection >& c, sessions< typename Connection::timer_t >& s );
     private:
 
         virtual void start();
@@ -49,7 +50,7 @@ namespace http
 
         void response_written( const boost::system::error_code& ec, std::size_t size );
 
-        sessions&                                   session_list_;
+        sessions< typename Connection::timer_t >&   session_list_;
 
         json::parser                                parser_;
         const boost::shared_ptr< Connection >       connection_;

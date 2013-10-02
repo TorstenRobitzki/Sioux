@@ -17,7 +17,7 @@ namespace http
 {
 
     template < class Connection >
-    response< Connection >::response( const boost::shared_ptr< Connection >& c, sessions& s )
+    response< Connection >::response( const boost::shared_ptr< Connection >& c, sessions< typename Connection::timer_t >& s )
         : session_list_( s )
         , parser_()
         , connection_( c )

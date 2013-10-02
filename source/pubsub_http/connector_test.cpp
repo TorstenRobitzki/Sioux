@@ -72,7 +72,7 @@ namespace {
 
     struct context : trait_t
     {
-        response_t http_post( const asio_mocks::read_plan& simulated_input )
+        std::vector< response_t > http_multiple_post( const asio_mocks::read_plan& simulated_input )
         {
             socket_t                            socket( queue_, simulated_input );
             boost::shared_ptr< connection_t >   http_connection( new connection_t( socket, *this ) );
@@ -80,17 +80,46 @@ namespace {
             http_connection->start();
             tools::run( queue_ );
 
-            const std::vector< std::pair< boost::shared_ptr< http::response_header >, std::vector< char > > > http_answer =
-                http::decode_stream< http::response_header >( socket.bin_output() );
+            typedef std::vector< std::pair< boost::shared_ptr< http::response_header >, std::vector< char > > > response_list_t;
+            const response_list_t http_answer = http::decode_stream< http::response_header >( socket.bin_output() );
+
+            std::vector< response_t > result;
+            for ( response_list_t::const_iterator resp = http_answer.begin(); resp != http_answer.end(); ++resp )
+            {
+                response_t response = { resp->first, resp->second };
+                result.push_back( response );
+            }
+
+            return result;
+        }
+
+        json::array json_multiple_post( const asio_mocks::read_plan& simulated_input )
+        {
+            std::vector< response_t > http_response = http_multiple_post( simulated_input );
+
+            json::array result;
+            for ( std::vector< response_t >::const_iterator http = http_response.begin(); http != http_response.end(); ++http )
+            {
+                if ( http->header->code() != http::http_ok )
+                    throw std::runtime_error( "during json_multiple_post: http-response: " + tools::as_string( http->header->code() ) );
+
+                result.add(
+                    json::parse( http->body.begin(), http->body.end() ).upcast< json::object >() );
+            }
+
+            return result;
+        }
+
+        response_t http_post( const asio_mocks::read_plan& simulated_input )
+        {
+            const std::vector< response_t > http_answer = http_multiple_post( simulated_input );
 
             if ( http_answer.size() != 1 )
             {
                 throw std::runtime_error( "expected exactly one response, got: " + tools::as_string( http_answer.size() ) );
             }
 
-            const response_t result = { http_answer.front().first, http_answer.front().second };
-
-            return result;
+            return http_answer.front();
         }
 
         // posts the given text as http message and returns the whole response
@@ -288,4 +317,22 @@ BOOST_FIXTURE_TEST_CASE( a_new_session_gets_a_new_session_id, context )
     BOOST_REQUIRE( response.find( json::string( "id" ) ) );
     BOOST_CHECK_EQUAL( response.at( json::string( "id" ) ), json::string( "192.168.210.1:9999/1" ) );
 
+}
+
+BOOST_FIXTURE_TEST_CASE( after_30_seconds_a_session_will_be_deleted, context )
+{
+    json_post(
+        "{"
+        "   'cmd': [ { 'subscribe': { 'a':1 ,'b':2 }, 'version': 34 } ]"
+        "}" );
+
+    asio_mocks::advance_time( boost::posix_time::seconds( 31 ) );
+
+    const json::object response = json_post(
+        "{"
+        "   'id': '192.168.210.1:9999/0' "
+        "}" );
+
+    BOOST_REQUIRE( response.find( json::string( "id" ) ) );
+    BOOST_CHECK_EQUAL( response.at( json::string( "id" ) ), json::string( "192.168.210.1:9999/1" ) );
 }

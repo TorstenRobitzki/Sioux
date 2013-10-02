@@ -3,6 +3,8 @@
 
 #include <string>
 #include <boost/thread/mutex.hpp>
+#include <boost/function.hpp>
+#include <boost/asio/io_service.hpp>
 #include "json/json.h"
 
 namespace server {
@@ -19,10 +21,11 @@ namespace http {
     /**
      * @brief class responsible to keep a list of active sessions
      */
+    template < class TimeoutTimer >
     class sessions
     {
     public:
-        explicit sessions( server::session_generator& session_generator );
+        sessions( server::session_generator& session_generator, boost::asio::io_service& queue );
 
         ~sessions();
 
@@ -43,9 +46,24 @@ namespace http {
          * used anymore. The session timeout starts expiring after a call to idle_session() and
          * will stop expiring with a next call to find_or_create_session().
          */
-        void idle_session( const session_impl* session );
+        void idle_session( session_impl* session );
+
+        /**
+         * @brief prepares shut down by timing out all existing sessions and by timing out all new connections.
+         */
+        void shut_down();
 
     private:
+        void setup_timeout( session_impl* session );
+        void cancel_timer( session_impl* session );
+
+        /**
+         * @brief the session was not used for a longer period and will be deleted
+         */
+        void timeout_session( const json::string& session_id );
+
+        boost::asio::io_service&    queue_;
+
         typedef std::map< json::string, session_impl* > session_list_t;
 
         boost::mutex                mutex_;
@@ -59,7 +77,8 @@ namespace http {
     class session
     {
     public:
-        session( sessions&, const json::string& session_id, const std::string& network_connection_name );
+        template < class TimeoutTimer >
+        session( sessions< TimeoutTimer >&, const json::string& session_id, const std::string& network_connection_name );
         ~session();
         const json::string& id() const;
     private:
@@ -67,8 +86,8 @@ namespace http {
         session( const session& );
         session& operator=( const session& );
 
-        sessions&           list_;
-        const session_impl* impl_;
+        session_impl*               impl_;
+        boost::function< void() >   release_;
     };
 
 }

@@ -202,7 +202,7 @@ namespace http
 
     private:
         server::secure_session_generator    default_session_generator_;
-        sessions                            session_list_;
+        sessions< Timer >                   session_list_;
     };
 
     template < class Timer >
