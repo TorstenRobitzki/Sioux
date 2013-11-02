@@ -168,6 +168,8 @@ namespace json
 
         explicit string(const char*);
 
+        explicit string( const std::string& other );
+
         string( const char* begin, const char* end );
 
         /**

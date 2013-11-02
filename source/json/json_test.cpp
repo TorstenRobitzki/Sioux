@@ -641,3 +641,15 @@ BOOST_AUTO_TEST_CASE( object_add_const_char_overload )
     o.add( "foo", json::string( "bar" ) );
     BOOST_CHECK_EQUAL( o, json::parse_single_quoted("{'foo':'bar'}") );
 }
+
+BOOST_AUTO_TEST_CASE( std_to_json_string )
+{
+    std::string std = "asasd";
+    std += '\0';
+    std += 'v';
+
+    json::string s( std );
+
+    BOOST_CHECK_EQUAL( s.to_std_string(), std );
+    BOOST_CHECK_EQUAL( json::string( std::string() ).to_std_string(), std::string() );
+}

@@ -660,6 +660,11 @@ namespace json
     {
     }
 
+    string::string( const std::string& other )
+        : value( new string_impl( other.data(), other.data() + other.size() ) )
+    {
+    }
+
     string::string( const char* begin, const char* end )
         : value( new string_impl( begin, end ) )
     {
