@@ -67,6 +67,11 @@ namespace pubsub
          * @brief returns true, if the node_name contains no keys
          */
         bool empty() const;
+
+        /**
+         * @brief turns this into a json representation
+         */
+        json::object to_json() const;
     private:
         key_list keys_;
     };
@@ -87,6 +92,13 @@ namespace pubsub
          * @brief first, initial version of a document
          */
         node_version();
+
+        /**
+         * @brief constructs a node_version from a json::number
+         *
+         * The given number should have been taken from a node_version object (by a call to to_json()).
+         */
+        explicit node_version( const json::number& );
 
         /**
          * @brief returns true, if this and rhs are the same versions
@@ -112,10 +124,17 @@ namespace pubsub
          * @brief prints the version in a human readable manner onto the given stream
          */
         void print(std::ostream& out) const;
-    private:
-        boost::uint_fast32_t    version_;
 
-        static boost::uint_fast32_t generate_version();
+        /**
+         * @brief returns a json represenation of the version
+         */
+        json::number to_json() const;
+
+    private:
+        typedef boost::uint_fast32_t version_t;
+        version_t    version_;
+
+        static version_t generate_version();
     }; 
 
     /**

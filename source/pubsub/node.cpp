@@ -148,6 +148,14 @@ namespace pubsub {
         return keys_.empty();
     }
 
+    json::object node_name::to_json() const
+    {
+        json::object result;
+
+        for ( key_list::const_iterator key = keys_.begin(); key != keys_.end(); ++key )
+            result.add( json::string( key->domain().name() ), json::string( key->value() ) );
+    }
+
     std::ostream& operator<<(std::ostream& out, const node_name& name)
     {   
         name.print(out);
@@ -158,6 +166,11 @@ namespace pubsub {
     // class node_version
     node_version::node_version()
         : version_(generate_version())
+    {
+    }
+
+    node_version::node_version( const json::number& n )
+        : version_( n.to_int() )
     {
     }
 
@@ -183,6 +196,11 @@ namespace pubsub {
     void node_version::print(std::ostream& out) const
     {
         out << version_;
+    }
+
+    json::number node_version::to_json() const
+    {
+        return json::number( static_cast< int >( version_ ) );
     }
 
     boost::uint_fast32_t node_version::generate_version()
