@@ -154,6 +154,8 @@ namespace pubsub {
 
         for ( key_list::const_iterator key = keys_.begin(); key != keys_.end(); ++key )
             result.add( json::string( key->domain().name() ), json::string( key->value() ) );
+
+        return result;
     }
 
     std::ostream& operator<<(std::ostream& out, const node_name& name)
