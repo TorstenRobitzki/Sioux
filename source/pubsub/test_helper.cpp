@@ -169,6 +169,12 @@ namespace test {
         }
     }
 
+    void adapter::answer_authorization_request( const node_name& name, bool is_authorized )
+    {
+        boost::shared_ptr< ::pubsub::subscriber > user;
+        answer_authorization_request( user, name, is_authorized );
+    }
+
     void adapter::skip_authorization_request(const boost::shared_ptr< ::pubsub::subscriber>& user, const node_name& name)
     {
         boost::mutex::scoped_lock lock(mutex_);
@@ -315,9 +321,14 @@ namespace test {
     {
         boost::mutex::scoped_lock lock(mutex_);
         const authorization_request_list::key_type key(user, name);
+        const authorization_request_list::key_type key_without_user( boost::shared_ptr< ::pubsub::subscriber >(), name );
 
         bool answer = false;
         if ( search_and_remove(authorization_answers_, key, answer) )
+        {
+            answer ? cb->is_authorized() : cb->not_authorized();
+        }
+        else if ( search_and_remove(authorization_answers_, key_without_user, answer) )
         {
             answer ? cb->is_authorized() : cb->not_authorized();
         }

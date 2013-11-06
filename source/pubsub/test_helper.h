@@ -139,6 +139,13 @@ namespace test {
         void answer_authorization_request(const boost::shared_ptr< ::pubsub::subscriber>&, const node_name&, bool is_authorized);
 
         /**
+         * @brief answer one authorization request with the given name independent from the subscriber
+         *
+         * will answer one authorization request for the given node.
+         */
+        void answer_authorization_request( const node_name&, bool is_authorized );
+
+        /**
          * @brief ignore one authorization request with the given subscriber and node by deleting 
          *        a stored authorization_call_back with that paramters.
          *

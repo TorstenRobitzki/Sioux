@@ -153,7 +153,7 @@ namespace pubsub {
         json::object result;
 
         for ( key_list::const_iterator key = keys_.begin(); key != keys_.end(); ++key )
-            result.add( json::string( key->domain().name() ), json::string( key->value() ) );
+            result.add( json::string( key->domain().name() ), json::parse( key->value() ) );
 
         return result;
     }

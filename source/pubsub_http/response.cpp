@@ -15,6 +15,11 @@ namespace internal {
     const json::string cmd_token( "cmd" );
     const json::string response_token( "resp" );
     const json::string error_token( "error" );
+    const json::string key_token( "key" );
+    const json::string update_token( "update" );
+    const json::string from_token( "from" );
+    const json::string data_token( "data" );
+    const json::string version_token( "version" );
 
     const json::string subscribe_token( "subscribe" );
     const json::string unsubscribe_token( "unsubscribe" );
@@ -23,16 +28,16 @@ namespace internal {
 
 using namespace ::pubsub::http::internal;
 
-static const internal::subscribe    subscribe_cmd;
-static const internal::unsubscribe  unsubscribe_cmd;
+//static const internal::subscribe    subscribe_cmd;
+//static const internal::unsubscribe  unsubscribe_cmd;
 
 typedef std::map< json::string, const internal::command* > known_commands_list_t;
 
 known_commands_list_t create_known_commands()
 {
     known_commands_list_t result;
-    result[ subscribe_token ] = &subscribe_cmd;
-    result[ unsubscribe_token ] = &unsubscribe_cmd;
+ //   result[ subscribe_token ] = &subscribe_cmd;
+ //   result[ unsubscribe_token ] = &unsubscribe_cmd;
 
     return result;
 }
@@ -110,17 +115,17 @@ bool response_base::check_session_or_commands_given( const json::object& message
     return valid_session_given || check_cmd_not_empty_and_valid( cmd_field );
 }
 
-json::value response_base::process_command( const json::value& command ) const
+json::value response_base::process_command( const json::value& command, pubsub::root& data, session_reference& subscriber ) const
 {
     json::object cmd = command.upcast< json::object >();
 
     const internal::command* const executer = find_command( cmd );
     assert( executer ); // the command was already looked up before
 
-    return executer->execute( cmd );
+    return executer->execute( cmd, data, subscriber );
 }
 
-json::array response_base::process_commands( const json::object& message ) const
+json::array response_base::process_commands( const json::object& message, pubsub::root& data, session_reference& subscriber ) const
 {
     const json::value* const cmd_field = message.find( cmd_token );
 
@@ -133,7 +138,7 @@ json::array response_base::process_commands( const json::object& message ) const
 
     for ( std::size_t cmd_idx = 0, num_cmds = commands.length(); cmd_idx != num_cmds; ++cmd_idx )
     {
-        const json::value response = process_command( commands.at( cmd_idx ) );
+        const json::value response = process_command( commands.at( cmd_idx ), data, subscriber );
 
         if ( response != json::null() )
             result.add( response );
@@ -142,13 +147,16 @@ json::array response_base::process_commands( const json::object& message ) const
     return result;
 }
 
-json::object response_base::build_response( const json::string& session_id, const json::array& response ) const
+json::object response_base::build_response( const json::string& session_id, const json::array& response, const json::array& updates ) const
 {
     json::object result;
     result.add( id_token, session_id );
 
     if ( !response.empty() )
         result.add( response_token, response );
+
+    if ( !updates.empty() )
+        result.add( update_token, updates );
 
     return result;
 }

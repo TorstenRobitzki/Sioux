@@ -1,11 +1,14 @@
 #include "pubsub_http/commands.h"
 #include "pubsub_http/response.h"
+#include "pubsub_http/sessions.h"
+#include "pubsub/node.h"
+#include "pubsub/root.h"
 #include "json/json.h"
 
 namespace pubsub {
 namespace http {
 namespace internal {
-
+#if 0
     static bool check_node_name( const json::object& command, const json::string& cmd_token, json::object& node_name, json::object& response )
     {
         const json::value cmd_key_value = command.at( cmd_token );
@@ -24,18 +27,21 @@ namespace internal {
         return true;
     }
 
-    json::value subscribe::execute( const json::object& command ) const
+    json::value subscribe::execute( const json::object& command, pubsub::root& root, session_reference& subscriber ) const
     {
         json::object response;
-        json::object node_name;
+        json::object node;
 
-        if ( !check_node_name( command, subscribe_token, node_name, response ) )
+        if ( !check_node_name( command, subscribe_token, node, response ) )
             return response;
+
+        const pubsub::node_name name( node );
+        //   root.subscribe( subscriber, name );
 
         return json::null();
     }
 
-    json::value unsubscribe::execute( const json::object& command ) const
+    json::value unsubscribe::execute( const json::object& command, pubsub::root&, session_reference& ) const
     {
         json::object response;
         json::object node_name;
@@ -45,6 +51,7 @@ namespace internal {
 
         return json::null();
     }
+#endif
 }
 }
 }

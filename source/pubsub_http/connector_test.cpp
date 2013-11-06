@@ -12,11 +12,13 @@
 #include "json/json.h"
 #include "asio_mocks/test_timer.h"
 #include "asio_mocks/json_msg.h"
+#include "asio_mocks/run.h"
 #include "server/test_traits.h"
 #include "server/connection.h"
 #include "server/test_session_generator.h"
 #include "tools/io_service.h"
 
+#if 0
 namespace {
 
     struct response_factory
@@ -56,12 +58,6 @@ namespace {
         pubsub::http::connector< asio_mocks::timer >&   connector;
     };
 
-    struct response_t
-    {
-        boost::shared_ptr< http::response_header >  header;
-        std::vector< char >                         body;
-    };
-
     typedef server::connection_traits<
         asio_mocks::socket< const char*, asio_mocks::timer >,
         asio_mocks::timer,
@@ -70,35 +66,20 @@ namespace {
     typedef server::connection< trait_t >               connection_t;
     typedef trait_t::network_stream_type                socket_t;
 
-    struct context : trait_t
+    struct context : trait_t, boost::asio::io_service, pubsub::test::adapter
     {
-        std::vector< response_t > http_multiple_post( const asio_mocks::read_plan& simulated_input )
+        std::vector< asio_mocks::response_t > http_multiple_post( const asio_mocks::read_plan& simulated_input )
         {
-            socket_t                            socket( queue_, simulated_input );
-            boost::shared_ptr< connection_t >   http_connection( new connection_t( socket, *this ) );
-
-            http_connection->start();
-            tools::run( queue_ );
-
-            typedef std::vector< std::pair< boost::shared_ptr< http::response_header >, std::vector< char > > > response_list_t;
-            const response_list_t http_answer = http::decode_stream< http::response_header >( socket.bin_output() );
-
-            std::vector< response_t > result;
-            for ( response_list_t::const_iterator resp = http_answer.begin(); resp != http_answer.end(); ++resp )
-            {
-                response_t response = { resp->first, resp->second };
-                result.push_back( response );
-            }
-
-            return result;
+            socket_t                            socket( *this, simulated_input );
+            return asio_mocks::run( boost::posix_time::seconds( 40 ), socket, static_cast< trait_t& >( *this ) );
         }
 
         json::array json_multiple_post( const asio_mocks::read_plan& simulated_input )
         {
-            std::vector< response_t > http_response = http_multiple_post( simulated_input );
+            std::vector< asio_mocks::response_t > http_response = http_multiple_post( simulated_input );
 
             json::array result;
-            for ( std::vector< response_t >::const_iterator http = http_response.begin(); http != http_response.end(); ++http )
+            for ( std::vector< asio_mocks::response_t >::const_iterator http = http_response.begin(); http != http_response.end(); ++http )
             {
                 if ( http->header->code() != http::http_ok )
                     throw std::runtime_error( "during json_multiple_post: http-response: " + tools::as_string( http->header->code() ) );
@@ -110,9 +91,9 @@ namespace {
             return result;
         }
 
-        response_t http_post( const asio_mocks::read_plan& simulated_input )
+        asio_mocks::response_t http_post( const asio_mocks::read_plan& simulated_input )
         {
-            const std::vector< response_t > http_answer = http_multiple_post( simulated_input );
+            const std::vector< asio_mocks::response_t > http_answer = http_multiple_post( simulated_input );
 
             if ( http_answer.size() != 1 )
             {
@@ -123,33 +104,40 @@ namespace {
         }
 
         // posts the given text as http message and returns the whole response
-        response_t http_post_json_msg( const char* json_msg )
+        asio_mocks::response_t http_post_json_msg( const char* json_msg )
         {
             return http_post(
                 asio_mocks::read_plan()
-             << asio_mocks::json_msg( json::parse_single_quoted( json_msg ).to_json() )
+             << asio_mocks::json_msg( json_msg )
              << asio_mocks::disconnect_read() );
+        }
+
+        json::object json_body( const asio_mocks::response_t& response )
+        {
+            return json::parse( response.body.begin(), response.body.end() ).upcast< json::object >();
         }
 
         json::object json_post( const char* json_msg )
         {
-            response_t response = http_post_json_msg( json_msg );
-            return json::parse( response.body.begin(), response.body.end() ).upcast< json::object >();
+            const asio_mocks::response_t response = http_post_json_msg( json_msg );
+            return json_body( response );
         }
 
-        boost::asio::io_service queue_;
-        pubsub::test::adapter   adapter_;
         pubsub::root            data_;
-        server::test::session_generator                      session_generator_;
-        mutable pubsub::http::connector< asio_mocks::timer > connector_;
+        server::test::session_generator                         session_generator_;
+        mutable pubsub::http::connector< asio_mocks::timer >    connector_;
+        const pubsub::node_name                                 node1;
+        const pubsub::node_name                                 node2;
 
         context()
             : trait_t( *this )
-            , queue_()
-            , adapter_( queue_ )
-            , data_( queue_, adapter_, pubsub::configuration() )
+            , boost::asio::io_service()
+            , pubsub::test::adapter( static_cast< boost::asio::io_service& >( *this ) )
+            , data_( *this, *this, pubsub::configuration() )
             , session_generator_()
-            , connector_( queue_, data_, session_generator_ )
+            , connector_( *this, data_, session_generator_ )
+            , node1( json::parse_single_quoted( "{ 'a': 1, 'b': 1 }" ).upcast< json::object >() )
+            , node2( json::parse_single_quoted( "{ 'a': 1, 'b': 2 }" ).upcast< json::object >() )
         {
         }
     };
@@ -183,7 +171,7 @@ BOOST_FIXTURE_TEST_CASE( request_without_body_is_a_bad_request, context )
 {
     using namespace http::test;
 
-    const response_t resp = http_post(
+    const asio_mocks::response_t resp = http_post(
            asio_mocks::read_plan()
         << asio_mocks::read( begin( simple_get_11 ), end( simple_get_11 ) )
         << asio_mocks::disconnect_read() );
@@ -210,7 +198,7 @@ BOOST_FIXTURE_TEST_CASE( object_has_to_contain_only_valid_field_names, context )
 
 BOOST_FIXTURE_TEST_CASE( object_has_to_contain_no_extra_fields, context )
 {
-    const response_t response = http_post_json_msg(
+    const asio_mocks::response_t response = http_post_json_msg(
         "{"
             "'cmd': [ { 'subscribe': 1 } ],"
             "'extra': 1 "
@@ -249,18 +237,21 @@ BOOST_FIXTURE_TEST_CASE( server_will_responde_with_a_new_session_id_if_the_used_
 
 BOOST_FIXTURE_TEST_CASE( server_will_stick_to_the_session_id, context )
 {
-    json_post(
-        "{"
-        "   'cmd': [ { 'subscribe': { 'a':1 ,'b':2 }, 'version': 34 } ]"
-        "}" );
+    const std::vector< asio_mocks::response_t > response = http_multiple_post(
+           asio_mocks::read_plan()
+        << asio_mocks::json_msg(
+            "{"
+            "   'cmd': [ { 'subscribe': { 'a':1 ,'b':2 }, 'version': 34 } ]"
+            "}"  )
+        << asio_mocks::json_msg(
+            "{"
+            "   'id': '192.168.210.1:9999/0' "
+            "}" )
+        << asio_mocks::disconnect_read() );
 
-    const json::object response = json_post(
-        "{"
-        "   'id': '192.168.210.1:9999/0' "
-        "}" );
-
-    BOOST_REQUIRE( response.find( json::string( "id" ) ) );
-    BOOST_CHECK_EQUAL( response.at( json::string( "id" ) ), json::string( "192.168.210.1:9999/0" ) );
+    BOOST_REQUIRE_EQUAL( response.size(), 2u );
+    BOOST_CHECK_EQUAL( json_body( response[ 0 ] ).at( json::string( "id" ) ), json::string( "192.168.210.1:9999/0" ) );
+    BOOST_CHECK_EQUAL( json_body( response[ 1 ] ).at( json::string( "id" ) ), json::string( "192.168.210.1:9999/0" ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( server_refused_invalid_commands, context )
@@ -336,3 +327,40 @@ BOOST_FIXTURE_TEST_CASE( after_30_seconds_a_session_will_be_deleted, context )
     BOOST_REQUIRE( response.find( json::string( "id" ) ) );
     BOOST_CHECK_EQUAL( response.at( json::string( "id" ) ), json::string( "192.168.210.1:9999/1" ) );
 }
+
+BOOST_FIXTURE_TEST_CASE( response_to_subscription, context )
+{
+    answer_validation_request( node1, true );
+    answer_authorization_request( node1, true );
+    answer_initialization_request( node1, json::number( 42 ) );
+
+    BOOST_CHECK_EQUAL(
+        json_post( "{ 'cmd': [ { 'subscribe': { 'a':1 ,'b':1 } } ] }" ),
+        json::parse_single_quoted(
+            "{"
+            "   'id': '192.168.210.1:9999/0',"
+            "   'update': [ { 'key': { 'a':1 ,'b':1 }, 'data': 42, 'version': 1 } ] "
+            "}" ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( defered_response_to_subscription_if_validation_was_asynchronous, context )
+{
+}
+
+BOOST_FIXTURE_TEST_CASE( error_message_if_subscription_subject_is_invalid, context )
+{
+}
+
+BOOST_FIXTURE_TEST_CASE( defered_error_message_if_subscription_subject_is_invalid, context )
+{
+}
+
+BOOST_FIXTURE_TEST_CASE( error_message_if_not_authorized, context )
+{
+}
+
+BOOST_FIXTURE_TEST_CASE( defered_error_message_if_not_authorized, context )
+{
+}
+
+#endif

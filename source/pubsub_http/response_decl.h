@@ -3,12 +3,18 @@
 
 #include "server/response.h"
 #include "json/json.h"
+#include "pubsub_http/sessions.h"
 #include <boost/system/error_code.hpp>
+#include <boost/enable_shared_from_this.hpp>
 
 namespace pubsub
 {
+    class root;
+
 namespace http
 {
+    class session_reference; // <- to be removed
+
     /**
      * @brief connection type independend part of the response implemenation
      */
@@ -16,11 +22,10 @@ namespace http
     {
     protected:
         bool check_session_or_commands_given( const json::object& message, json::string& session_id ) const;
-        json::array process_commands( const json::object& message ) const;
-        json::object build_response( const json::string& session_id, const json::array& response ) const;
-
+        json::array process_commands( const json::object& message, pubsub::root&, session_reference& ) const;
+        json::object build_response( const json::string& session_id, const json::array& response, const json::array& updates ) const;
     private:
-        json::value process_command( const json::value& command ) const;
+        json::value process_command( const json::value& command, pubsub::root&, session_reference& ) const;
         virtual const char* name() const;
     };
 
@@ -34,9 +39,10 @@ namespace http
     class response : public response_base, public boost::enable_shared_from_this< response< Connection > >
     {
     public:
-        response( const boost::shared_ptr< Connection >& c, sessions< typename Connection::timer_t >& s );
-    private:
+        response( const boost::shared_ptr< Connection >& c, sessions< typename Connection::timer_t >& s, pubsub::root& d );
 
+        ~response();
+    private:
         virtual void start();
 
         void body_read_handler(
@@ -50,15 +56,24 @@ namespace http
 
         void response_written( const boost::system::error_code& ec, std::size_t size );
 
-        sessions< typename Connection::timer_t >&   session_list_;
+        void on_update( const json::array& response, const json::array& update ) = 0;
+
+        void on_time_out( const boost::system::error_code& error );
+
+        typedef typename Connection::timer_t timer_t;
+        sessions< timer_t >&                        session_list_;
+        pubsub::root&                               data_;
 
         json::parser                                parser_;
         const boost::shared_ptr< Connection >       connection_;
+        //boost::shared_ptr< session_impl >           session_;
 
         // a buffer for free texts for the http response
         std::string                                 response_buffer_;
         // a concatenated list of snippets that form the http response
         std::vector< boost::asio::const_buffer >    response_;
+
+        timer_t                                     long_poll_timer_;
     };
 }
 }

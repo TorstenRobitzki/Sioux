@@ -27,6 +27,12 @@ BOOST_AUTO_TEST_CASE( node_name_empty_test )
     BOOST_CHECK( other_name.empty() );
 }
 
+BOOST_AUTO_TEST_CASE( node_name_json_test )
+{
+    const json::object name = json::parse_single_quoted( "{ 'a': 1, 'b': 'b' }" ).upcast< json::object >();
+    BOOST_CHECK_EQUAL( pubsub::node_name( name ).to_json(), name );
+}
+
 /**
  * @test test the constructor
  */

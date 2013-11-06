@@ -16,15 +16,25 @@ namespace pubsub
 namespace http
 {
 
+#if 0
     template < class Connection >
-    response< Connection >::response( const boost::shared_ptr< Connection >& c, sessions< typename Connection::timer_t >& s )
+    response< Connection >::response( const boost::shared_ptr< Connection >& c, sessions< typename Connection::timer_t >& s,
+        pubsub::root& d )
         : session_list_( s )
+        , data_( d )
         , parser_()
         , connection_( c )
+        , session_()
         , response_buffer_()
         , response_()
+        , long_poll_timer_( c->socket().get_io_service() )
     {
         assert( c.get() );
+    }
+
+    template < class Connection >
+    response< Connection >::~response()
+    {
     }
 
     template < class Connection >
@@ -67,6 +77,8 @@ namespace http
     template < class Connection >
     void response< Connection >::protocol_body_read_handler( const json::value& p )
     {
+        static const boost::posix_time::time_duration long_poll_time_out( boost::posix_time::seconds( 20u ) );
+
         server::report_error_guard< Connection > guard( *connection_, *this, ::http::http_bad_request );
 
         const std::pair< bool, json::object > message = p.try_cast< json::object >();
@@ -74,12 +86,18 @@ namespace http
 
         if ( message.first && !message.second.empty() && check_session_or_commands_given( message.second, session_id ) )
         {
-            const session current_session( session_list_, session_id,
-                server::socket_end_point_trait< typename Connection::socket_t >::to_text( connection_->socket() ) );
+            session_.reset( new session_reference( session_list_, session_id,
+                server::socket_end_point_trait< typename Connection::socket_t >::to_text( connection_->socket() ) ) );
 
-            const json::array response = process_commands( message.second );
+            const json::array response = process_commands( message.second, data_, *session_ );
 
-            write_reponse( build_response( current_session.id(), response ) );
+            long_poll_timer_.expires_from_now( long_poll_time_out );
+            long_poll_timer_.async_wait( boost::bind( &response::on_time_out, this->shared_from_this(), _1 ) );
+
+            session_->on_wake_up(
+                boost::bind( &response::on_wake_up, this->shared_from_this() ),
+                response,
+                connection_->socket().get_io_service() );
 
             guard.dismiss();
         }
@@ -105,6 +123,23 @@ namespace http
     }
 
     template < class Connection >
+    void response< Connection >::on_update( const json::array& response, const json::array& updates )
+    {
+        long_poll_timer_.cancel();
+
+        write_reponse( build_response( session_->id(), response, updates ) );
+    }
+
+    template < class Connection >
+    void response< Connection >::on_time_out( const boost::system::error_code& error )
+    {
+        if ( !error )
+        {
+            session_->wake_up();
+        }
+    }
+
+    template < class Connection >
     void response< Connection >::response_written( const boost::system::error_code& ec, std::size_t size )
     {
         if ( ec )
@@ -116,6 +151,7 @@ namespace http
             connection_->response_completed( *this );
         }
     }
+#endif
 
     namespace internal {
 
@@ -123,6 +159,11 @@ namespace http
         extern const json::string cmd_token;
         extern const json::string response_token;
         extern const json::string error_token;
+        extern const json::string key_token;
+        extern const json::string update_token;
+        extern const json::string from_token;
+        extern const json::string data_token;
+        extern const json::string version_token;
 
         extern const json::string subscribe_token;
         extern const json::string unsubscribe_token;
@@ -130,6 +171,5 @@ namespace http
     }
 }
 }
-
 #endif // include guard
 
