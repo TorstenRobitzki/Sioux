@@ -30,6 +30,10 @@ namespace {
             return result;
         }
 
+        /**
+         * returns whether or not update() was called and reset the state, so that the next call to update_called() will
+         * return false until update() is called again.
+         */
         bool update_called()
         {
             boost::mutex::scoped_lock lock( mutex_ );
@@ -170,6 +174,19 @@ namespace {
             subscribe( session.first, node_a );
 
             tools::run( *this );
+        }
+    };
+
+    struct context_with_subscribed_and_idle_session : context_with_subscribed_session
+    {
+        context_with_subscribed_and_idle_session()
+        {
+            // the session must have been woken up by the subscription response
+            BOOST_REQUIRE( !wake_up( session.first, update ) );
+
+            idle_session( session.first );
+
+            update->update_called();
         }
     };
 
@@ -383,22 +400,108 @@ BOOST_FIXTURE_TEST_CASE( a_subscribed_connection_will_stop_receiving_updates, co
     BOOST_CHECK( !update->update_called() );
 }
 
-BOOST_FIXTURE_TEST_CASE( updates_comming_while_not_waiting, context )
+BOOST_FIXTURE_TEST_CASE( updates_comming_while_not_waiting, context_with_subscribed_and_idle_session )
 {
+    root_data::root_.update_node( node_a, json::number(11) );
+    tools::run( *this );
+
+    session = find_or_create_session( default_id, default_network );
+    wait_for_session_event( session.first, update );
+
+    tools::run( *this );
+
+    BOOST_CHECK( update->update_called() );
+    BOOST_CHECK( find_object( update->updates(), "{ 'key': { 'name': 'a' }, 'data': 11 }" ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( invalid_node_subscription_will_be_reived, context )
+BOOST_FIXTURE_TEST_CASE( invalid_node_subscription_will_be_reived, context_with_subscribed_and_idle_session )
 {
+    session = find_or_create_session( default_id, default_network );
+    subscribe( session.first, node_b );
+
+    wait_for_session_event( session.first, update );
+    answer_validation_request( node_b, false );
+
+    tools::run( *this );
+
+    BOOST_CHECK( update->update_called() );
+    BOOST_CHECK( find_object( update->response(), "{ 'subscribe': { 'name': 'b' }, 'error': 'invalid node' }" ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( invalid_node_subscription_while_not_waiting, context )
+BOOST_FIXTURE_TEST_CASE( invalid_node_subscription_while_not_waiting, context_with_subscribed_and_idle_session )
 {
+    answer_validation_request( node_b, false );
+
+    session = find_or_create_session( default_id, default_network );
+    subscribe( session.first, node_b );
+
+    wait_for_session_event( session.first, update );
+
+    tools::run( *this );
+
+    BOOST_CHECK( update->update_called() );
+    BOOST_CHECK( find_object( update->response(), "{ 'subscribe': { 'name': 'b' }, 'error': 'invalid node' }" ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( authorization_failure_will_be_reived, context )
+BOOST_FIXTURE_TEST_CASE( authorization_failure_will_be_reived, context_with_subscribed_and_idle_session )
 {
+    session = find_or_create_session( default_id, default_network );
+    subscribe( session.first, node_b );
+
+    wait_for_session_event( session.first, update );
+
+    answer_validation_request( node_b, true );
+    answer_authorization_request( node_b, false );
+    tools::run( *this );
+
+    BOOST_CHECK( update->update_called() );
+    BOOST_CHECK( find_object( update->response(), "{ 'subscribe': { 'name': 'b' }, 'error': 'not allowed' }" ) );
 }
 
-BOOST_FIXTURE_TEST_CASE( authorization_failure_while_not_waiting, context )
+BOOST_FIXTURE_TEST_CASE( authorization_failure_while_not_waiting, context_with_subscribed_and_idle_session )
 {
+    answer_validation_request( node_b, true );
+    answer_authorization_request( node_b, false );
+
+    session = find_or_create_session( default_id, default_network );
+    subscribe( session.first, node_b );
+
+    wait_for_session_event( session.first, update );
+
+    tools::run( *this );
+
+    BOOST_CHECK( update->update_called() );
+    BOOST_CHECK( find_object( update->response(), "{ 'subscribe': { 'name': 'b' }, 'error': 'not allowed' }" ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( node_initialization_failed, context )
+{
+    answer_validation_request( node_b, true );
+    answer_authorization_request( node_b, true );
+    skip_initialization_request( node_b );
+
+    std::pair< pubsub::http::session_impl*, bool > session = find_or_create_session( default_id, default_network );
+    subscribe( session.first, node_b );
+
+    const boost::shared_ptr< waiting_connection_impl > update( new waiting_connection_impl );
+    wait_for_session_event( session.first, update );
+
+    tools::run( *this );
+
+    BOOST_CHECK( update->update_called() );
+    BOOST_CHECK( find_object( update->response(), "{ 'subscribe': { 'name': 'b' }, 'error': 'node initialization failed' }" ) );
+
+    idle_session( session.first );
+}
+
+BOOST_FIXTURE_TEST_CASE( unsubscribe_from_a_subscribed_node, context_with_subscribed_and_idle_session )
+{
+    session = find_or_create_session( default_id, default_network );
+    BOOST_CHECK( unsubscribe( session.first, node_a ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( unsubscribe_from_not_subscribed_node, context_with_subscribed_and_idle_session )
+{
+    session = find_or_create_session( default_id, default_network );
+    BOOST_CHECK( !unsubscribe( session.first, node_b ) );
 }

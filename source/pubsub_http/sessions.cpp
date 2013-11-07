@@ -44,16 +44,39 @@ namespace http {
             return use_counter_ == 0;
         }
 
-        void wait( const boost::shared_ptr< waiting_connection >& connection )
+        void wait( const boost::shared_ptr< waiting_connection >& connection, boost::asio::io_service& queue )
         {
-            boost::mutex::scoped_lock lock( mutex_ );
+            boost::shared_ptr< waiting_connection > second;
+            json::array updates;
+            json::array responds;
 
-            if ( connection_.get() )
-                connection_->second_connection();
+            {
+                boost::mutex::scoped_lock lock( mutex_ );
 
-            connection_ = connection;
+                second.swap( connection_ );
+
+                if ( !updates_.empty() || !responds_.empty() )
+                {
+                    updates_.swap( updates );
+                    responds_.swap( responds );
+                }
+                else
+                {
+                    connection_ = connection;
+                }
+            }
+
+            if ( second.get() )
+                second->second_connection();
+
+            if ( !updates.empty() || !responds.empty() )
+                queue.post( boost::bind( &waiting_connection::update, connection, responds, updates ) );
         }
 
+        /**
+         * If wake_up returns true, no callback was called on connection and no callback will be called on connection.
+         * If the function returns false, a callback was called, or a callback will be called in the near future.
+         */
         bool wake_up( const boost::shared_ptr< waiting_connection >& connection )
         {
             boost::mutex::scoped_lock lock( mutex_ );
@@ -73,6 +96,7 @@ namespace http {
     private:
         void on_event( const json::object& update, const json::object& respond )
         {
+            assert( !update.empty() || !respond.empty() );
             boost::shared_ptr< waiting_connection > con;
             json::array updates;
             json::array responds;
@@ -108,25 +132,38 @@ namespace http {
             on_event( update, json::object() );
         }
 
-        virtual void on_invalid_node_subscription(const node_name& node)
+        void add_error( const node_name& node, const json::string& error )
         {
-            std::cout << "on_invalid_node_subscription: " << node << std::endl;
+            json::object response;
+
+            response.add( internal::subscribe_token, node.to_json() );
+            response.add( internal::error_token, error );
+
+            on_event( json::object(), response );
         }
 
-        virtual void on_unauthorized_node_subscription(const node_name& node)
+        virtual void on_invalid_node_subscription( const node_name& node )
         {
-            std::cout << "on_unauthorized_node_subscription: " << node << std::endl;
+            static const json::string not_allowed( "invalid node" );
+            add_error( node, not_allowed );
         }
 
-        virtual void on_failed_node_subscription(const node_name& node)
+        virtual void on_unauthorized_node_subscription( const node_name& node )
         {
-            std::cout << "on_failed_node_subscription: " << node << std::endl;
+            static const json::string not_authorized( "not allowed" );
+            add_error( node, not_authorized );
+        }
+
+        virtual void on_failed_node_subscription( const node_name& node )
+        {
+            static const json::string not_subscribed( "node initialization failed" );
+            add_error( node, not_subscribed );
         }
 
         // const -> no synchronization required
         const json::string                      id_;
 
-        // this members are synchronized by the sessions list.
+        // this member is synchronized by the sessions list.
         unsigned                                use_counter_;
 
         boost::mutex                            mutex_;
@@ -214,7 +251,7 @@ namespace http {
         session_list_t::const_iterator pos = sessions_.find( session->id() );
         assert( pos != sessions_.end() );
 
-        pos->second->wait( connection );
+        pos->second->wait( connection, queue_ );
     }
 
     template < class TimeoutTimer >
@@ -243,7 +280,7 @@ namespace http {
     }
 
     template < class TimeoutTimer >
-    void sessions< TimeoutTimer >::unsubscribe( session_impl* session, const node_name& node_name )
+    bool sessions< TimeoutTimer >::unsubscribe( session_impl* session, const node_name& node_name )
     {
         assert( session );
         boost::mutex::scoped_lock lock( mutex_ );
@@ -251,7 +288,7 @@ namespace http {
         session_list_t::const_iterator pos = sessions_.find( session->id() );
         assert( pos != sessions_.end() );
 
-        root_.unsubscribe( pos->second, node_name );
+        return root_.unsubscribe( pos->second, node_name );
     }
 
     template < class TimeoutTimer >
@@ -306,5 +343,6 @@ namespace http {
 
     template class sessions< boost::asio::deadline_timer >;
     template class sessions< asio_mocks::timer >;
-}
-}
+
+} // namespace http
+} // namespace pubsub

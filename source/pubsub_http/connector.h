@@ -142,8 +142,8 @@ namespace pubsub
 
     examples:
 
-        server -> { "id": 12, "cmd": [ { "unsubscribe": { "market": "bananas", "location": "recife" } } ] }
-        server -> { "id": 12, "cmd": [ { "unsubscribe": { "a": 1 }, "error": "not subscribed" } ] }
+        server -> { "id": 12, "resp": [ { "unsubscribe": { "market": "bananas", "location": "recife" } } ] }
+        server -> { "id": 12, "resp": [ { "unsubscribe": { "a": 1 }, "error": "not subscribed" } ] }
 
     ## updates
 

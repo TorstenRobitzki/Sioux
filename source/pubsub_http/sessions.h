@@ -39,14 +39,6 @@ namespace http {
 
     /**
      * @brief class responsible to keep a list of active sessions
-     *
-     * The class models a list of sessions. Every session can be in 3 different states:
-     * - idle: A session currently not in use, is idle.
-     * - used: After calling find_or_create_session(), the returned session is used.
-     *         A used session can be idled again, by calling idle_session().
-     *         If wait_for_session_event() is called with a given session, that session will be waiting.
-     * - waiting: If a session is in it's waiting state, it will get out of this state when the update_interface()
-     *            function gets called.
      */
     template < class TimeoutTimer >
     class sessions
@@ -57,19 +49,19 @@ namespace http {
         ~sessions();
 
         /**
-         * @brief looks up the session_impl with the given session_id. If no such session_reference exists, a new session_reference will be
+         * @brief looks up the session_impl with the given session_id. If no such session exists, a new session will be
          *        generated, using the given network_connection_name.
          *
          * If the returned session_impl isn't used anymore, it has to be returned by caling idle_session().
          *
-         * @return a pointer to a session_reference, that will nevery be null. If the returned bool is true, the session_reference was created.
+         * @return a pointer to a session, that will nevery be null. If the returned bool is true, the session was created.
          */
         std::pair< session_impl*, bool > find_or_create_session( const json::string& session_id, const std::string& network_connection_name );
 
         /**
          * @brief this session_reference is currently idle
          *
-         * This function has to be called after a session_reference was obtained by a call to find_or_create_session(), isn't
+         * This function has to be called after a session was obtained by a call to find_or_create_session(), isn't
          * used anymore.
          */
         void idle_session( session_impl* session );
@@ -88,6 +80,9 @@ namespace http {
          *
          * If the function returns true, the given connection was removed from the session. If the function returns
          * false, the connection was already removed.
+         *
+         * If the function returned false, update() or second_connection() will be called in the near future, or was
+         * already called.
          */
         bool wake_up( session_impl* session, const boost::shared_ptr< waiting_connection >& connection );
 
@@ -98,8 +93,11 @@ namespace http {
 
         /**
          * @brief unsubscribes the given session from the given node
+         *
+         * The function returns true, if the client was subscribed to the node and false if the client was not
+         * subscribed. In both cases, the client is now unsubscribed from the given node.
          */
-        void unsubscribe( session_impl* session, const node_name& node_name );
+        bool unsubscribe( session_impl* session, const node_name& node_name );
 
         /**
          * @brief prepares shut down by timing out all existing sessions and by timing out all new connections.
