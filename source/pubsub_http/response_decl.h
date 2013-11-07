@@ -13,8 +13,6 @@ namespace pubsub
 
 namespace http
 {
-    class session_reference; // <- to be removed
-
     /**
      * @brief connection type independend part of the response implemenation
      */
@@ -22,10 +20,13 @@ namespace http
     {
     protected:
         bool check_session_or_commands_given( const json::object& message, json::string& session_id ) const;
-        json::array process_commands( const json::object& message, pubsub::root&, session_reference& ) const;
+        json::array process_commands( const json::object& message, pubsub::root&, session_impl* ) const;
+
         json::object build_response( const json::string& session_id, const json::array& response, const json::array& updates ) const;
     private:
-        json::value process_command( const json::value& command, pubsub::root&, session_reference& ) const;
+        json::value process_command( const json::value& command, pubsub::root&, session_impl* session ) const;
+
+        // async_response implementation
         virtual const char* name() const;
     };
 
@@ -36,7 +37,7 @@ namespace http
      * @brief class responsible to parse the input and create the protocol output
      */
     template < class Connection >
-    class response : public response_base, public boost::enable_shared_from_this< response< Connection > >
+    class response : public response_base, public waiting_connection, public boost::enable_shared_from_this< response< Connection > >
     {
     public:
         response( const boost::shared_ptr< Connection >& c, sessions< typename Connection::timer_t >& s, pubsub::root& d );
@@ -56,9 +57,11 @@ namespace http
 
         void response_written( const boost::system::error_code& ec, std::size_t size );
 
-        void on_update( const json::array& response, const json::array& update ) = 0;
-
         void on_time_out( const boost::system::error_code& error );
+
+        // waiting_connection implementation
+        virtual void update( const json::array& response, const json::array& update );
+        virtual void second_connection();
 
         typedef typename Connection::timer_t timer_t;
         sessions< timer_t >&                        session_list_;
@@ -66,7 +69,7 @@ namespace http
 
         json::parser                                parser_;
         const boost::shared_ptr< Connection >       connection_;
-        //boost::shared_ptr< session_impl >           session_;
+        session_impl*                               session_;
 
         // a buffer for free texts for the http response
         std::string                                 response_buffer_;

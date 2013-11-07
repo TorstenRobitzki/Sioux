@@ -18,7 +18,6 @@
 #include "server/test_session_generator.h"
 #include "tools/io_service.h"
 
-#if 0
 namespace {
 
     struct response_factory
@@ -114,7 +113,7 @@ namespace {
 
         json::object json_body( const asio_mocks::response_t& response )
         {
-            return json::parse( response.body.begin(), response.body.end() ).upcast< json::object >();
+            return json::parse( std::string( response.body.begin(), response.body.end() ) ).upcast< json::object >();
         }
 
         json::object json_post( const char* json_msg )
@@ -123,7 +122,7 @@ namespace {
             return json_body( response );
         }
 
-        pubsub::root            data_;
+        pubsub::root                                            data_;
         server::test::session_generator                         session_generator_;
         mutable pubsub::http::connector< asio_mocks::timer >    connector_;
         const pubsub::node_name                                 node1;
@@ -330,6 +329,7 @@ BOOST_FIXTURE_TEST_CASE( after_30_seconds_a_session_will_be_deleted, context )
 
 BOOST_FIXTURE_TEST_CASE( response_to_subscription, context )
 {
+#if 0
     answer_validation_request( node1, true );
     answer_authorization_request( node1, true );
     answer_initialization_request( node1, json::number( 42 ) );
@@ -341,6 +341,7 @@ BOOST_FIXTURE_TEST_CASE( response_to_subscription, context )
             "   'id': '192.168.210.1:9999/0',"
             "   'update': [ { 'key': { 'a':1 ,'b':1 }, 'data': 42, 'version': 1 } ] "
             "}" ) );
+#endif
 }
 
 BOOST_FIXTURE_TEST_CASE( defered_response_to_subscription_if_validation_was_asynchronous, context )
@@ -363,4 +364,3 @@ BOOST_FIXTURE_TEST_CASE( defered_error_message_if_not_authorized, context )
 {
 }
 
-#endif

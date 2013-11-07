@@ -10,13 +10,13 @@
 #include <vector>
 #include <boost/bind.hpp>
 #include <boost/enable_shared_from_this.hpp>
+#include <boost/tuple/tuple.hpp>
 
 namespace pubsub
 {
 namespace http
 {
 
-#if 0
     template < class Connection >
     response< Connection >::response( const boost::shared_ptr< Connection >& c, sessions< typename Connection::timer_t >& s,
         pubsub::root& d )
@@ -24,7 +24,7 @@ namespace http
         , data_( d )
         , parser_()
         , connection_( c )
-        , session_()
+        , session_( 0 )
         , response_buffer_()
         , response_()
         , long_poll_timer_( c->socket().get_io_service() )
@@ -35,6 +35,8 @@ namespace http
     template < class Connection >
     response< Connection >::~response()
     {
+        if ( session_ )
+            session_list_.idle_session( session_ );
     }
 
     template < class Connection >
@@ -84,20 +86,26 @@ namespace http
         const std::pair< bool, json::object > message = p.try_cast< json::object >();
         json::string  session_id;
 
-        if ( message.first && !message.second.empty() && check_session_or_commands_given( message.second, session_id ) )
+        if ( message.first && check_session_or_commands_given( message.second, session_id ) )
         {
-            session_.reset( new session_reference( session_list_, session_id,
-                server::socket_end_point_trait< typename Connection::socket_t >::to_text( connection_->socket() ) ) );
+            bool new_session = false;
 
-            const json::array response = process_commands( message.second, data_, *session_ );
+            boost::tie(session_, new_session) = session_list_.find_or_create_session( session_id,
+                server::socket_end_point_trait< typename Connection::socket_t >::to_text( connection_->socket() ) );
 
-            long_poll_timer_.expires_from_now( long_poll_time_out );
-            long_poll_timer_.async_wait( boost::bind( &response::on_time_out, this->shared_from_this(), _1 ) );
+            const json::array response = process_commands( message.second, data_, session_ );
 
-            session_->on_wake_up(
-                boost::bind( &response::on_wake_up, this->shared_from_this() ),
-                response,
-                connection_->socket().get_io_service() );
+            if ( !new_session || !response.empty() )
+            {
+                write_reponse( build_response( id( session_ ), response, json::array() ) );
+            }
+            else
+            {
+                long_poll_timer_.expires_from_now( long_poll_time_out );
+                long_poll_timer_.async_wait( boost::bind( &response::on_time_out, this->shared_from_this(), _1 ) );
+
+                session_list_.wait_for_session_event( session_, this->shared_from_this() );
+            }
 
             guard.dismiss();
         }
@@ -123,20 +131,26 @@ namespace http
     }
 
     template < class Connection >
-    void response< Connection >::on_update( const json::array& response, const json::array& updates )
+    void response< Connection >::on_time_out( const boost::system::error_code& error )
     {
-        long_poll_timer_.cancel();
-
-        write_reponse( build_response( session_->id(), response, updates ) );
+        if ( !error && session_list_.wake_up( session_, this->shared_from_this() ) )
+        {
+            write_reponse( build_response( id( session_ ), json::array(), json::array() ) );
+        }
     }
 
     template < class Connection >
-    void response< Connection >::on_time_out( const boost::system::error_code& error )
+    void response< Connection >::update( const json::array& response, const json::array& updates )
     {
-        if ( !error )
-        {
-            session_->wake_up();
-        }
+        long_poll_timer_.cancel();
+
+        write_reponse( build_response( id( session_ ), response, updates ) );
+    }
+
+    template < class Connection >
+    void response< Connection >::second_connection()
+    {
+        update( json::array(), json::array() );
     }
 
     template < class Connection >
@@ -151,7 +165,6 @@ namespace http
             connection_->response_completed( *this );
         }
     }
-#endif
 
     namespace internal {
 

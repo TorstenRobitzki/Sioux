@@ -8,8 +8,8 @@
 namespace pubsub {
 namespace http {
 namespace internal {
-#if 0
-    static bool check_node_name( const json::object& command, const json::string& cmd_token, json::object& node_name, json::object& response )
+
+static bool check_node_name( const json::object& command, const json::string& cmd_token, json::object& node_name, json::object& response )
     {
         const json::value cmd_key_value = command.at( cmd_token );
         response.add( cmd_token, cmd_key_value );
@@ -27,7 +27,7 @@ namespace internal {
         return true;
     }
 
-    json::value subscribe::execute( const json::object& command, pubsub::root& root, session_reference& subscriber ) const
+    json::value subscribe::execute( const json::object& command, pubsub::root& root, session_impl* session ) const
     {
         json::object response;
         json::object node;
@@ -41,7 +41,7 @@ namespace internal {
         return json::null();
     }
 
-    json::value unsubscribe::execute( const json::object& command, pubsub::root&, session_reference& ) const
+    json::value unsubscribe::execute( const json::object& command, pubsub::root&, session_impl* ) const
     {
         json::object response;
         json::object node_name;
@@ -51,7 +51,6 @@ namespace internal {
 
         return json::null();
     }
-#endif
 }
 }
 }

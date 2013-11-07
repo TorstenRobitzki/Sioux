@@ -15,7 +15,7 @@ namespace pubsub {
 
 namespace pubsub {
 namespace http {
-    class session_reference;
+    class session_impl;
 
 namespace internal {
 
@@ -26,18 +26,18 @@ namespace internal {
          * @brief returns json::null() if the command can not be executed right now. Returns a coresponding json::object,
          *        if it was possible to execute or check the command
          */
-        virtual json::value execute( const json::object& command, pubsub::root&, session_reference& ) const = 0;
+        virtual json::value execute( const json::object& command, pubsub::root&, session_impl* ) const = 0;
         virtual ~command() {}
     };
 
     class subscribe : public command
     {
-        virtual json::value execute( const json::object& command, pubsub::root&, session_reference& ) const;
+        virtual json::value execute( const json::object& command, pubsub::root&, session_impl* ) const;
     };
 
     class unsubscribe : public command
     {
-        virtual json::value execute( const json::object& command, pubsub::root&, session_reference& ) const;
+        virtual json::value execute( const json::object& command, pubsub::root&, session_impl* ) const;
     };
 
 }
