@@ -141,29 +141,31 @@ namespace {
         }
     };
 
-/*
-    json::array extract_cmd_responses( const json::value& response )
+    bool find_update( const json::object& response, const char* node_name_str, const char* data_str )
     {
-        const std::pair< bool, json::object > response_as_obj = response.try_cast< json::object >();
-        BOOST_REQUIRE( response_as_obj.first );
+        const json::object node_name = json::parse_single_quoted( node_name_str ).upcast< json::object >();
+        const json::value  data      = json::parse_single_quoted( data_str );
 
-        const json::value* cmds = response_as_obj.second.find( json::string( "resp" ) );
-        BOOST_REQUIRE( cmds );
+        const json::value* updates = response.find( json::string( "update" ) );
+        BOOST_REQUIRE( updates );
 
-        const std::pair< bool, json::array > cmd_list = cmds->try_cast< json::array >();
-        BOOST_REQUIRE( cmd_list.first );
+        const std::pair< bool, json::array > updates_arr = updates->try_cast< json::array >();
+        BOOST_REQUIRE( updates_arr.first );
 
-        return cmd_list.second;
+        bool found = false;
+        for ( std::size_t i = 0; !found && i != updates_arr.second.length(); ++i )
+        {
+            const std::pair< bool, json::object > as_obj = updates_arr.second.at( i ).try_cast< json::object >();
+            BOOST_REQUIRE( as_obj.first );
+
+            const json::value* const key_value  = as_obj.second.find( json::string( "key" ) );
+            const json::value* const data_value = as_obj.second.find( json::string( "data" ) );
+
+            found = key_value != 0 && data_value != 0 && *key_value == node_name && *data_value == data;
+        }
+
+        return found;
     }
-
-    json::object extract_cmd_response( const json::value& response, std::size_t index = 0 )
-    {
-        const json::array list = extract_cmd_responses( response );
-        BOOST_REQUIRE( list.length() > index );
-
-        return list.at( index );
-    }
-*/
 } // namespace
 
 BOOST_FIXTURE_TEST_CASE( request_without_body_is_a_bad_request, context )
@@ -327,40 +329,177 @@ BOOST_FIXTURE_TEST_CASE( after_30_seconds_a_session_will_be_deleted, context )
     BOOST_CHECK_EQUAL( response.at( json::string( "id" ) ), json::string( "192.168.210.1:9999/1" ) );
 }
 
+/**
+ * @test the current behaviour is, that a first update to a subscription is delivered with the a second
+ *       http request. Delivering the initial version of the data with the first http request would be
+ *       fine too.
+ */
 BOOST_FIXTURE_TEST_CASE( response_to_subscription, context )
 {
-#if 0
     answer_validation_request( node1, true );
     answer_authorization_request( node1, true );
     answer_initialization_request( node1, json::number( 42 ) );
 
+    tools::run( *this );
+    const json::array response = json_multiple_post(
+           asio_mocks::read_plan()
+        << asio_mocks::json_msg( "{ 'cmd': [ { 'subscribe': { 'a':1 ,'b':1 } } ] }" )
+        << asio_mocks::json_msg( "{ 'id': '192.168.210.1:9999/0' }" )
+        << asio_mocks::disconnect_read() );
+
+    BOOST_REQUIRE_EQUAL( response.length(), 2u );
+    json::array updates = response.at( 1 ).upcast< json::object >().at( json::string( "update" ) ).upcast< json::array >();
+
+    BOOST_REQUIRE_EQUAL( updates.length(), 1u );
+    json::object update = updates.at( 0 ).upcast< json::object >();
+
     BOOST_CHECK_EQUAL(
-        json_post( "{ 'cmd': [ { 'subscribe': { 'a':1 ,'b':1 } } ] }" ),
-        json::parse_single_quoted(
-            "{"
-            "   'id': '192.168.210.1:9999/0',"
-            "   'update': [ { 'key': { 'a':1 ,'b':1 }, 'data': 42, 'version': 1 } ] "
-            "}" ) );
-#endif
+        update.at( json::string( "key" ) ),
+        json::parse_single_quoted( "{ 'a':1 ,'b':1 }" ));
+
+    BOOST_CHECK_EQUAL( update.at( json::string( "data" ) ), json::number( 42 ) );
+}
+
+static void update_node1_to_42( pubsub::test::adapter& adapter, const pubsub::node_name& node1 )
+{
+    adapter.answer_validation_request( node1, true );
+    adapter.answer_authorization_request( node1, true );
+    adapter.answer_initialization_request( node1, json::number( 42 ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( defered_response_to_subscription_if_validation_was_asynchronous, context )
 {
+    const json::array responses = json_multiple_post(
+           asio_mocks::read_plan()
+        << asio_mocks::json_msg( "{ 'cmd': [ { 'subscribe': { 'a':1 ,'b':1 } } ] }" )
+        << boost::bind( update_node1_to_42, boost::ref( static_cast< pubsub::test::adapter&>( *this ) ), node1 )
+        << asio_mocks::json_msg( "{ 'id': '192.168.210.1:9999/0' }" )
+        << asio_mocks::disconnect_read() );
+
+    BOOST_REQUIRE_EQUAL( responses.length(), 2u );
+    BOOST_CHECK( find_update( responses.at( 1u ).upcast< json::object >(), "{ 'a':1 ,'b':1 }", "42" ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( error_message_if_subscription_subject_is_invalid, context )
 {
+    answer_validation_request( node1, false );
+
+    const json::array response = json_multiple_post(
+           asio_mocks::read_plan()
+        << asio_mocks::json_msg( "{ 'cmd': [ { 'subscribe': { 'a':1 ,'b':1 } } ] }" )
+        << asio_mocks::json_msg( "{ 'id': '192.168.210.1:9999/0' }" )
+        << asio_mocks::disconnect_read() );
+
+    BOOST_REQUIRE_EQUAL( response.length(), 2u );
+    json::array resp = response.at( 1 ).upcast< json::object >().at( json::string( "resp" ) ).upcast< json::array >();
+
+    BOOST_REQUIRE_EQUAL( resp.length(), 1u );
+
+    BOOST_CHECK_EQUAL(
+        resp.at( 0 ),
+        json::parse_single_quoted( "{"
+            "'error': 'invalid node'"
+            "'subscribe' :{ 'a':1 ,'b':1 } }" ) );
+}
+
+static void invalidate_node_subject( pubsub::test::adapter& adapter, const pubsub::node_name& node )
+{
+    adapter.answer_validation_request( node, false );
 }
 
 BOOST_FIXTURE_TEST_CASE( defered_error_message_if_subscription_subject_is_invalid, context )
 {
+    const json::array response = json_multiple_post(
+           asio_mocks::read_plan()
+        << asio_mocks::json_msg( "{ 'cmd': [ { 'subscribe': { 'a':1 ,'b':1 } } ] }" )
+        << asio_mocks::json_msg( "{ 'id': '192.168.210.1:9999/0' }" )
+        << boost::bind( invalidate_node_subject, boost::ref( static_cast< pubsub::test::adapter&>( *this ) ), node1 )
+        << asio_mocks::disconnect_read() );
+
+    BOOST_REQUIRE_EQUAL( response.length(), 2u );
+    json::array resp = response.at( 1 ).upcast< json::object >().at( json::string( "resp" ) ).upcast< json::array >();
+
+    BOOST_REQUIRE_EQUAL( resp.length(), 1u );
+
+    BOOST_CHECK_EQUAL(
+        resp.at( 0 ),
+        json::parse_single_quoted( "{"
+            "'error': 'invalid node'"
+            "'subscribe' :{ 'a':1 ,'b':1 } }" ) );
 }
 
 BOOST_FIXTURE_TEST_CASE( error_message_if_not_authorized, context )
 {
+    answer_validation_request( node1, true );
+    answer_authorization_request( node1, false );
+
+    const json::array response = json_multiple_post(
+           asio_mocks::read_plan()
+        << asio_mocks::json_msg( "{ 'cmd': [ { 'subscribe': { 'a':1 ,'b':1 } } ] }" )
+        << asio_mocks::json_msg( "{ 'id': '192.168.210.1:9999/0' }" )
+        << asio_mocks::disconnect_read() );
+
+    BOOST_REQUIRE_EQUAL( response.length(), 2u );
+
+    json::array resp = response.at( 1 ).upcast< json::object >().at( json::string( "resp" ) ).upcast< json::array >();
+
+    BOOST_REQUIRE_EQUAL( resp.length(), 1u );
+
+    BOOST_CHECK_EQUAL(
+        resp.at( 0 ),
+        json::parse_single_quoted( "{"
+            "'error': 'not allowed'"
+            "'subscribe' :{ 'a':1 ,'b':1 } }" ) );
+}
+
+static void unauthorized_node_subject( pubsub::test::adapter& adapter, const pubsub::node_name& node )
+{
+    adapter.answer_validation_request( node, true );
+    adapter.answer_authorization_request( node, false );
 }
 
 BOOST_FIXTURE_TEST_CASE( defered_error_message_if_not_authorized, context )
 {
+    const json::array response = json_multiple_post(
+           asio_mocks::read_plan()
+        << asio_mocks::json_msg( "{ 'cmd': [ { 'subscribe': { 'a':1 ,'b':1 } } ] }" )
+        << asio_mocks::json_msg( "{ 'id': '192.168.210.1:9999/0' }" )
+        << boost::bind( unauthorized_node_subject, boost::ref( static_cast< pubsub::test::adapter&>( *this ) ), node1 )
+        << asio_mocks::disconnect_read() );
+
+    BOOST_REQUIRE_EQUAL( response.length(), 2u );
+    json::array resp = response.at( 1 ).upcast< json::object >().at( json::string( "resp" ) ).upcast< json::array >();
+
+    BOOST_REQUIRE_EQUAL( resp.length(), 1u );
+
+    BOOST_CHECK_EQUAL(
+        resp.at( 0 ),
+        json::parse_single_quoted( "{"
+            "'error': 'not allowed'"
+            "'subscribe' :{ 'a':1 ,'b':1 } }" ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( failed_initialization, context )
+{
+    answer_validation_request( node1, true );
+    answer_authorization_request( node1, true );
+    skip_initialization_request( node1 );
+
+    const json::array response = json_multiple_post(
+           asio_mocks::read_plan()
+        << asio_mocks::json_msg( "{ 'cmd': [ { 'subscribe': { 'a':1 ,'b':1 } } ] }" )
+        << asio_mocks::json_msg( "{ 'id': '192.168.210.1:9999/0' }" )
+        << asio_mocks::disconnect_read() );
+
+    BOOST_REQUIRE_EQUAL( response.length(), 2u );
+    json::array resp = response.at( 1 ).upcast< json::object >().at( json::string( "resp" ) ).upcast< json::array >();
+
+    BOOST_REQUIRE_EQUAL( resp.length(), 1u );
+
+    BOOST_CHECK_EQUAL(
+        resp.at( 0 ),
+        json::parse_single_quoted( "{"
+            "'error': 'node initialization failed'"
+            "'subscribe' :{ 'a':1 ,'b':1 } }" ) );
 }
 
