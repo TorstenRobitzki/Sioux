@@ -129,6 +129,9 @@ private:
     boost::shared_ptr<impl> pimpl_;
 };
 
+typedef traits< response_factory, asio_mocks::socket< const char* >, boost::asio::deadline_timer >
+    traits_with_real_timer_t;
+
 } // namespace test
 } // namespace server 
 

@@ -186,7 +186,7 @@ namespace
 	};
 
 	typedef asio_mocks::socket<const char*>                         socket_t;
-	typedef asio_mocks::timer                                       timer_t;
+	typedef boost::asio::deadline_timer                             timer_t;
 	typedef server::null_event_logger								event_logger_t;
 //	typedef server::stream_event_log								event_logger_t;
 	typedef server::stream_error_log								error_logger_t;

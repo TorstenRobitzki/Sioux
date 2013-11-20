@@ -156,10 +156,10 @@ BOOST_AUTO_TEST_CASE( closed_when_idle_time_exceeded )
           << read(begin(simple_get_11), end(simple_get_11))
           << read("");
 
-    traits<>::connection_type   socket(queue, reads);
-    traits<>                    trait;
+    traits_with_real_timer_t::connection_type   socket(queue, reads);
+    traits_with_real_timer_t                    trait;
 
-    boost::weak_ptr<server::connection<traits<>, traits<>::connection_type> > connection(server::create_connection(socket, trait));
+    boost::weak_ptr<server::connection<traits_with_real_timer_t> > connection(server::create_connection(socket, trait));
     BOOST_CHECK(!connection.expired());
 
     tools::elapse_timer time;
@@ -215,10 +215,10 @@ BOOST_AUTO_TEST_CASE( timeout_while_writing_to_client )
     asio_mocks::write_plan       writes;
     writes << write(2) << delay(boost::posix_time::seconds(60));
 
-    traits<>::connection_type   socket(queue, reads, writes);
-    traits<>                    trait;
+    traits_with_real_timer_t::connection_type   socket(queue, reads, writes);
+    traits_with_real_timer_t                    trait;
 
-    boost::weak_ptr<server::connection<traits<>, traits<>::connection_type> > connection(server::create_connection(socket, trait));
+    boost::weak_ptr<server::connection< traits_with_real_timer_t > > connection(server::create_connection(socket, trait));
     BOOST_CHECK(!connection.expired());
 
     tools::elapse_timer time;
@@ -253,10 +253,10 @@ BOOST_AUTO_TEST_CASE( timeout_while_reading_from_client )
           << read( begin( simple_get_11 ), end( simple_get_11 ) )
           << read( "" );
 
-    traits<>::connection_type   socket(queue, reads);
-    traits<>                    trait;
+    traits_with_real_timer_t::connection_type   socket(queue, reads);
+    traits_with_real_timer_t                    trait;
 
-    boost::weak_ptr<server::connection<traits<>, traits<>::connection_type> > connection(server::create_connection(socket, trait));
+    boost::weak_ptr<server::connection< traits_with_real_timer_t > > connection(server::create_connection(socket, trait));
     BOOST_CHECK(!connection.expired());
 
     tools::elapse_timer time;
@@ -306,7 +306,6 @@ namespace {
 
         boost::shared_ptr< Connection >         connection_;
         boost::asio::deadline_timer             timer_;
-//        typename Trait::timeout_timer_type      timer_;
         const boost::posix_time::time_duration  delay_;
     };
 
@@ -357,7 +356,7 @@ BOOST_AUTO_TEST_CASE( no_readtimeout_when_responses_are_still_active )
           << delay( boost::posix_time::minutes( 60 ) )
           << disconnect_read();
 
-    typedef traits< lasy_response_factory > trait_t;
+    typedef traits< lasy_response_factory, asio_mocks::socket< const char* >, boost::asio::deadline_timer > trait_t;
     trait_t::connection_type   socket(queue, reads);
     trait_t                    trait;
 
@@ -394,10 +393,10 @@ BOOST_AUTO_TEST_CASE( no_timeout_applies_when_client_doesnt_block )
     reads << read( begin( simple_get_11 ), end( simple_get_11 ) )
           << disconnect_read();
 
-    traits<>::connection_type   socket(queue, reads);
-    traits<>                    trait;
+    traits_with_real_timer_t::connection_type   socket(queue, reads);
+    traits_with_real_timer_t                    trait;
 
-    boost::weak_ptr< server::connection< traits<>, traits<>::connection_type > > connection(
+    boost::weak_ptr< server::connection< traits_with_real_timer_t > > connection(
         server::create_connection( socket, trait ) );
     BOOST_CHECK( !connection.expired() );
 

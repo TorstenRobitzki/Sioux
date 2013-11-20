@@ -240,8 +240,8 @@ namespace server
         bool                                    shutdown_read_;
         bool                                    no_read_timeout_set_;
 
-        boost::asio::deadline_timer             read_timer_;
-        boost::asio::deadline_timer             write_timer_;
+        timer_t                                 read_timer_;
+        timer_t                                 write_timer_;
 
         typedef boost::function< void ( const boost::system::error_code&, const char*, std::size_t ) >
         	body_read_cb_t;
