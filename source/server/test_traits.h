@@ -19,8 +19,6 @@ namespace server {
 
 namespace test {
 
-	class timer;
-
 struct response_factory
 {
     response_factory() {}

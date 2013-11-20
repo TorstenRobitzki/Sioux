@@ -12,6 +12,7 @@
 #include "tools/io_service.h"
 #include "http/decode_stream.h"
 #include "http/response.h"
+#include "asio_mocks/test_timer.h"
 
 #include <boost/test/unit_test.hpp>
 #include <iterator>
@@ -51,7 +52,7 @@ namespace
 
     typedef server::connection_traits<
         socket_t,
-        server::test::timer,
+        asio_mocks::timer,
         response_factory,
         server::null_event_logger,
         server::stream_error_log > trait_t;
