@@ -16,6 +16,22 @@ namespace pubsub
 {
 namespace http
 {
+    namespace internal {
+
+        extern const json::string id_token;
+        extern const json::string cmd_token;
+        extern const json::string response_token;
+        extern const json::string error_token;
+        extern const json::string key_token;
+        extern const json::string update_token;
+        extern const json::string from_token;
+        extern const json::string data_token;
+        extern const json::string version_token;
+
+        extern const json::string subscribe_token;
+        extern const json::string unsubscribe_token;
+
+    }
 
     template < class Connection >
     response< Connection >::response( const boost::shared_ptr< Connection >& c, sessions< typename Connection::timer_t >& s,
@@ -90,14 +106,16 @@ namespace http
         {
             bool new_session = false;
 
-            boost::tie(session_, new_session) = session_list_.find_or_create_session( session_id,
+            boost::tie( session_, new_session ) = session_list_.find_or_create_session( session_id,
                 server::socket_end_point_trait< typename Connection::socket_t >::to_text( connection_->socket() ) );
 
-            const json::array response = process_commands( message.second, data_, session_ );
+            const json::array response = process_commands( message.second );
 
-            if ( !new_session || !response.empty() )
+            json::array stored_updates, stored_response;
+
+            if ( new_session || !response.empty() || session_list_.pending_updates( session_, stored_updates, stored_response ) )
             {
-                write_reponse( build_response( id( session_ ), response, json::array() ) );
+                write_reponse( build_response( id( session_ ), response + stored_response, stored_updates ) );
             }
             else
             {
@@ -109,6 +127,60 @@ namespace http
 
             guard.dismiss();
         }
+    }
+
+    template < class Connection >
+    json::value response< Connection >::process_command( const json::value& command ) const
+    {
+        json::object cmd = command.upcast< json::object >();
+        json::object response;
+        json::object node;
+
+        const json::value* const subscribe = cmd.find( internal::subscribe_token );
+        if ( subscribe )
+        {
+            if ( !check_node_name( internal::subscribe_token, *subscribe, node, response ) )
+                return response;
+
+            session_list_.subscribe( session_, node_name( node ) );
+            return json::null();
+        }
+
+        const json::value* const unsubscribe = cmd.find( internal::unsubscribe_token );
+        if ( unsubscribe )
+        {
+            if ( !check_node_name( internal::unsubscribe_token, *unsubscribe, node, response ) )
+                return response;
+
+            session_list_.unsubscribe( session_, node_name( node ) );
+            return json::null();
+        }
+
+        return json::null();
+    }
+
+    template < class Connection >
+    json::array response< Connection >::process_commands( const json::object& message ) const
+    {
+        assert( session_ );
+        const json::value* const cmd_field = message.find( internal::cmd_token );
+
+        json::array result;
+
+        if ( !cmd_field )
+            return result;
+
+        const json::array commands = cmd_field->upcast< json::array >();
+
+        for ( std::size_t cmd_idx = 0, num_cmds = commands.length(); cmd_idx != num_cmds; ++cmd_idx )
+        {
+            const json::value response = process_command( commands.at( cmd_idx ) );
+
+            if ( response != json::null() )
+                result.add( response );
+        }
+
+        return result;
     }
 
     template < class Connection >
@@ -164,23 +236,6 @@ namespace http
         {
             connection_->response_completed( *this );
         }
-    }
-
-    namespace internal {
-
-        extern const json::string id_token;
-        extern const json::string cmd_token;
-        extern const json::string response_token;
-        extern const json::string error_token;
-        extern const json::string key_token;
-        extern const json::string update_token;
-        extern const json::string from_token;
-        extern const json::string data_token;
-        extern const json::string version_token;
-
-        extern const json::string subscribe_token;
-        extern const json::string unsubscribe_token;
-
     }
 }
 }

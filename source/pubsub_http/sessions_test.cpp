@@ -505,3 +505,24 @@ BOOST_FIXTURE_TEST_CASE( unsubscribe_from_not_subscribed_node, context_with_subs
     session = find_or_create_session( default_id, default_network );
     BOOST_CHECK( !unsubscribe( session.first, node_b ) );
 }
+
+BOOST_FIXTURE_TEST_CASE( initialy_there_are_no_updates, context )
+{
+    std::pair< pubsub::http::session_impl*, bool > session = find_or_create_session( default_id, default_network );
+    json::array u, r;
+
+    BOOST_CHECK( !pending_updates( session.first, u, r ) );
+    BOOST_CHECK( u.empty() );
+    BOOST_CHECK( r.empty() );
+}
+
+BOOST_FIXTURE_TEST_CASE( pending_updates_comming_while_not_waiting, context_with_subscribed_and_idle_session )
+{
+    root_data::root_.update_node( node_a, json::number(11) );
+    tools::run( *this );
+
+    json::array u, r;
+    session = find_or_create_session( default_id, default_network );
+    BOOST_CHECK( pending_updates( session.first, u, r ) );
+    BOOST_CHECK_EQUAL( u.length(), 1u );
+}

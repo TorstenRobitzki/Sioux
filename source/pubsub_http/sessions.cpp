@@ -73,6 +73,16 @@ namespace http {
                 queue.post( boost::bind( &waiting_connection::update, connection, responds, updates ) );
         }
 
+        bool pending_updates( json::array& updates, json::array& responds )
+        {
+            {
+                boost::mutex::scoped_lock lock( mutex_ );
+                updates_.swap( updates );
+                responds_.swap( responds );
+            }
+
+            return !updates.empty() || !responds.empty();
+        }
         /**
          * If wake_up returns true, no callback was called on connection and no callback will be called on connection.
          * If the function returns false, a callback was called, or a callback will be called in the near future.
@@ -233,12 +243,21 @@ namespace http {
     void sessions< TimeoutTimer >::idle_session( session_impl* session )
     {
         boost::mutex::scoped_lock lock( mutex_ );
-
-        session_list_t::const_iterator pos = sessions_.find( session->id() );
-        assert( pos != sessions_.end() );
+        assert( sessions_.find( session->id() ) != sessions_.end() );
 
         if ( session->unuse() )
             setup_timeout( *session );
+    }
+
+    template < class TimeoutTimer >
+    bool sessions< TimeoutTimer >::pending_updates( session_impl* session, json::array& updates, json::array& responses )
+    {
+        {
+            boost::mutex::scoped_lock lock( mutex_ );
+            assert( sessions_.find( session->id() ) != sessions_.end() );
+        }
+
+        return session->pending_updates( updates, responses );
     }
 
     template < class TimeoutTimer >

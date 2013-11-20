@@ -67,6 +67,16 @@ namespace http {
         void idle_session( session_impl* session );
 
         /**
+         * @brief returns unsend updates
+         *
+         * If there are pending, yet not communicated updates and responses for the session, this function will return
+         * them.
+         *
+         * @return true, if there are updates or responses.
+         */
+        bool pending_updates( session_impl* session, json::array& updates, json::array& responses );
+
+        /**
          * @brief keeps the connection assoziated with the session_impl, until an event occures, or wake_up() gets called.
          *
          * Once wait_for_session_event() was called, the passed connection will be informed about updates.

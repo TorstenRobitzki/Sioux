@@ -20,11 +20,10 @@ namespace http
     {
     protected:
         bool check_session_or_commands_given( const json::object& message, json::string& session_id ) const;
-        json::array process_commands( const json::object& message, pubsub::root&, session_impl* ) const;
 
         json::object build_response( const json::string& session_id, const json::array& response, const json::array& updates ) const;
+        static bool check_node_name( const json::string cmd, const json::value& token, json::object& node_name, json::object& response );
     private:
-        json::value process_command( const json::value& command, pubsub::root&, session_impl* session ) const;
 
         // async_response implementation
         virtual const char* name() const;
@@ -52,6 +51,8 @@ namespace http
             std::size_t bytes_read_and_decoded );
 
         void protocol_body_read_handler( const json::value& );
+        json::array process_commands( const json::object& message ) const;
+        json::value process_command( const json::value& command ) const;
 
         void write_reponse( const json::object& );
 
