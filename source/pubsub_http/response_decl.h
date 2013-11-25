@@ -74,6 +74,7 @@ namespace http
 
         // a buffer for free texts for the http response
         std::string                                 response_buffer_;
+        json::object                                json_response_;
         // a concatenated list of snippets that form the http response
         std::vector< boost::asio::const_buffer >    response_;
 

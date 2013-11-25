@@ -197,7 +197,9 @@ namespace http
         response_.push_back( boost::asio::buffer( response_header, sizeof response_header -1 ) );
         response_.push_back( boost::asio::buffer( response_buffer_ ) );
 
-        protocol_response.to_json( response_ );
+        // keep a copy of the protocol_response, as response_ contains just pointers into the json_response_
+        json_response_ = protocol_response;
+        json_response_.to_json( response_ );
         connection_->async_write(
             response_, boost::bind( &response::response_written, this->shared_from_this(), _1, _2 ), *this );
     }

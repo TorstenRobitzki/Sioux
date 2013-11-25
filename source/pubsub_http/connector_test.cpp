@@ -17,6 +17,7 @@
 #include "server/connection.h"
 #include "server/test_session_generator.h"
 #include "tools/io_service.h"
+#include <boost/date_time/posix_time/posix_time.hpp>
 
 namespace {
 
@@ -138,6 +139,16 @@ namespace {
             , node1( json::parse_single_quoted( "{ 'a': 1, 'b': 1 }" ).upcast< json::object >() )
             , node2( json::parse_single_quoted( "{ 'a': 1, 'b': 2 }" ).upcast< json::object >() )
         {
+        }
+
+        asio_mocks::read_plan subscribe_to_node1()
+        {
+            answer_validation_request( node1, true );
+            answer_authorization_request( node1, true );
+            answer_initialization_request( node1, json::number( 42 ) );
+
+            return asio_mocks::read_plan()
+                << asio_mocks::json_msg( "{ 'cmd': [ { 'subscribe': { 'a':1 ,'b':1 } } ] }" );
         }
     };
 
@@ -503,3 +514,162 @@ BOOST_FIXTURE_TEST_CASE( failed_initialization, context )
             "'subscribe' :{ 'a':1 ,'b':1 } }" ) );
 }
 
+static void update_node( pubsub::root& root, const pubsub::node_name& node, const json::value& val )
+{
+    root.update_node( node, val );
+}
+
+static void defered_update_node( pubsub::root& root, const pubsub::node_name& node,
+    const json::value& val, boost::asio::io_service& queue )
+{
+    queue.post( boost::bind( update_node, boost::ref( root ), node, val ) );
+}
+
+BOOST_FIXTURE_TEST_CASE( getting_updates_while_waiting, context )
+{
+    json::array response = json_multiple_post(
+           subscribe_to_node1()
+        << asio_mocks::json_msg( "{ 'id': '192.168.210.1:9999/0' }" )
+        << asio_mocks::json_msg( "{ 'id': '192.168.210.1:9999/0' }" )
+        << boost::bind( update_node, boost::ref( data_ ), node1, json::string( "this is an update") )
+        << asio_mocks::disconnect_read() );
+
+    // set the version to a specific value 4
+    response.at( 2u )
+        .upcast< json::object >()
+        .at( json::string( "update" ) )
+        .upcast< json::array >()
+        .at( 0 )
+        .upcast< json::object >()
+        .at( json::string( "version") ) = json::number( 4 );
+
+    BOOST_CHECK_EQUAL( response.at( 2u ), json::parse_single_quoted(
+        "{"
+        "    'id': '192.168.210.1:9999/0',"
+        "    'update': ["
+        "        { "
+        "            'key': { 'a': 1, 'b': 1 },"
+        "            'data': 'this is an update',"
+        "            'version': 4"
+        "        }"
+        "    ]"
+        "}") );
+}
+
+BOOST_FIXTURE_TEST_CASE( getting_updates_before_polling, context )
+{
+    json::array response = json_multiple_post(
+           subscribe_to_node1()
+        << asio_mocks::json_msg( "{ 'id': '192.168.210.1:9999/0' }" )
+        << boost::bind( defered_update_node, boost::ref( data_ ), node1, json::string( "update1"),
+            boost::ref( static_cast< boost::asio::io_service& >( *this ) ) )
+        << asio_mocks::json_msg( "{ 'id': '192.168.210.1:9999/0' }" )
+        << asio_mocks::disconnect_read() );
+
+    // set the version to a specific value 4, to make it better comparable
+    response.at( 2u )
+        .upcast< json::object >()
+        .at( json::string( "update" ) )
+        .upcast< json::array >()
+        .at( 0 )
+        .upcast< json::object >()
+        .at( json::string( "version") ) = json::number( 4 );
+
+    BOOST_CHECK_EQUAL( response.at( 2u ), json::parse_single_quoted(
+        "{"
+        "    'id': '192.168.210.1:9999/0',"
+        "    'update': ["
+        "        { "
+        "            'key': { 'a': 1, 'b': 1 },"
+        "            'data': 'update1',"
+        "            'version': 4"
+        "        }"
+        "    ]"
+        "}") );
+}
+
+BOOST_FIXTURE_TEST_CASE( updates_created_different_versions, context )
+{
+    const json::array response = json_multiple_post(
+           subscribe_to_node1()
+        << asio_mocks::json_msg( "{ 'id': '192.168.210.1:9999/0' }" )
+        << boost::bind( defered_update_node, boost::ref( data_ ), node1, json::string( "update1"),
+            boost::ref( static_cast< boost::asio::io_service& >( *this ) ) )
+        << asio_mocks::json_msg( "{ 'id': '192.168.210.1:9999/0' }" )
+        << asio_mocks::disconnect_read() );
+
+    const json::value version1 = response.at( 1u )
+        .upcast< json::object >()
+        .at( json::string( "update" ) )
+        .upcast< json::array >()
+        .at( 0 )
+        .upcast< json::object >()
+        .at( json::string( "version") );
+
+    const json::value version2 = response.at( 2u )
+        .upcast< json::object >()
+        .at( json::string( "update" ) )
+        .upcast< json::array >()
+        .at( 0 )
+        .upcast< json::object >()
+        .at( json::string( "version") );
+
+    BOOST_CHECK_NE( version1, version2 );
+}
+
+BOOST_FIXTURE_TEST_CASE( unsubscribe_from_node, context )
+{
+    const json::array response = json_multiple_post(
+           subscribe_to_node1()
+        << asio_mocks::json_msg( "{"
+            "   'id': '192.168.210.1:9999/0',  "
+            "   'cmd': [ "
+            "       { 'unsubscribe': { 'a': 1, 'b': 1 } } "
+            "   ]"
+            "}" )
+        << boost::bind( defered_update_node, boost::ref( data_ ), node1, json::string( "update"),
+            boost::ref( static_cast< boost::asio::io_service& >( *this ) ) )
+        << asio_mocks::json_msg( "{ 'id': '192.168.210.1:9999/0' }" )
+        << asio_mocks::json_msg( "{ 'id': '192.168.210.1:9999/0' }" )
+        << asio_mocks::disconnect_read() );
+
+    // the client was unsubscribed before the first update was received
+    BOOST_CHECK_EQUAL(
+        response,
+        json::parse_single_quoted("["
+            "   { 'id': '192.168.210.1:9999/0' },"
+            "   { 'id': '192.168.210.1:9999/0' },"
+            "   { 'id': '192.168.210.1:9999/0' },"
+            "   { 'id': '192.168.210.1:9999/0' }"
+            "]")
+        );
+}
+
+BOOST_FIXTURE_TEST_CASE( unsubscribe_from_not_subscribed_node_http, context )
+{
+}
+
+BOOST_FIXTURE_TEST_CASE( a_client_blocks_when_there_is_no_update, context )
+{
+    answer_validation_request( node1, true );
+    answer_authorization_request( node1, true );
+    answer_initialization_request( node1, json::number( 42 ) );
+
+    const boost::posix_time::ptime start_time = asio_mocks::current_time();
+
+    // the first message will always return immediately, the second will return
+    // immediately, because it can transport the initial data of the subscribed node.
+    // The third transport should block.
+    const std::vector< asio_mocks::response_t > response = http_multiple_post(
+           asio_mocks::read_plan()
+        << asio_mocks::json_msg( "{ 'cmd': [ { 'subscribe': { 'a':1 ,'b':1 } } ] }" )
+        << asio_mocks::json_msg( "{ 'id': '192.168.210.1:9999/0' }" )
+        << asio_mocks::json_msg( "{ 'id': '192.168.210.1:9999/0' }" )
+        << asio_mocks::disconnect_read() );
+
+    BOOST_REQUIRE_EQUAL( response.size(), 3u );
+    const boost::posix_time::time_duration wait_time = response[ 2u ].received - start_time;
+
+    BOOST_CHECK_GE( wait_time, boost::posix_time::seconds( 19 ) );
+    BOOST_CHECK_LE( wait_time, boost::posix_time::seconds( 21 ) );
+}
