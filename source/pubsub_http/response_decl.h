@@ -44,6 +44,7 @@ namespace http
         ~response();
     private:
         virtual void start();
+        void implement_hurry();
 
         void body_read_handler(
             const boost::system::error_code& error,

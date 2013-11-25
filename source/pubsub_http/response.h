@@ -66,6 +66,13 @@ namespace http
     }
 
     template < class Connection >
+    void response< Connection >::implement_hurry()
+    {
+        if ( session_ && session_list_.wake_up( session_, this->shared_from_this() ) )
+            update( json::array(), json::array() );
+    }
+
+    template < class Connection >
     void response< Connection >::body_read_handler(
         const boost::system::error_code& error,
         const char* buffer,
@@ -152,7 +159,14 @@ namespace http
             if ( !check_node_name( internal::unsubscribe_token, *unsubscribe, node, response ) )
                 return response;
 
-            session_list_.unsubscribe( session_, node_name( node ) );
+            if ( session_list_.unsubscribe( session_, node_name( node ) ) != 1u )
+            {
+                static const json::string unsubscribe_error_message( "not subscribed" );
+                response.add( internal::unsubscribe_token, node );
+                response.add( internal::error_token, unsubscribe_error_message );
+                return response;
+            }
+
             return json::null();
         }
 
