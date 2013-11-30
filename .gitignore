@@ -5,3 +5,5 @@ documentation/
 README.html
 documentation.zip
 source/rack/sioux*.gem
+.cproject
+.project

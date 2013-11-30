@@ -6,6 +6,7 @@ require 'pathname'
 require 'rake/clean'
 require 'yaml'
 require 'rbconfig'
+require_relative 'build/run_mocha'
 
 LIBRARY_EXCEPTIONS = %w( sioux tests )
 
@@ -315,6 +316,13 @@ def test test_name, *dependencies
     UNIT_TEST_NAMES << test_name
     
     create_executable_task test_name, *dependencies
+end
+
+def js_test test_name, *options
+    ALL_TEST_NAMES << test_name
+    UNIT_TEST_NAMES << test_name
+    
+    mocha_test_task test_name, *options 
 end
 
 def build_example example_name, *dependencies

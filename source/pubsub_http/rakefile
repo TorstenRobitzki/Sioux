@@ -6,3 +6,6 @@ test 'pubsub_http_test',
     :libraries => ['pubsub_http', 'pubsub', 'server', 'http', 'json', 'asio_mocks', 'tools'], 
     :extern_libs => [ 'boost_regex', 'boost_random', 'boost_date_time', 'boost_thread', 'boost_system', 'boost_test_exec_monitor'], 
     :sources =>  FileList['./source/pubsub_http/*_test.cpp'] 
+
+js_test 'pubsub_http_js_test', 
+    :sources => FileList[ './source/pubsub_http/*_test.coffee' ]
