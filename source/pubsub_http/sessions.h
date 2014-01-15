@@ -81,7 +81,7 @@ namespace http {
          *
          * Once wait_for_session_event() was called, the passed connection will be informed about updates.
          *
-         * @pred session must have been aquired by a call to find_or_create_session() and idle_session() wasn't called jet.
+         * @pre session must have been aquired by a call to find_or_create_session() and idle_session() wasn't called jet.
          */
         void wait_for_session_event( session_impl* session, const boost::shared_ptr< waiting_connection >& connection );
 
