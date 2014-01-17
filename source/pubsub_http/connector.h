@@ -26,14 +26,14 @@ namespace pubsub
     # pubsub/http
 
     Implements a protocol similar to bayeux, but simpler and with observing data, not receiving messages in mind.
-    A client subscribes to a versioned data object. The protocol does not guarantie, that the client will see every
-    update to the subscribed object. The protocol does not guarantie that changes made to two observed objects are
+    A client subscribes to one or more versioned data objects. The protocol does not guarantie, that the client will see every
+    update to the subscribed objects. The protocol does not guarantie that changes made to two observed objects are
     communicated to the client in the order, in which the changes where made.
 
     ## Protocol
 
     The server receives http posts with a json encoded message body. The message must be an object with zero or more
-    commands and an optional session id. If a session id is not given, the service will respond with a newly generated session id.
+    commands and an optional session id. If a session id is not given, the server will respond with a newly generated session id.
     That session id has to be used by the client in every subsequent http post. If the list of commands is empty or missing,
     a session id must be given. The session id value itseld should be treated like an opaque value by a client.
 
