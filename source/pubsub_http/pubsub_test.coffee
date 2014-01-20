@@ -1,4 +1,5 @@
-assert = require "assert"
+assert = require 'assert'
+sinon  = require 'sinon'
 require( './pubsub.coffee' )
 
 describe "pubsub.http interface", ->
@@ -15,15 +16,28 @@ describe "pubsub.http interface", ->
             
         { request, cb } = http_requests.shift()
         
-        cb( true, response )         
+        cb( false, response )         
                 
-    describe "when subscribing to a node", ->
+    simulate_error = ->
+        if record_http_requests.length == 0 
+            throw 'no response expected'
+                        
+        { request, cb } = http_requests.shift()
+        
+        cb( true )         
+
+    describe.skip "when subscribing to a node", ->
     
-        beforeEach () ->
+        beforeEach ->
             PubSub.reset()
             http_requests = []
             PubSub.configure_transport record_http_requests
             
+            @clock = sinon.useFakeTimers()
+            
+        afterEach ->
+            @clock.restore()
+                        
         it "should throw, if the wrong number of arguments are given", ->
             
             assert.throws ( -> PubSub.subscribe() ),   
@@ -39,6 +53,10 @@ describe "pubsub.http interface", ->
             PubSub.subscribe { a: 1, b: 'Hallo' }, ->
             assert.equal http_requests.length, 1
             
+        it "should generate a valid http request to the server", ->
+            PubSub.subscribe { a: 1, b: 'Hallo' }, ->
+            assert.deepEqual http_requests[ 0 ].request, { cmd: [ { subscribe: { a: 1, b: 'Hallo' } } ] }
+                                
         it "should not perform a second http request, when adding a second subscription", -> 
             PubSub.subscribe { a: 1, b: 'Hallo' }, ->
             PubSub.subscribe { a: 2, b: 'Hallo' }, ->
@@ -48,7 +66,32 @@ describe "pubsub.http interface", ->
             PubSub.subscribe { a: 1, b: 'Hallo' }, ->
             PubSub.subscribe { a: 2, b: 'Hallo' }, ->
 
-            simulate_response 1
+            simulate_response { id: 'abc' }
             assert.equal http_requests.length, 1
+            assert.deepEqual http_requests[ 0 ].request, { id: 'abc', cmd: [ { subscribe: { a: 2, b: 'Hallo' } } ] }
                     
-        it "the second transport must contain the server assigned session id"
+        it "should transport the second and third subscription, after the server responded", ->
+            PubSub.subscribe { a: 1, b: 'Hallo' }, ->
+            PubSub.subscribe { a: 2, b: 'Hallo' }, ->
+            PubSub.subscribe { a: 3, c: false }, ->
+
+            simulate_response { id: 'abc' }
+            assert.equal http_requests.length, 1
+            assert.deepEqual http_requests[ 0 ].request, 
+                { 
+                    id: 'abc', 
+                    cmd: [ 
+                        { subscribe: { a: 2, b: 'Hallo' } },
+                        { subscribe: { a: 3, c: false } } ] }
+                            
+        it "will retry after a timeout, when the server is not reachable", ->
+            PubSub.subscribe { a: 1, b: 'Hallo' }, ->
+            
+            simulate_error()
+
+            @clock.tick 25000
+            assert.equal http_requests.length, 0
+
+            @clock.tick 10000
+            assert.equal http_requests.length, 1
+            
