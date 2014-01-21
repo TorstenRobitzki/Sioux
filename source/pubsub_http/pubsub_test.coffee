@@ -26,7 +26,7 @@ describe "pubsub.http interface", ->
         
         cb( true )         
 
-    describe.skip "when subscribing to a node", ->
+    describe "when subscribing to a node", ->
     
         beforeEach ->
             PubSub.reset()
@@ -50,30 +50,30 @@ describe "pubsub.http interface", ->
                 "wrong number of arguments to PubSub.subscribe"
 
         it "should perform a http request", ->
-            PubSub.subscribe { a: 1, b: 'Hallo' }, ->
+            PubSub.subscribe { a: '1', b: 'Hallo' }, ->
             assert.equal http_requests.length, 1
             
         it "should generate a valid http request to the server", ->
-            PubSub.subscribe { a: 1, b: 'Hallo' }, ->
-            assert.deepEqual http_requests[ 0 ].request, { cmd: [ { subscribe: { a: 1, b: 'Hallo' } } ] }
+            PubSub.subscribe { a: '1', b: 'Hallo' }, ->
+            assert.deepEqual http_requests[ 0 ].request, { cmd: [ { subscribe: { a: '1', b: 'Hallo' } } ] }
                                 
         it "should not perform a second http request, when adding a second subscription", -> 
-            PubSub.subscribe { a: 1, b: 'Hallo' }, ->
-            PubSub.subscribe { a: 2, b: 'Hallo' }, ->
+            PubSub.subscribe { a: '1', b: 'Hallo' }, ->
+            PubSub.subscribe { a: '2', b: 'Hallo' }, ->
             assert.equal http_requests.length, 1
         
         it "should transport the second subscription, after the server responded", ->
-            PubSub.subscribe { a: 1, b: 'Hallo' }, ->
-            PubSub.subscribe { a: 2, b: 'Hallo' }, ->
+            PubSub.subscribe { a: '1', b: 'Hallo' }, ->
+            PubSub.subscribe { a: '2', b: 'Hallo' }, ->
 
             simulate_response { id: 'abc' }
             assert.equal http_requests.length, 1
-            assert.deepEqual http_requests[ 0 ].request, { id: 'abc', cmd: [ { subscribe: { a: 2, b: 'Hallo' } } ] }
+            assert.deepEqual http_requests[ 0 ].request, { id: 'abc', cmd: [ { subscribe: { a: '2', b: 'Hallo' } } ] }
                     
         it "should transport the second and third subscription, after the server responded", ->
-            PubSub.subscribe { a: 1, b: 'Hallo' }, ->
-            PubSub.subscribe { a: 2, b: 'Hallo' }, ->
-            PubSub.subscribe { a: 3, c: false }, ->
+            PubSub.subscribe { a: '1', b: 'Hallo' }, ->
+            PubSub.subscribe { a: '2', b: 'Hallo' }, ->
+            PubSub.subscribe { a: '3', c: 'false' }, ->
 
             simulate_response { id: 'abc' }
             assert.equal http_requests.length, 1
@@ -81,11 +81,11 @@ describe "pubsub.http interface", ->
                 { 
                     id: 'abc', 
                     cmd: [ 
-                        { subscribe: { a: 2, b: 'Hallo' } },
-                        { subscribe: { a: 3, c: false } } ] }
+                        { subscribe: { a: '2', b: 'Hallo' } },
+                        { subscribe: { a: '3', c: 'false' } } ] }
                             
         it "will retry after a timeout, when the server is not reachable", ->
-            PubSub.subscribe { a: 1, b: 'Hallo' }, ->
+            PubSub.subscribe { a: '1', b: 'Hallo' }, ->
             
             simulate_error()
 
