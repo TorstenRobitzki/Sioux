@@ -1,6 +1,12 @@
-assert = require 'assert'
 sinon  = require 'sinon'
+chai   = require 'chai'
+chaiHelper = require './helpers_test'
+
 require( './node_list.coffee' )
+
+assert = chai.assert
+`chai.use( chaiHelper );
+expect = chai.expect`
 
 describe "pubsub.http node_list", ->
 
@@ -39,6 +45,13 @@ describe "pubsub.http node_list", ->
             assert.strictEqual 42, @list.get { a: 'a', b: '3' }
             assert.strictEqual 42, @list.get { b: '3', a: 'a' }   
             
+        it "will contain no elements", ->
+            success = true
+            
+            @list.each ( name, node ) -> success = false
+            
+            assert success, 'empty list contains no element'
+                        
     describe "starting with a not empty list", ->
                 
         to_be_found = null          
@@ -78,3 +91,12 @@ describe "pubsub.http node_list", ->
             for ele in to_be_found
                  assert.strictEqual @list.get( ele.key ), ele.value
                 
+        it "should iterate over all elements", ->
+            elements = []
+            
+            @list.each ( name, node ) =>
+                elements.push { key: name, value: node }
+                
+            expect( elements ).to.have.deepMembers( to_be_found )               
+
+                                

@@ -70,6 +70,15 @@ class PubSub.NodeList
             
         key_values            
 
+    name_from_keys = ( keys )->
+        result = {}
+        
+        for key in keys
+            [ k,v ] = key
+            result[ k ] = v
+                    
+        result             
+        
     compare_keys = (k1,k2)->
         return k1.length - k2.length if k1.length != k2.length
         
@@ -100,3 +109,8 @@ class PubSub.NodeList
             @list.splice index, 1
             true
         , -> false
+        
+    # iterators over all contained elements and calls the given function with the name and node
+    each: ( cb )->        
+        for ele in @list
+            cb name_from_keys( ele.k ), ele.n
