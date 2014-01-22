@@ -1,6 +1,12 @@
-assert = require 'assert'
 sinon  = require 'sinon'
-require( './pubsub.coffee' )
+chai   = require 'chai'
+chaiHelper = require './helpers_test'
+
+require './pubsub.coffee'
+
+assert = chai.assert
+chai.use chaiHelper
+expect = chai.expect
 
 describe "pubsub.http interface", ->
 
@@ -11,7 +17,7 @@ describe "pubsub.http interface", ->
             cb: cb
 
     simulate_response = ( response )->
-        if record_http_requests.length == 0 
+        if http_requests.length == 0 
             throw 'no response expected'
             
         { request, cb } = http_requests.shift()
@@ -19,7 +25,7 @@ describe "pubsub.http interface", ->
         cb( false, response )         
                 
     simulate_error = ->
-        if record_http_requests.length == 0 
+        if http_requests.length == 0 
             throw 'no response expected'
                         
         { request, cb } = http_requests.shift()
@@ -87,11 +93,48 @@ describe "pubsub.http interface", ->
         it "will retry after a timeout, when the server is not reachable", ->
             PubSub.subscribe { a: '1', b: 'Hallo' }, ->
             
+            assert.equal http_requests.length, 1, 'one request'
             simulate_error()
 
             @clock.tick 25000
-            assert.equal http_requests.length, 0
+            assert.equal http_requests.length, 0, 'no request within the timeout period'
 
-            @clock.tick 10000
+            @clock.tick 35000
             assert.equal http_requests.length, 1
+            assert.deepEqual http_requests[ 0 ].request, { cmd: [ { subscribe: { a: '1', b: 'Hallo' } } ] }
             
+    describe "when beeing subscribed", ->
+    
+        beforeEach ->
+            PubSub.reset()
+            http_requests = []
+            PubSub.configure_transport record_http_requests
+            
+            PubSub.subscribe { a: '1', b: 'Hallo' }, ->
+            PubSub.subscribe { a: '2', b: 'Hallo' }, ->
+
+            simulate_response { id: 'abc',  "update": [ { "key": { a: '1', b: 'Hallo' }, "data": 12.45, "version": 22345 } ] }
+
+            @clock = sinon.useFakeTimers()
+            
+        afterEach ->
+            @clock.restore()
+
+        it "will resubscribe after an error occured", ->
+
+            simulate_error()
+
+            @clock.tick 25000
+            assert.equal http_requests.length, 0, 'no request within the timeout period'
+
+            @clock.tick 35000
+            assert.equal http_requests.length, 1, 'there is exactly one request after the reconnect timeout'
+            expect( http_requests[ 0 ].request ).to.contain.key 'cmd'
+            expect( http_requests[ 0 ].request.cmd ).to.have.deepMembers [
+                { subscribe: { a: '1', b: 'Hallo' } },
+                { subscribe: { a: '2', b: 'Hallo' } }
+            ], 'Contains all subscribed subjects'
+            expect( http_requests[ 0 ].request ).to.not.contain.key 'id'
+            
+            
+        it "will resubscribe, when the server answers with an unknown session id"            

@@ -48,13 +48,21 @@ class Impl
         else 
             @session_id = response.id
             
-        if @pending_subscriptions.length != 0 
-            issue_request.call @
+            if @pending_subscriptions.length != 0 
+                issue_request.call @
         
     disconnect= ->
-        setTimeout (=> try_reconnect()), 30000
+        @session_id = null
+        @current_transports = 0
+
+        @subjects.each ( name ) => @pending_subscriptions.push name
+            
+        setTimeout => 
+            try_reconnect.call @
+        , 30000
          
     try_reconnect= ->
+        issue_request.call @
 
 impl = new Impl
 

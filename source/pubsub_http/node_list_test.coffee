@@ -2,11 +2,11 @@ sinon  = require 'sinon'
 chai   = require 'chai'
 chaiHelper = require './helpers_test'
 
-require( './node_list.coffee' )
+require './node_list.coffee'
 
 assert = chai.assert
-`chai.use( chaiHelper );
-expect = chai.expect`
+chai.use chaiHelper 
+expect = chai.expect
 
 describe "pubsub.http node_list", ->
 
