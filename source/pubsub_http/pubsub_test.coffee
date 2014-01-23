@@ -103,6 +103,26 @@ describe "pubsub.http interface", ->
             assert.equal http_requests.length, 1
             assert.deepEqual http_requests[ 0 ].request, { cmd: [ { subscribe: { a: '1', b: 'Hallo' } } ] }
             
+        it "will contain all subscribed subjects, when retrying", ( done )->
+            PubSub.subscribe { a: '1', b: 'Hallo' }, ->
+            
+            assert.equal http_requests.length, 1, 'one request'
+            simulate_error()
+
+            # Subscribe during the timeout 
+            setTimeout ->
+                PubSub.subscribe { a: '1', b: 'Moin' }, ->
+            , 25000
+
+            setTimeout ->
+                assert.deepEqual http_requests[ 0 ].request, { cmd: [ 
+                    { subscribe: { a: '1', b: 'Hallo' } }, { subscribe: { a: '1', b: 'Moin' } } ] }
+                    
+                done()                    
+            , 35000
+
+            @clock.tick 35000
+
     describe "when beeing subscribed", ->
     
         beforeEach ->
@@ -136,5 +156,30 @@ describe "pubsub.http interface", ->
             ], 'Contains all subscribed subjects'
             expect( http_requests[ 0 ].request ).to.not.contain.key 'id'
             
+        it "a resubscription will contain all requests", ( done )->
+
+            simulate_error()
+
+            # Subscribe during the timeout 
+            setTimeout ->
+                PubSub.subscribe { a: '1', b: 'Moin' }, ->
+            , 25000
+
+            setTimeout ->
+                expect( http_requests[ 0 ].request.cmd ).to.have.deepMembers [
+                    { subscribe: { a: '1', b: 'Hallo' } },
+                    { subscribe: { a: '2', b: 'Hallo' } },
+                    { subscribe: { a: '1', b: 'Moin' } }
+                ], 'Contains all subscribed subjects'
+                    
+                done()                    
+            , 35000
+
+            @clock.tick 35000
+            
+        it "will always keep one request open"
+        it "calls the callback when updates are comming"
+        
+    describe "when usubscribing",->                    
             
         it "will resubscribe, when the server answers with an unknown session id"            
