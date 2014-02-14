@@ -52,6 +52,9 @@ describe "pubsub.http node_list", ->
             
             assert success, 'empty list contains no element'
                         
+        it "will result in null, when removing any element", ->
+            expect( @list.remove { a: 'a', b: '3' } ).to.be.null
+                                   
     describe "starting with a not empty list", ->
                 
         to_be_found = null          

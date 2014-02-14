@@ -18,6 +18,8 @@ global.PubSub = global.PubSub || {}
 # # deleting a node from the list:
 # list.remove { a: '1', b: 'foo' }
 #
+# # iterating over all elements
+# list.each ( name, data )-> console.log "#{name} => #{data}"
 class PubSub.NodeList
     # constructs an empty list of nodes
     constructor: ->
@@ -108,7 +110,7 @@ class PubSub.NodeList
         find_node.call @, keys, ( n, index )->
             @list.splice index, 1
             true
-        , -> false
+        , -> null
         
     # iterators over all contained elements and calls the given function with the name and node
     each: ( cb )->        
