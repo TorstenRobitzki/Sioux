@@ -102,7 +102,12 @@ describe "pubsub.http interface", ->
             @clock.tick 35000
             assert.equal http_requests.length, 1
             assert.deepEqual http_requests[ 0 ].request, { cmd: [ { subscribe: { a: '1', b: 'Hallo' } } ] }
-            
+
+
+            simulate_error()
+            @clock.tick 30000
+            assert.equal http_requests.length, 1
+
         it "will contain all subscribed subjects, when retrying", ( done )->
             PubSub.subscribe { a: '1', b: 'Hallo' }, ->
             
@@ -177,9 +182,124 @@ describe "pubsub.http interface", ->
 
             @clock.tick 35000
             
-        it "will always keep one request open"
-        it "calls the callback when updates are comming"
-        
-    describe "when usubscribing",->                    
+        it "will always keep one request open", ->
+            simulate_response { id: 'abc' }
+            assert.equal http_requests.length, 1, 'there is exactly one request (I)'
             
-        it "will resubscribe, when the server answers with an unknown session id"            
+            simulate_response { id: 'abc', update: [ { "key": { a: '2', b: 'Hallo' }, "data": false, "version": 11 } ] }
+            assert.equal http_requests.length, 1, 'there is exactly one request (II)'
+
+            simulate_response { id: 'abc' }
+            assert.equal http_requests.length, 1, 'there is exactly one request (III)'
+
+        it "calls the callback when updates are comming", ->
+            called = false
+            
+            PubSub.subscribe { a: '4' }, ( name, data, error )->
+                expect( name ).to.eql { a: '4' }
+                expect( data ).to.equal 'TestData'
+                expect( error ).to.be.undefined
+                
+                called = true  
+
+            simulate_response { id: 'abc',  update: [ { "key": { a: '4' }, "data": 'TestData', "version": 22345 } ] }
+            assert called, 'callback has been called'        
+            
+        it "calls the callback when an error is received", ->            
+            called = false
+            
+            PubSub.subscribe { a: '4' }, ( name, data, error )->
+                expect( name ).to.eql { a: '4' }
+                expect( error ).to.equal 'You should not listen to the 4!'
+                
+                called = true  
+
+            simulate_response { id: 'abc',  resp: [ subscribe: { "key": { a: '4' }, error: 'You should not listen to the 4!' } ] }
+            assert called, 'callback has been called'        
+
+        it "should remove the callback when an error is received", ->
+            called = 0
+            
+            PubSub.subscribe { a: '4' }, -> called++
+            
+            simulate_response { id: 'abc',  resp: [ subscribe: { "key": { a: '4' }, error: 'You should not listen to the 4!' } ] }
+            simulate_response { id: 'abc',  update: [ { "key": { a: '4' }, "data": false, "version": 11 } ] }
+            
+            expect( called ).to.eql 1
+            
+        it "should call the callback more than once", ->
+            received = []
+            
+            PubSub.subscribe { a: '4' }, ( key, data )->
+                received.push data 
+            
+            simulate_response { id: 'abc',  update: [ { "key": { a: '4' }, "data": 1, "version": 11 } ] }
+            simulate_response { id: 'abc',  update: [ { "key": { a: '4' }, "data": 2, "version": 12 } ] }
+            simulate_response { id: 'abc',  update: [ { "key": { a: '4' }, "data": 3, "version": 13 } ] }
+            
+            expect( received ).to.eql [ 1, 2, 3 ]
+
+        it "will resubscribe, when the server answers with an unknown session id", ->
+            simulate_response { id: 'gfc' }
+            
+            assert.equal http_requests.length, 1, 'there is exactly one request after the id changed'
+
+            expect( http_requests[ 0 ].request ).to.contain.key 'cmd'
+            expect( http_requests[ 0 ].request.cmd ).to.have.deepMembers [
+                { subscribe: { a: '1', b: 'Hallo' } },
+                { subscribe: { a: '2', b: 'Hallo' } }
+            ], 'Contains all subscribed subjects'
+            expect( http_requests[ 0 ].request.id ).to.eql 'gfc'
+        
+    describe "when usubscribing",->
+
+        a1_updates = []
+        a2_updates = []
+        
+        beforeEach ->
+            PubSub.reset()
+
+            http_requests = []
+            a1_updates = []
+            a2_updates = []
+
+            PubSub.configure_transport record_http_requests
+            
+            PubSub.subscribe { a: '1', b: 'Hallo' }, ( k, d ) -> a1_updates.push d
+            PubSub.subscribe { a: '2', b: 'Hallo' }, ( k, d ) -> a2_updates.push d
+
+            simulate_response { id: 'abc',  "update": [ { "key": { a: '1', b: 'Hallo' }, "data": 12.45, "version": 22345 } ] }
+
+            @clock = sinon.useFakeTimers()
+            
+        afterEach ->
+            @clock.restore()
+
+        it "should throw an error if not subscribed", ->
+            assert.throws ( -> PubSub.unsubscribe { foo: 'a' } ),   
+                'not subscribed'
+        
+        it "should throw if the number of arguments is not 1", ->
+            assert.throws ( -> PubSub.unsubscribe() ),   
+                'wrong number of arguments to PubSub.unsubscribe'
+            
+            assert.throws ( -> PubSub.unsubscribe( { a: '1', b: 'Hallo' }, 2 ) ),   
+                'wrong number of arguments to PubSub.unsubscribe'
+            
+        it "should issue a http request to the server", ->
+            PubSub.unsubscribe { a: '1', b: 'Hallo' }
+
+            expect( http_requests[ 1 ].request.cmd ).to.have.deepMembers [
+                { unsubscribe: { a: '1', b: 'Hallo' } } ]
+                        
+        it "should ignore any updates to that node", ->
+            PubSub.unsubscribe { a: '1', b: 'Hallo' }
+
+            simulate_response { id: 'abc',  update: [ { "key": { a: '1', b: 'Hallo' }, "data": 1, "version": 11 } ] }
+            expect( a1_updates ).to.eql [ 12.45 ]
+                       
+        it "should ignore error messages"
+        
+        it "should cancel subscriptions when not connected"
+        
+        it "should ignore error messages when unsubscribed"            

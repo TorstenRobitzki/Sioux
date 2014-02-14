@@ -9,14 +9,17 @@ create_ajax_transport = ( url = '/pubsub' )->
      
 class Node 
     constructor: ( @cb )->
-        @open = true
         
-    is_open:
-        @open
-                     
+    update: ( key, data )->
+        @cb( key, data )
+                             
+    error: ( key, error )->
+        @cb( key, null, error )
+                                     
 class Impl
     constructor: ( @transport = create_ajax_transport() )->
         @pending_subscriptions = []
+        @pending_unsubscriptions = []
         @session_id = null
         @current_transports = 0
         @subjects = new PubSub.NodeList
@@ -28,38 +31,70 @@ class Impl
         if @session_id || @current_transports == 0
             issue_request.call @
 
+    unsubscribe: ( node_name )->
+        unless @subjects.remove node_name
+            throw 'not subscribed'
+
+        @pending_unsubscriptions.push node_name
+        issue_request.call @
+        
     issue_request= ->
         cmds = for pending in @pending_subscriptions
             { subscribe: pending }
-            
+
+        for pending in @pending_unsubscriptions
+            cmds.push { unsubscribe: pending }    
+
         @pending_subscriptions = []
+        @pending_unsubscriptions = []
             
         payload = if @session_id then { id: @session_id, cmd: cmds } else { cmd: cmds }     
 
         @current_transports++     
         @transport payload, ( error, response ) => 
             receive_call_back.call @, error, response
-                                  
+                    
+    handle_response= ( resp )->          
+        if resp.subscribe?
+            msg = resp.subscribe
+            node = @subjects.get( msg.key )
+            node.error msg.key, msg.error
+            
+            @subjects.remove msg.key
+            
+    handle_update= ( update )->
+        node = @subjects.get( update.key )
+        node.update update.key, update.data if node
+                                                        
     receive_call_back= ( error, response )->
         @current_transports--
 
         if error 
-            disconnect.call @
+            disconnect.call @, true
         else 
-            @session_id = response.id
-            
-            if @pending_subscriptions.length != 0 
-                issue_request.call @
+            if @session_id && @session_id != response.id
+                disconnect.call @, false, response.id
+            else
+                @session_id = response.id
+                
+                handle_response.call @, resp for resp in response.resp if response.resp?
+                handle_update.call @, update for update in response.update if response.update?
+                    
+                if @pending_subscriptions.length != 0 || @current_transports == 0
+                    issue_request.call @
         
-    disconnect= ->
-        @session_id = null
+    disconnect= ( wait_before_reconnect, new_session = null )->
+        @session_id = new_session
         @current_transports = 0
 
         @subjects.each ( name ) => @pending_subscriptions.push name
             
-        setTimeout => 
-            try_reconnect.call @
-        , 30000
+        if wait_before_reconnect
+            setTimeout => 
+                try_reconnect.call @
+            , 30000
+        else
+            try_reconnect.call @                            
          
     try_reconnect= ->
         issue_request.call @
@@ -87,7 +122,11 @@ PubSub.subscribe = ( node_name, callback )->
       
     impl.subscribe node_name, callback      
                  
-PubSub.unsubscribe = ( subject )->
+PubSub.unsubscribe = ( node_name )->
+    if arguments.length != 1
+        throw 'wrong number of arguments to PubSub.unsubscribe'
+
+    impl.unsubscribe node_name
 
 # Sets an ajax transport function. That function takes 2 arguments, the first 
 # argument is an object to be transported. The second argument is a callback takeing a boolean. That boolean indicates
