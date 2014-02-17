@@ -120,8 +120,9 @@ describe "pubsub.http interface", ->
             , 25000
 
             setTimeout ->
+                
                 assert.deepEqual http_requests[ 0 ].request, { cmd: [ 
-                    { subscribe: { a: '1', b: 'Hallo' } }, { subscribe: { a: '1', b: 'Moin' } } ] }
+                    { subscribe: { a: '1', b: 'Moin' } }, { subscribe: { a: '1', b: 'Hallo' } } ] }
                     
                 done()                    
             , 35000
@@ -298,8 +299,30 @@ describe "pubsub.http interface", ->
             simulate_response { id: 'abc',  update: [ { "key": { a: '1', b: 'Hallo' }, "data": 1, "version": 11 } ] }
             expect( a1_updates ).to.eql [ 12.45 ]
                        
-        it "should ignore error messages"
+        it "should ignore error messages", ->
+            PubSub.unsubscribe { a: '1', b: 'Hallo' }
+
+            simulate_response { id: 'abc',  resp: [ { unsubscribe: { a: '1', b: 'Hallo' }, error: 'We have a problem!' } ] }
+            expect( a1_updates ).to.eql [ 12.45 ]
         
-        it "should cancel subscriptions when not connected"
-        
-        it "should ignore error messages when unsubscribed"            
+        it "should not resend unsubscribed messages, when reconnecting", ->
+
+            simulate_error()
+            PubSub.unsubscribe { a: '1', b: 'Hallo' }
+            
+            @clock.tick 35000
+
+            expect( http_requests.length ).to.equal 1
+            expect( http_requests[ 0 ].request ).to.eql { cmd: [ { subscribe: { a: '2', b: 'Hallo' } } ] }
+
+        it "should cancel subscriptions when not connected", ->
+
+            PubSub.unsubscribe { a: '1', b: 'Hallo' }
+            simulate_error()
+            simulate_error()
+            
+            @clock.tick 35000
+            
+            expect( http_requests.length ).to.equal 1
+            expect( http_requests[ 0 ].request ).to.eql { cmd: [ { subscribe: { a: '2', b: 'Hallo' } } ] }
+                        

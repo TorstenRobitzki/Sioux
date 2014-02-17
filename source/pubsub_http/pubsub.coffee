@@ -18,25 +18,32 @@ class Node
                                      
 class Impl
     constructor: ( @transport = create_ajax_transport() )->
+        @subjects = new PubSub.NodeList
+
         @pending_subscriptions = []
         @pending_unsubscriptions = []
+
+        # if the session_id is null, there is currently no connection to the server
         @session_id = null
+        @reconnecting = false
+        
+        # The number of outstanding responses 
         @current_transports = 0
-        @subjects = new PubSub.NodeList
 
     subscribe: ( node_name, callback )->
         @subjects.insert node_name, new Node callback
         @pending_subscriptions.push node_name 
         
-        if @session_id || @current_transports == 0
+        if !@reconnecting && ( @session_id || @current_transports == 0 )
             issue_request.call @
 
     unsubscribe: ( node_name )->
         unless @subjects.remove node_name
             throw 'not subscribed'
 
-        @pending_unsubscriptions.push node_name
-        issue_request.call @
+        if @session_id && !@reconnecting
+            @pending_unsubscriptions.push node_name
+            issue_request.call @ 
         
     issue_request= ->
         cmds = for pending in @pending_subscriptions
@@ -80,23 +87,27 @@ class Impl
                 handle_response.call @, resp for resp in response.resp if response.resp?
                 handle_update.call @, update for update in response.update if response.update?
                     
-                if @pending_subscriptions.length != 0 || @current_transports == 0
+                if @current_transports == 0 && !@reconnecting
                     issue_request.call @
         
     disconnect= ( wait_before_reconnect, new_session = null )->
         @session_id = new_session
-        @current_transports = 0
-
-        @subjects.each ( name ) => @pending_subscriptions.push name
-            
-        if wait_before_reconnect
-            setTimeout => 
-                try_reconnect.call @
-            , 30000
-        else
-            try_reconnect.call @                            
+        @reconnecting = true 
+        
+        if @current_transports == 0
+            if wait_before_reconnect
+                setTimeout => 
+                    try_reconnect.call @
+                , 30000
+            else
+                try_reconnect.call @                            
          
     try_reconnect= ->
+        @reconnecting = false
+        @pending_unsubscriptions = []
+        @pending_subscriptions = []
+        
+        @subjects.each ( name ) => @pending_subscriptions.push name
         issue_request.call @
 
 impl = new Impl
