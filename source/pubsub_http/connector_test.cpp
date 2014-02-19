@@ -5,6 +5,7 @@
 #include "pubsub/test_helper.h"
 #include "pubsub/root.h"
 #include "pubsub/configuration.h"
+#include "pubsub/node_group.h"
 #include "http/response.h"
 #include "http/http.h"
 #include "http/decode_stream.h"
@@ -716,4 +717,36 @@ BOOST_FIXTURE_TEST_CASE( hurry_a_blocked_connection, context )
     const boost::posix_time::time_duration no_wait_time = response[ 2u ].received - start_time;
 
     BOOST_CHECK_LE( no_wait_time, boost::posix_time::seconds( 1 ) );
+}
+
+// durring tests, there was a situation, where after a browser refresh, the server did not respond to a subscription
+BOOST_FIXTURE_TEST_CASE( second_subscription_to_invalid_node_must_be_communicated, context )
+{
+    data_.add_configuration( pubsub::node_group(), pubsub::configurator().authorization_not_required() );
+
+    answer_validation_request( node1, false );
+
+    // create a subscriber, subscribe to node1
+    const boost::shared_ptr< pubsub::test::subscriber > first_subscriber( new pubsub::test::subscriber );
+    data_.subscribe( first_subscriber, node1 );
+    tools::run( *this );
+
+    // make sure, that the subscriber is subscribed
+    BOOST_REQUIRE( first_subscriber->on_invalid_node_subscription_called( node1 ) );
+
+    const json::array response = json_multiple_post(
+           asio_mocks::read_plan()
+        << asio_mocks::json_msg( "{ 'cmd': [ { 'subscribe': { 'a':1 ,'b':1 } } ] }" )
+        << asio_mocks::json_msg( "{ 'id': '192.168.210.1:9999/0' }" )
+        << asio_mocks::disconnect_read() );
+
+    BOOST_REQUIRE_GE( response.length(), 2u );
+
+    // in the first, or the second response, there should be an update of node1
+    BOOST_CHECK( response.find( json::parse_single_quoted( "{ "
+        "'id'     : '192.168.210.1:9999/0',"
+        "'resp'   : [ { "
+        "   'subscribe': {'a': 1, 'b': 1},"
+        "   'error'    : 'invalid node' } ]"
+    "}" ) ) != -1 );
 }
