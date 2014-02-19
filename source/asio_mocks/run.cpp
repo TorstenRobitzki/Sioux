@@ -1,6 +1,21 @@
 #include "asio_mocks/run.h"
+#include "tools/hexdump.h"
+#include <boost/date_time/posix_time/posix_time.hpp>
+#include <ostream>
 
 namespace asio_mocks {
+
+    std::ostream& operator<<( std::ostream& out, const response_t& resp )
+    {
+        out << "at: " << ( resp.received.is_not_a_date_time() ? "not a date_time" : to_iso_extended_string( resp.received ) ) << "\n";
+        out << resp.header->text() << "\n";
+
+        if ( !resp.body.empty() )
+            tools::hex_dump( out, resp.body.begin(), resp.body.end() );
+
+        return out;
+    }
+
 namespace details {
 
     ////////////////////////

@@ -11,6 +11,7 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/bind.hpp>
 #include <vector>
+#include <iosfwd>
 
 namespace asio_mocks
 {
@@ -23,6 +24,11 @@ namespace asio_mocks
         std::vector< char >                         body;
         boost::posix_time::ptime                    received;
     };
+
+    /**
+     * @brief prints a response in a human readable manner; hopefully useful for debuging
+     */
+    std::ostream& operator<<( std::ostream& out, const response_t& resp );
 
     /**
      * @brief run the simulation
