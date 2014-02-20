@@ -10,8 +10,8 @@
 
 namespace json
 {
-    /**
-     * @brief not template dependend implementation of response_base
+    /*
+     * not template dependend implementation of response_base
      */
     class response_base : public server::async_response
     {
@@ -36,10 +36,19 @@ namespace json
         public response_base
     {
     public:
+        /**
+         * @brief responses with the given JSON value and http code 200 (ok)
+         */
         response( const boost::shared_ptr< Connection >& con, const json::value& val );
 
+        /**
+         * @brief responses with the given JSON value and the given http error code.
+         */
         response( const boost::shared_ptr< Connection >& con, const json::value& val, http::http_error_code code );
 
+        /**
+         * @brief starts sending the response over the given connection.
+         */
         void start();
 
     private:
