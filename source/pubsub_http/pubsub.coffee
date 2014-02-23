@@ -6,12 +6,20 @@ global.PubSub = global.PubSub || {}
 
 create_ajax_transport = ( url = '/pubsub' )->
     ( obj, cb )->
-     
+
+        $.ajax( 
+            url: url,
+            type: 'POST',
+            contentType: 'application/json;charset=UTF-8',
+            data: JSON.stringify obj )
+        .success( ( data, textStatus, jqXHR )-> cb false, data ) 
+        .error( ( jqXHR, textStatus )-> cb true )                 
+        
 class Node 
-    constructor: ( @cb )->
+    constructor: ( @cb )->    
         
     update: ( key, data )->
-        @cb( key, data )
+        @cb( key, data )  
                              
     error: ( key, error )->
         @cb( key, null, error )
@@ -55,7 +63,10 @@ class Impl
         @pending_subscriptions = []
         @pending_unsubscriptions = []
             
-        payload = if @session_id then { id: @session_id, cmd: cmds } else { cmd: cmds }     
+        payload = if @session_id
+            if cmds.length then { id: @session_id, cmd: cmds } else { id: @session_id }
+        else 
+            { cmd: cmds }     
 
         @current_transports++     
         @transport payload, ( error, response ) => 
@@ -64,10 +75,10 @@ class Impl
     handle_response= ( resp )->          
         if resp.subscribe?
             msg = resp.subscribe
-            node = @subjects.get( msg.key )
-            node.error msg.key, msg.error
-            
-            @subjects.remove msg.key
+            node = @subjects.get( msg )
+            node.error msg, resp.error
+           
+            @subjects.remove msg
             
     handle_update= ( update )->
         node = @subjects.get( update.key )
@@ -110,7 +121,7 @@ class Impl
         @subjects.each ( name ) => @pending_subscriptions.push name
         issue_request.call @
 
-impl = new Impl
+impl = null
 
 # resets the internal state of the library. This function is mainly intended for testing.
 PubSub.reset = ->
@@ -128,6 +139,8 @@ PubSub.reset = ->
 # The behaviour of subscribing more than once to the same subject is undefined and should be avoided.
 
 PubSub.subscribe = ( node_name, callback )->
+    impl ?= new Impl
+    
     if arguments.length != 2
         throw 'wrong number of arguments to PubSub.subscribe'
       
@@ -144,4 +157,4 @@ PubSub.unsubscribe = ( node_name )->
 # an error if set to true. The second parameter to that callback is the answer from the server. The callback will called, 
 # when the http request succeded or failed. 
 PubSub.configure_transport = ( new_transport )->
-    impl = new Impl new_transport
+    impl = new Impl( new_transport ? create_ajax_transport() )   

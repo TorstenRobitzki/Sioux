@@ -9,3 +9,18 @@ test 'pubsub_http_test',
 
 js_test 'pubsub_http_js_test', 
     :sources => FileList[ './source/pubsub_http/*_test.coffee' ]
+
+PUBSUB_CLIENT_LIBRARY_FILE_NAME = './source/pubsub_http/pubsub.js'
+
+FileList.new( './source/pubsub_http/*.coffee' ) { | files | files.exclude /test/ }.each do | src |
+    file PUBSUB_CLIENT_LIBRARY_FILE_NAME => src
+end 
+ 
+file PUBSUB_CLIENT_LIBRARY_FILE_NAME do | files |
+    compile_statement = "coffee --compile --print --join --map #{ files.prerequisites.join ' ' } > #{PUBSUB_CLIENT_LIBRARY_FILE_NAME}"
+    puts compile_statement
+    `#{compile_statement}`
+end
+
+task :pubsub_js_library => PUBSUB_CLIENT_LIBRARY_FILE_NAME
+    

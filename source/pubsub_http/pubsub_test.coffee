@@ -63,6 +63,13 @@ describe "pubsub.http interface", ->
             PubSub.subscribe { a: '1', b: 'Hallo' }, ->
             assert.deepEqual http_requests[ 0 ].request, { cmd: [ { subscribe: { a: '1', b: 'Hallo' } } ] }
                                 
+        it "should generate a second http request after the server respons", ->
+            PubSub.subscribe { a: '1', b: 'Hallo' }, ->
+            
+            simulate_response { id: 'abc' }
+            assert.equal http_requests.length, 1
+            expect( http_requests[ 0 ].request ).to.eql { id: 'abc' }
+                                               
         it "should not perform a second http request, when adding a second subscription", -> 
             PubSub.subscribe { a: '1', b: 'Hallo' }, ->
             PubSub.subscribe { a: '2', b: 'Hallo' }, ->
@@ -215,7 +222,7 @@ describe "pubsub.http interface", ->
                 
                 called = true  
 
-            simulate_response { id: 'abc',  resp: [ subscribe: { "key": { a: '4' }, error: 'You should not listen to the 4!' } ] }
+            simulate_response { id: 'abc',  resp: [ { subscribe: { a: '4' }, error: 'You should not listen to the 4!' } ] }
             assert called, 'callback has been called'        
 
         it "should remove the callback when an error is received", ->
@@ -223,7 +230,7 @@ describe "pubsub.http interface", ->
             
             PubSub.subscribe { a: '4' }, -> called++
             
-            simulate_response { id: 'abc',  resp: [ subscribe: { "key": { a: '4' }, error: 'You should not listen to the 4!' } ] }
+            simulate_response { id: 'abc',  resp: [ { subscribe: { a: '4' }, error: 'You should not listen to the 4!' } ] }
             simulate_response { id: 'abc',  update: [ { "key": { a: '4' }, "data": false, "version": 11 } ] }
             
             expect( called ).to.eql 1
@@ -326,3 +333,23 @@ describe "pubsub.http interface", ->
             expect( http_requests.length ).to.equal 1
             expect( http_requests[ 0 ].request ).to.eql { cmd: [ { subscribe: { a: '2', b: 'Hallo' } } ] }
                         
+    describe "when subscribing fails", ->
+
+        callback_args = []
+        
+        beforeEach ->
+            PubSub.reset()
+            http_requests = []
+            PubSub.configure_transport record_http_requests
+            
+            PubSub.subscribe { a: '1', b: 'Hallo' }, -> callback_args.push arguments            
+            simulate_response { id: 'abc',  "resp": [ { "subscribe": { a: '1', b: 'Hallo' }, "error": "no such node" } ] }
+
+            @clock = sinon.useFakeTimers()
+            
+        afterEach ->
+            @clock.restore()
+
+        it "communicate the occured error", ->
+            expect( callback_args.length ).to.eql 1
+                                            

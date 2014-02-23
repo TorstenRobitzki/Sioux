@@ -717,9 +717,10 @@ namespace server
     template < class Trait, class Connection, class Timer >
     bool connection< Trait, Connection, Timer >::handle_request_header(const boost::shared_ptr<const http::request_header>& new_request)
     {
-        const boost::shared_ptr<async_response> response =
-        		trait_.create_response(this->shared_from_this(), new_request);
-        responses_.push_back(response.get());
+        const boost::shared_ptr< async_response > response = trait_.create_response( this->shared_from_this(), new_request );
+        assert( response.get() );
+
+        responses_.push_back( response.get() );
 
         try
         {

@@ -1,88 +1,72 @@
-// Copyright (c) Torrox GmbH & Co KG. All rights reserved.
-// Please note that the content of this file is confidential or protected by law.
-// Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
-
 #include "server/server.h"
 #include "server/secure_session_generator.h"
 #include "http/parser.h"
 #include "file/file.h"
 #include "pubsub/root.h"
+#include "pubsub/pubsub.h"
+#include "pubsub/node.h"
 #include "pubsub/configuration.h"
-#include "bayeux/bayeux.h"
-#include "bayeux/node_channel.h"
-
+#include "pubsub_http/connector.h"
+#include "json_handler/response.h"
 #include <iostream>
 
 namespace
 {
     typedef server::logging_server<>::connection_t connection_t;
 
-    boost::shared_ptr< server::async_response > on_bayeux_request(
-                      bayeux::connector<>&                              connector,
+    boost::shared_ptr< server::async_response > on_pubsub_request(
+                      pubsub::http::connector<>&                        connector,
                 const boost::shared_ptr< connection_t >&                connection,
                 const boost::shared_ptr< const http::request_header >&  request )
     {
-        return connector.create_response( connection, request );
+        const boost::shared_ptr< server::async_response > result = connector.create_response( connection, request );
+
+        return result.get()
+            ? result
+            : connection->trait().error_response( connection, http::http_bad_request );
     }
 
-    static const pubsub::key_domain p1( "p1" );
-
-    class chat_adapter : public bayeux::adapter< json::string >, public pubsub::adapter
+    class chat_adapter : public pubsub::adapter
     {
     public:
         chat_adapter()
-            : chat_channel_( pubsub::node_name().add( pubsub::key( p1, "chat" ) ) )
-            , say_channel_( pubsub::node_name().add( pubsub::key( p1, "say" ) ) )
+            : chat_channel_( pubsub::node_name().add( pubsub::key( pubsub::key_domain( "channel" ), "\"chat\"" ) ) )
             , max_size_( 20u )
+            , root_( 0 )
         {
+        }
+
+        boost::shared_ptr< server::async_response > create_response(
+                    const boost::shared_ptr< connection_t >&                connection,
+                    const boost::shared_ptr< const http::request_header >&  request )
+        {
+            return boost::shared_ptr< server::async_response >( new json::response< connection_t >(
+                connection, request, boost::bind( &chat_adapter::publish_message, this, _1, _2 ) ) );
+        }
+
+        void set_root( pubsub::root& root )
+        {
+            root_ = &root;
         }
 
     private:
-        // bayeux-adapter implementation
-        std::pair< bool, json::string > handshake( const json::value& ext, json::string& session )
+        std::pair< json::value, http::http_error_code > publish_message( const ::http::request_header& header, const json::value& body )
         {
-            return std::pair< bool, json::string >( true, json::string() );
-        }
-
-        bool set_name( const json::string& data, json::string& session )
-        {
-            const std::string nick( "/nick " );
-            const std::string text = data.to_std_string();
-            const std::size_t pos = text.find( nick );
-
-            if ( pos != std::string::npos )
-                session = json::string( text.substr( nick.size() ).c_str() );
-
-            return pos != std::string::npos;
-        }
-
-        std::pair< bool, json::string > publish( const json::string& channel, const json::value& data,
-            const json::object& message, json::string& session, pubsub::root& root )
-        {
-            const pubsub::node_name node = bayeux::node_name_from_channel( channel );
-
-            if ( node != say_channel_ )
-                return std::make_pair( false, json::string( "unexpected channel" ) );
-
-            if ( data == json::string( "" ) || set_name( data.upcast< json::string >(), session ) )
-                return std::make_pair( true, json::string() );
-
             boost::mutex::scoped_lock lock( mutex_ );
 
+            json::object request = body.upcast< json::object >();
             json::object decorated_entry;
-            decorated_entry.add( json::string( "head" ), session );
-            decorated_entry.add( json::string( "text" ), data );
+            decorated_entry.add( json::string( "head" ), json::string() );
+            decorated_entry.add( json::string( "text" ), request.at( "text" ) );
 
             chat_data_.add( decorated_entry );
             if ( chat_data_.length() > max_size_ )
                 chat_data_.erase( 0, 1 );
 
-            json::object reply;
-            reply.add( json::string( "data" ), chat_data_.copy() );
-            root.update_node( chat_channel_, reply );
+            assert( root_ );
+            root_->update_node( chat_channel_, chat_data_.copy() );
 
-            return std::make_pair( true, json::string() );
-
+            return std::pair< json::value, http::http_error_code >( json::array(), http::http_ok );
         }
 
         // pubsub-adapter implementation
@@ -100,14 +84,14 @@ namespace
 
         virtual void node_init(const pubsub::node_name& node_name, const boost::shared_ptr< pubsub::initialization_call_back >& cb )
         {
-            cb->initial_value( chat_data_ );
+            cb->initial_value( chat_data_.copy() );
         }
 
         boost::mutex            mutex_;
         const pubsub::node_name chat_channel_;
-        const pubsub::node_name say_channel_;
         const std::size_t       max_size_;
         json::array             chat_data_;
+        pubsub::root*           root_;
     };
 
 }
@@ -118,13 +102,19 @@ int main()
 
     chat_adapter                        adapter;
     pubsub::root                        data( queue, adapter, pubsub::configurator().authorization_not_required() );
+    adapter.set_root( data );
 
     server::secure_session_generator    session_generator;
-    bayeux::connector<>                 bayeux( queue, data, session_generator, adapter, bayeux::configuration() );
+    pubsub::http::connector<>           pubsub_connector( queue, data );
 
     server::logging_server<>            server( queue, 0, std::cout );
 
-    server.add_action( "/bayeux", boost::bind( on_bayeux_request, boost::ref( bayeux ), _1, _2 ) );
+    // routing
+    file::add_file_handler( server, "/pubsub_http", boost::filesystem::canonical( __FILE__ ).parent_path().parent_path() );
+
+    server.add_action( "/pubsub", boost::bind( on_pubsub_request, boost::ref( pubsub_connector ), _1, _2 ) );
+    server.add_action( "/say", boost::bind( &chat_adapter::create_response, boost::ref( adapter ), _1, _2 ) );
+
     file::add_file_handler( server, "/jquery", boost::filesystem::canonical( __FILE__ ).parent_path() );
     file::add_file_handler( server, "/", boost::filesystem::canonical( __FILE__ ).parent_path() / "chat" );
 
