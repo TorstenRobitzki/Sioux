@@ -7,3 +7,4 @@ documentation.zip
 source/rack/sioux*.gem
 .cproject
 .project
+node_modules/
