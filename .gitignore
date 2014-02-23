@@ -8,3 +8,4 @@ source/rack/sioux*.gem
 .cproject
 .project
 node_modules/
+source/pubsub_http/pubsub.js
