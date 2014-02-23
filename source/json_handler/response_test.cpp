@@ -6,6 +6,7 @@
 #include "asio_mocks/test_timer.h"
 #include "asio_mocks/test_socket.h"
 #include "asio_mocks/run.h"
+#include "asio_mocks/json_msg.h"
 #include "json/json.h"
 #include "json_handler/response.h"
 #include "http/test_request_texts.h"
@@ -36,43 +37,50 @@ namespace {
     {
         boost::asio::io_service queue;
 
-        asio_mocks::response_t run( const json::value& obj, http::http_error_code error )
+        std::vector< asio_mocks::response_t > run( const asio_mocks::read_plan& input )
         {
-            socket_t socket( queue, http::test::begin( http::test::simple_get_11 ), http::test::end( http::test::simple_get_11 ) );
+            socket_t socket( queue, input );
 
-            object_ = obj;
-            error_  = error;
-
-            std::vector< asio_mocks::response_t > response = asio_mocks::run( boost::posix_time::seconds( 20 ), socket, *this );
-            BOOST_ASSERT( response.size() == 1u );
-
-            return response.front();
+            return asio_mocks::run( boost::posix_time::seconds( 20 ), socket, *this );
         }
 
-        json::value run_and_return_body( const json::value& obj )
+        asio_mocks::response_t run_single( const asio_mocks::read_plan& input )
         {
-            const asio_mocks::response_t response = run( obj, http::http_ok );
+            const std::vector< asio_mocks::response_t > result = run( input );
+            BOOST_ASSERT( result.size() == 1u );
+
+            return result.front();
+        }
+
+        json::value run_single_and_return_body( const char* request )
+        {
+            const asio_mocks::response_t response = run_single(
+                asio_mocks::read( request ) << asio_mocks::disconnect_read() );
 
             return json::parse( std::string( response.body.begin(), response.body.end() ) );
         }
 
-        json::value object() const
+        json::value run_single_and_return_body( const json::value& obj )
         {
-            return object_;
+            const asio_mocks::response_t response = run_single( asio_mocks::json_msg( obj) << asio_mocks::disconnect_read() );
+
+            return json::parse( std::string( response.body.begin(), response.body.end() ) );
         }
 
-        http::http_error_code error_code() const
+        // Test-Handler that will be passed to the created response by response_factory::create_response()
+        static std::pair< json::value, http::http_error_code > respond_to_request( const ::http::request_header& header, const json::value& body )
         {
-            return error_;
-        }
+            json::object result;
+            result.add( json::string( "body" ), body );
 
-        json::value             object_;
-        http::http_error_code   error_;
+            // if the body is an array with exactly one element, we will use this as response code.
+            const std::pair< bool, json::array > body_as_array = body.try_cast< json::array >();
 
-        context()
-            : object_( json::null() )
-            , error_( http::http_ok )
-        {
+            const http::http_error_code response_code = ( body_as_array.first && body_as_array.second.length() == 1u )
+                ? static_cast< http::http_error_code >( body_as_array.second.at( 0 ).upcast< json::number >().to_int() )
+                : http::http_ok;
+
+            return std::pair< json::value, http::http_error_code >( result, response_code );
         }
     };
 
@@ -80,44 +88,59 @@ namespace {
     boost::shared_ptr< server::async_response > response_factory::create_response(
         const boost::shared_ptr< Connection >&                    connection,
         const boost::shared_ptr< const http::request_header >&    header,
-              Trait&                                              trait )
+              Trait&                                              )
     {
-        const context& cont = *static_cast< const context* >( static_cast< const void* >( &trait ) );
+        const typename json::response< Connection >::handler_t handler = boost::bind( &context::respond_to_request, _1, _2 );
         const boost::shared_ptr< server::async_response > new_response(
-            new json::response<Connection>(connection, cont.object(), cont.error_code()));
+            new json::response< Connection >( connection, header, handler ) );
 
         return new_response;
     }
 
 }
 
-BOOST_FIXTURE_TEST_CASE( the_body_will_be_correctly_transported, context )
+BOOST_FIXTURE_TEST_CASE( without_request_body_a_null_will_be_passed_to_the_handler, context )
 {
-    const json::value no_empty_hash  = json::parse_single_quoted( "{ 'a': 1, 'b': [{}, 'qwerty'] }" );
-    const json::value empty_hash     = json::parse_single_quoted( "{}" );
-    const json::value no_empty_array = json::parse_single_quoted( "[{}, 'qwerty']" );
-
-    BOOST_CHECK_EQUAL( no_empty_hash, run_and_return_body( no_empty_hash ) );
-    BOOST_CHECK_EQUAL( empty_hash, run_and_return_body( empty_hash ) );
-    BOOST_CHECK_EQUAL( no_empty_array, run_and_return_body( no_empty_array ) );
+    BOOST_CHECK_EQUAL(
+        run_single_and_return_body( http::test::simple_get_11 ),
+        json::parse_single_quoted("{'body': null}") );
 }
 
-BOOST_FIXTURE_TEST_CASE( the_status_line_contains_the_right_code, context )
+BOOST_FIXTURE_TEST_CASE( will_not_crash_if_there_is_a_bug_in_the_request, context )
 {
-    BOOST_CHECK_EQUAL( run( json::array(), http::http_ok ).header->code(), http::http_ok );
-    BOOST_CHECK_EQUAL( run( json::array(), http::http_moved_permanently ).header->code(), http::http_moved_permanently );
-    BOOST_CHECK_EQUAL( run( json::array(), http::http_bad_request ).header->code(), http::http_bad_request );
-    BOOST_CHECK_EQUAL( run( json::array(), http::http_bad_gateway ).header->code(), http::http_bad_gateway );
+    const char request_with_buggy_body[] =
+        "POST / HTTP/1.1\r\n"
+        "Host: web-sniffer.net\r\n"
+        "Content-Type: application/json\r\n"
+        "Content-Length: 50\r\n"
+        "\r\n"
+        "{\"hallo\": 123456776";
+
+    run( asio_mocks::read( request_with_buggy_body ) << asio_mocks::disconnect_read() );
 }
 
-BOOST_FIXTURE_TEST_CASE( there_is_a_content_type_header, context )
+BOOST_FIXTURE_TEST_CASE( will_not_crash_if_there_is_no_json_body, context )
 {
-    asio_mocks::response_t response = run( json::array(), http::http_ok );
-    const http::header* content_type_header = response.header->find_header( "Content-Type" );
+    run( asio_mocks::read( http::test::simple_post ) << asio_mocks::disconnect_read() );
+}
 
-    BOOST_ASSERT( content_type_header );
-    BOOST_CHECK_EQUAL( content_type_header->value(), "application/json" );
+BOOST_FIXTURE_TEST_CASE( the_callbacks_response_code_will_be_used, context )
+{
+    const asio_mocks::response_t response = run_single(
+        asio_mocks::json_msg( "[" + tools::as_string( static_cast< int >( http::http_method_not_allowed ) ) + "]" ) << asio_mocks::disconnect_read() );
 
+    BOOST_CHECK_EQUAL( response.header->code(), http::http_method_not_allowed );
+}
+
+BOOST_FIXTURE_TEST_CASE( body_will_be_correctly_transported, context )
+{
+    BOOST_CHECK_EQUAL(
+        run_single_and_return_body(
+            json::parse_single_quoted( "[ {}, 'a', 'b', null, { 'a': 4 } ]" ) ),
+        json::parse_single_quoted(
+            "{ "
+            "   'body': [ {}, 'a', 'b', null, { 'a': 4 } ]"
+            "}" ) );
 }
 
 
