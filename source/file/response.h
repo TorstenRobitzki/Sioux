@@ -7,6 +7,7 @@
 
 #include "server/response.h"
 #include "tools/asstring.h"
+#include "http/server_header.h"
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/enable_shared_from_this.hpp>
@@ -76,6 +77,7 @@ namespace file
     {
         static std::string response_header =
             "HTTP/1.1 200 OK\r\n"
+            SIOUX_SERVER_HEADER
             "Content-Length: ";
 
         response_guard guard( *connection_, *this, http::http_not_found );
