@@ -19,7 +19,7 @@ Dependencies
 getting "started"
 =================
 
-Currently this isn't an "out of the box" product. I've build the project under OS X and Linux. To get an overview, checkout the source and use "rake docu" to build doxygen documentation. "rake -T" gives an overview of the available build targets. If you need help, send me a message.
+Currently this isn't an "out of the box" product. I've build the project under OS X and Linux. To get an overview, checkout the source and use `rake docu` to build doxygen documentation. `rake -T` gives an overview of the available build targets. If you need help, send me a message.
 
 Examples
 ========
