@@ -13,6 +13,7 @@
 namespace pubsub
 {
     class node_name;
+    class configuration;
 }
 
 namespace json
@@ -66,6 +67,11 @@ namespace rack
      * In case of an error, the node_name is use to produce a meaningful error message.
      */
     json::value ruby_to_json( VALUE data, const pubsub::node_name& node_name );
+
+    /**
+     * @brief extracts the pubsub configuration part out of the given hash
+     */
+    pubsub::configuration pubsub_config( VALUE configuration );
 
 
     /**

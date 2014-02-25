@@ -1,10 +1,7 @@
-// Copyright (c) Torrox GmbH & Co KG. All rights reserved.
-// Please note that the content of this file is confidential or protected by law.
-// Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
-
 #include "rack/ruby_tools.h"
 #include "rack/log.h"
 #include "pubsub/node.h"
+#include "pubsub/configuration.h"
 #include "json/json.h"
 #include "tools/exception_handler.h"
 #include <sstream>
@@ -152,4 +149,15 @@ namespace rack
         return result;
     }
 
+    pubsub::configuration pubsub_config( VALUE configuration )
+    {
+        pubsub::configuration result;
+
+        result.max_update_size( from_hash( configuration, "Pubsub.max_update_size" ) );
+        result.authorization_required( bool_from_hash( configuration, "Pubsub.authorization_required" ) );
+
+        LOG_INFO( log_context << "pubsub-configuration:\n" << result );
+
+        return result;
+    }
 }
