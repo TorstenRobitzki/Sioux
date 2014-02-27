@@ -239,6 +239,7 @@ namespace server
         bool                                    current_response_is_sending_;
         bool                                    shutdown_read_;
         bool                                    no_read_timeout_set_;
+        bool                                    close_after_response_;
 
         timer_t                                 read_timer_;
         timer_t                                 write_timer_;
@@ -447,11 +448,18 @@ namespace server
         // start keep timeout, if the last read was issued without timeout
         if ( responses_.empty() && no_read_timeout_set_ && !shutdown_read_ )
         {
-            read_timer_.expires_from_now( trait_.keep_alive_timeout() );
-            read_timer_.async_wait(
-                boost::bind( &connection::handle_keep_alive_timeout,
-                             boost::static_pointer_cast< connection< Trait, Connection > >( this->shared_from_this() ),
-                             boost::asio::placeholders::error ) );
+            if ( close_after_response_ )
+            {
+                shutdown_close();
+            }
+            else
+            {
+                read_timer_.expires_from_now( trait_.keep_alive_timeout() );
+                read_timer_.async_wait(
+                    boost::bind( &connection::handle_keep_alive_timeout,
+                                 boost::static_pointer_cast< connection< Trait, Connection > >( this->shared_from_this() ),
+                                 boost::asio::placeholders::error ) );
+            }
         }
     }
 
@@ -715,8 +723,9 @@ namespace server
     }
 
     template < class Trait, class Connection, class Timer >
-    bool connection< Trait, Connection, Timer >::handle_request_header(const boost::shared_ptr<const http::request_header>& new_request)
+    bool connection< Trait, Connection, Timer >::handle_request_header( const boost::shared_ptr< const http::request_header >& new_request )
     {
+        close_after_response_ = new_request->close_after_response();
         const boost::shared_ptr< async_response > response = trait_.create_response( this->shared_from_this(), new_request );
         assert( response.get() );
 
@@ -733,12 +742,12 @@ namespace server
 
             trait_.error_executing_request_handler( *this, *new_request, "error executing handler" );
 
-            boost::shared_ptr<async_response> error_response(
-                trait_.error_response(this->shared_from_this(), http::http_internal_server_error));
+            boost::shared_ptr< async_response > error_response(
+                trait_.error_response( this->shared_from_this(), http::http_internal_server_error ) );
 
             if ( error_response.get() )
             {
-                responses_.push_back(error_response.get());
+                responses_.push_back( error_response.get() );
                 error_response->start();
             }
 

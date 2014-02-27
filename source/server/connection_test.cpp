@@ -126,19 +126,47 @@ BOOST_AUTO_TEST_CASE( close_after_sender_closed )
 BOOST_AUTO_TEST_CASE( closed_by_connection_header )
 {
     boost::asio::io_service     queue;
-    traits<>::connection_type   socket(queue, begin(simple_get_11_with_close_header), end(simple_get_11_with_close_header), 0);
+    traits<>::connection_type   socket(queue, begin(simple_get_11_with_close_header), end(simple_get_11_with_close_header), 0 );
     traits<>                    trait;
 
     boost::weak_ptr<server::connection<traits<>, traits<>::connection_type> > connection(server::create_connection(socket, trait));
     BOOST_CHECK(!connection.expired());
 
+    tools::elapse_timer time;
+
     queue.run();
+    BOOST_CHECK_LE(time.elapsed(), boost::posix_time::seconds(1));
 
     trait.reset_responses();
     BOOST_CHECK_EQUAL("Hello", socket.output());
 
     // no outstanding reference to the connection object, so no read is pending on the connection to the client
     BOOST_CHECK(connection.expired());
+}
+
+/**
+ * @test server closes connection, when client requests a close via connection header
+ */
+BOOST_AUTO_TEST_CASE( server_closed_by_connection_header )
+{
+    boost::asio::io_service     queue;
+    traits<>::connection_type   socket(
+        queue, begin( simple_get_11_with_close_header ), end( simple_get_11_with_close_header ), 0, 15 );
+    traits<>                    trait;
+
+    boost::weak_ptr< server::connection< traits<>, traits<>::connection_type > > connection( server::create_connection( socket, trait ) );
+    BOOST_CHECK(!connection.expired());
+
+    tools::elapse_timer time;
+
+    queue.run();
+    BOOST_CHECK_LE( time.elapsed(), boost::posix_time::seconds( 1 ) );
+
+    trait.reset_responses();
+    BOOST_CHECK_EQUAL( "Hello", socket.output() );
+
+    // no outstanding reference to the connection object, so no read is pending on the connection to the client
+    BOOST_CHECK( connection.expired() );
 }
 
 /**
