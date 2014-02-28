@@ -4,6 +4,7 @@
 #include "rack/ruby_land_queue.h"
 #include "rack/call_rack_application.h"
 #include "rack/adapter.h"
+#include "rack/response.inc"
 #include "pubsub/pubsub.h"
 #include "pubsub/node.h"
 #include "pubsub/root.h"
@@ -148,9 +149,13 @@ namespace {
         return boost::shared_ptr< server::async_response >();
     }
 
-    boost::shared_ptr< server::async_response > pubsub_server::on_request( const boost::shared_ptr< connection_t >&, const boost::shared_ptr< const http::request_header >& )
+    boost::shared_ptr< server::async_response > pubsub_server::on_request(
+        const boost::shared_ptr< connection_t >& connection, const boost::shared_ptr< const http::request_header >& request )
     {
-        return boost::shared_ptr< server::async_response >();
+        const boost::shared_ptr< server::async_response > result(
+            new rack::response< connection_t >( connection, request, *queue_, ruby_land_queue_ ) );
+
+        return result;
     }
 
 }

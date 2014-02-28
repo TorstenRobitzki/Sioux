@@ -1,85 +1,11 @@
-require 'rack'
-require 'rack/lint'
-require 'net/http'
-
 require 'minitest/unit'
 require_relative 'lib/rack/handler/sioux'
 require_relative '../bayeux/client'
 require_relative '../bayeux/network_test_cases'
 require_relative '../tests/bayeux_reply'
+require_relative './setup_rack_server.rb'
 
-class RackTestHandler
-    attr_reader :environment
-    
-    def call environment
-        raise StopIteration if environment[ 'PATH_INFO' ] == '/stop'
-        raise RuntimeError, "raised for testing"  if environment[ 'PATH_INFO' ] == '/throw'
-        
-        if environment[ 'PATH_INFO' ] == '/errors'
-            log = environment[ 'rack.errors' ]
-            log.puts 4
-            log.write "=2+2"
-            log.flush
-        end        
-        
-        @environment = environment
-        [ 200, {"Content-Type" => "text/html"}, [ "Hello Rack!" ] ]
-    end
-end
-
-module SetupRackserver
-    @@HOST = '127.0.0.1'
-    @@PORT = 8080
-    @@URI  = URI( "http://#{@@HOST}:#{@@PORT}" )
-    
-    def wait_until_started to
-        now  = Time.now
-        stop = false
-        
-        while Time.now < now + to and !stop do
-            begin
-                s = TCPSocket.new @@HOST, @@PORT
-                s.close
-                stop = true
-            rescue
-            end
-        end
-        
-        raise "Timeout waiting for sever!" unless stop
-    end
-
-    def setup adapter = nil, handler = nil, options = {}
-        options = { 'Environment' => 'debug', 'Host' => @@HOST, 'Port' => @@PORT, 'Adapter' => adapter }.merge options
-        
-        @app = handler || RackTestHandler.new
-        @server_loop = Thread.new do
-            begin
-            puts "####starting server"
-                Rack::Handler::Sioux.run( Rack::Lint.new( @app ), options )
-            rescue => error
-                puts "Error Rack::Handler::Sioux.run() #{error.message}"
-                puts error.backtrace.join("\n")        
-            end
-        end
-
-        wait_until_started 2
-    end
-
-    def ignore_errors
-        begin
-            yield
-        rescue
-        end
-    end
-
-    def teardown
-        ignore_errors { Net::HTTP.get( @@URI + '/stop' ) }
-        
-        @server_loop.join
-    end
-end
-
-class RackIntegrationTest < MiniTest::Unit::TestCase
+class RackBayeuxIntegrationTest < MiniTest::Unit::TestCase
     include SetupRackserver
     
     def test_get_method

@@ -12,7 +12,7 @@ namespace :rack do
     task :bayeux_sioux
 
     desc 'build a gem file (\'sioux-m.m.gem\') for the ruby rack component'
-    task :gem do 
+    task :gem => :pubsub_js_library do 
         require 'rubygems/builder'
          
         Dir.chdir( File.expand_path('..', __FILE__ ) ) do
@@ -28,9 +28,17 @@ task :all_rack_bayeux do
     end
 end
 
-# rack_bayeux_test is using different flavors of the shared library, so all used have to be used    
+# rack_*_test is using different flavors of the shared library, so all used have to be used    
 task :rack_bayeux_test => :all_rack_bayeux
+task :rack_pubsub_test => :all_rack_bayeux
 
 component_test 'rack_bayeux_test',
     :sources => FileList['./source/rack/rack_bayeux_test.rb']
     
+
+component_test 'rack_pubsub_test'
+    
+js_test 'rack_pubsub_test', 
+    :sources => FileList[ './source/rack/*_test.coffee' ]
+
+task :rack_pubsub_test => :pubsub_js_library
