@@ -44,7 +44,6 @@ module Rack
         end
         
         class Sioux
-            POSSIBLE_ENVIRONMENTS = %w{release debug converage}
             DEFAULTS = { 
                 'Host'                          => 'localhost',
                 'Port'                          => 8080,
@@ -70,7 +69,10 @@ module Rack
 
                 require 'bayeux_sioux'
 
-                server = Rack::Sioux::SiouxRubyImplementation.new
+                server = options[ 'Protocol' ] == 'bayeux' \
+                    ? Rack::Sioux::SiouxBayeuxImplementation.new
+                    : Rack::Sioux::SiouxPubsubImplementation.new
+
                 server.run ApplicationWrapper.new( app, options ), options 
             end
 
@@ -79,7 +81,7 @@ module Rack
                     "Host=hostname|ip-address" => "address of a single IP endpoint to bind to (default: #{DEFAULTS['localhost']})",
                     "Port=ip-port" => "port of a single IP endpoint to bind to (default: #{DEFAULTS['Port']})",
                     'Adapter=object' => 'object validate and authorize reading access to the root-data object. (default: nil)',
-                    'Protocol=protocol' => 'Protocol to be used between server and client. (default: pubsub)',
+                    'Protocol=protocol' => 'Protocol to be used between server and client (pubsub|bayeux; default: pubsub)',
                     'Pubsub.max_update_size=SIZE' => 'the ratio of update costs to full nodes data size in %. (default: 0)',
                     'Pubsub.authorization_required=yes|no' => 'describes whether or not a reading node access must be authorized. (default: yes)',
                     'Bayeux.max_messages_size_per_client=SIZE' => 'maximum size of messages, that will be buffered for a client before messages will be discard. (default: 10240)'

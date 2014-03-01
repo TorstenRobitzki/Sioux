@@ -204,11 +204,17 @@ extern "C" VALUE run_pubsub( VALUE self, VALUE application, VALUE configuration 
     return result;
 }
 
+extern "C" VALUE alloc_pubsub( VALUE klass )
+{
+    return Data_Wrap_Struct( klass, 0, 0, 0 );
+}
+
 extern "C" void Init_pubsub_sioux()
 {
     const VALUE mod_sioux = rb_define_module_under( rb_define_module( "Rack" ), "Sioux" );
-    VALUE class_    = rb_define_class_under( mod_sioux, "SiouxPubSubImplementation", rb_cObject );
+    VALUE class_    = rb_define_class_under( mod_sioux, "SiouxPubsubImplementation", rb_cObject );
 
+    rb_define_alloc_func( class_, alloc_pubsub );
     rb_define_method( class_, "run", RUBY_METHOD_FUNC( run_pubsub ), 2 );
     rb_define_method( class_, "[]=", RUBY_METHOD_FUNC( update_node_pubsub ), 2 );
 }

@@ -397,14 +397,18 @@ extern "C" VALUE subscribe_bayeux( VALUE self, VALUE ruby_node )
     return self;
 }
 
+extern "C" void Init_pubsub_sioux();
+
 extern "C" void Init_bayeux_sioux()
 {
     const VALUE mod_sioux = rb_define_module_under( rb_define_module( "Rack" ), "Sioux" );
-    VALUE class_    = rb_define_class_under( mod_sioux, "SiouxRubyImplementation", rb_cObject );
+    VALUE class_    = rb_define_class_under( mod_sioux, "SiouxBayeuxImplementation", rb_cObject );
 
     rb_define_alloc_func( class_, alloc_bayeux );
     rb_define_method( class_, "run", RUBY_METHOD_FUNC( run_bayeux ), 2 );
     rb_define_method( class_, "[]=", RUBY_METHOD_FUNC( update_node_bayeux ), 2 );
     rb_define_method( class_, "subscribe_for_testing", RUBY_METHOD_FUNC( subscribe_bayeux ), 1 );
+
+    Init_pubsub_sioux();
 }
 

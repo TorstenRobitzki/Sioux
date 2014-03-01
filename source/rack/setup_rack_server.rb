@@ -30,7 +30,6 @@ module SetupRackserver
     @@HOST      = '127.0.0.1'
     @@PORT      = 8080
     @@URI       = URI( "http://#{@@HOST}:#{@@PORT}" )
-    @@protocol  = 'bayeux' 
     
     def wait_until_started to
         now  = Time.now
@@ -48,13 +47,12 @@ module SetupRackserver
         raise "Timeout waiting for sever!" unless stop
     end
 
-    def setup adapter = nil, handler = nil, options = {}
+    def setup adapter = nil, handler = nil, o = { 'Protocol' => 'bayeux' }
         options = { 
             'Environment'   => 'debug', 
             'Host'          => @@HOST, 
             'Port'          => @@PORT, 
-            'Adapter'       => adapter, 
-            'Protocol'      => @@protocol }.merge options
+            'Adapter'       => adapter }.merge o
         
         @app = handler || RackTestApplication.new
         @server_loop = Thread.new do
