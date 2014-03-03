@@ -271,6 +271,7 @@ namespace server
         , current_response_is_sending_(false)
         , shutdown_read_(false)
         , no_read_timeout_set_( false )
+        , close_after_response_( false )
         , read_timer_(connection_.get_io_service())
         , write_timer_(connection_.get_io_service())
         , body_decoder_()

@@ -1,7 +1,3 @@
-// Copyright (c) Torrox GmbH & Co KG. All rights reserved.
-// Please note that the content of this file is confidential or protected by law.
-// Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
-
 #define BOOST_TEST_MAIN
 
 #include <boost/test/unit_test.hpp>
@@ -14,9 +10,9 @@
 #include "proxy/test_connector.h"
 #include "proxy/test_traits.h"
 #include "http/test_request_texts.h"
+#include "http/test_tools.h"
 #include "asio_mocks/test_socket.h"
 #include "server/test_traits.h"
-#include "server/test_tools.h"
 #include "tools/io_service.h"
  
 using namespace server::test;

@@ -41,6 +41,8 @@ namespace server
      * It's not save to let multiple threads access functions of one object. But it's save to read  
      * data from a buffer passed by read_buffer() from one thread and to write data to the write_buffer() 
      * from an other threads.
+     *
+     * @todo use http::chunk_encoder
      */
     template < std::size_t BufferSize >
     class transfer_buffer
