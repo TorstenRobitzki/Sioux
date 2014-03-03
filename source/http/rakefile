@@ -2,4 +2,4 @@
 # Please note that the content of this file is confidential or protected by law.
 # Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
-test 'http_test', :libraries => ['http', 'tools'], :extern_libs => ['boost_thread', 'boost_regex', 'boost_test_exec_monitor'], :sources =>  FileList['./source/http/*_test.cpp'] 
+test 'http_test', :libraries => ['http', 'tools'], :extern_libs => ['boost_thread', 'boost_regex', 'boost_test_exec_monitor', 'boost_system'], :sources =>  FileList['./source/http/*_test.cpp'] 
