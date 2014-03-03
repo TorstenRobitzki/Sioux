@@ -7,11 +7,11 @@
 #include "file/response.h"
 #include "server/test_traits.h"
 #include "server/connection.h"
-#include "server/test_tools.h"
 #include "tools/iterators.h"
 #include "tools/io_service.h"
 #include "http/decode_stream.h"
 #include "http/response.h"
+#include "http/test_tools.h"
 #include "asio_mocks/test_timer.h"
 
 #include <boost/test/unit_test.hpp>
@@ -77,7 +77,7 @@ static bool equal_to_this_file( const std::vector<char>& read )
     std::istreambuf_iterator< char > begin( input ), end;
     const std::vector< char > self( begin, end );
 
-    return server::test::compare_buffers( read, self, std::cerr );
+    return http::test::compare_buffers( read, self, std::cerr );
 }
 
 BOOST_AUTO_TEST_CASE( retrieve_an_existing_file )
