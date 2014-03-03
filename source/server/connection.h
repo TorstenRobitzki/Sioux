@@ -657,11 +657,11 @@ namespace server
         		{
         			bytes_transferred -= decoded_size;
         			deliver_body();
+                    body_buffer_.erase( body_buffer_.begin(), body_buffer_.begin() + decoded_size );
         		}
 
         		if ( body_decoder_.done() )
         		{
-        			body_buffer_.erase( body_buffer_.begin(), body_buffer_.begin() + decoded_size );
         			// this consumes and decreases bytes_transferred
 					current_request_.reset( new http::request_header(
 							boost::asio::const_buffers_1( &body_buffer_[0], bytes_transferred ), bytes_transferred ) );

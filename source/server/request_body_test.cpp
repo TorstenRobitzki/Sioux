@@ -268,16 +268,14 @@ BOOST_AUTO_TEST_CASE( post_with_small_content_length_message_body )
 /**
  * @class server::connection
  * @test chunked encoded message body to be received and decoded
- * @todo implement
  */
 BOOST_AUTO_TEST_CASE( post_with_small_chunked_encoded_message_body )
 {
-/*
     boost::minstd_rand      random;
     const char body[] = "Es war einmal ein Baer der schwamm so weit im Meer.";
 
     const std::vector< char > message = build_randomly_chunked_post_request(
-    		random, tools::begin( body ), tools::end( body ), 7u );
+    		random, tools::begin( body ), tools::end( body ) - 1, 7u );
 
 	trait_t					trait;
 	boost::asio::io_service	queue;
@@ -289,7 +287,31 @@ BOOST_AUTO_TEST_CASE( post_with_small_chunked_encoded_message_body )
 	tools::run( queue );
 	BOOST_CHECK_EQUAL( trait.read_bodies_.size(), 1u );
 	BOOST_CHECK( get_body( trait.read_bodies_.front() ).equal( body ) );
-	*/
+}
+
+/**
+ * @class server::connection
+ * @test check that an empty chunked body get correctly decoded.
+ */
+BOOST_AUTO_TEST_CASE( post_with_empty_chunked_body )
+{
+    const char empty_body[] =
+        "POST / HTTP/1.1\r\n"
+        "Host: web-sniffer.net\r\n"
+        "Transfer-Encoding: chunked\r\n"
+        "\r\n"
+        "0\r\n\r\n";
+
+    trait_t                 trait;
+    boost::asio::io_service queue;
+    socket_t                socket( queue, tools::begin( empty_body ), tools::end( empty_body ) - 1 );
+
+    boost::shared_ptr< connection_t > connection( new connection_t( socket, trait ) );
+    connection->start();
+
+    tools::run( queue );
+    BOOST_CHECK_EQUAL( trait.read_bodies_.size(), 1u );
+    BOOST_CHECK( get_body( trait.read_bodies_.front() ).equal( "" ) );
 }
 
 /**
