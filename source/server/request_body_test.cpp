@@ -9,13 +9,13 @@
 
 #include "http/request.h"
 #include "http/test_request_texts.h"
+#include "http/test_tools.h"
 #include "asio_mocks/test_socket.h"
 #include "asio_mocks/test_timer.h"
 #include "server/connection.h"
 #include "server/error.h"
 #include "server/log.h"
 #include "server/response.h"
-#include "server/test_tools.h"
 #include "server/traits.h"
 #include "tools/io_service.h"
 #include "tools/iterators.h"
@@ -51,7 +51,7 @@ namespace
 		template < class Iter >
 		bool equal( Iter begin, Iter end ) const
 		{
-			return body_read_ && server::test::compare_buffers( std::vector< char >( begin, end ), body_, std::cerr );
+			return body_read_ && http::test::compare_buffers( std::vector< char >( begin, end ), body_, std::cerr );
 		}
 
 		/**
@@ -59,7 +59,7 @@ namespace
 		 */
 		bool equal( const std::vector< char >& buffer ) const
 		{
-			return body_read_ && server::test::compare_buffers( buffer, body_, std::cerr );
+			return body_read_ && http::test::compare_buffers( buffer, body_, std::cerr );
 		}
 
 		/**
@@ -235,7 +235,7 @@ namespace
 			"Accept-Language: de-de\r\n"
 			"Accept-Encoding: gzip, deflate\r\n\r\n";
 
-		std::vector< char > message = server::test::random_chunk( random, std::vector< char >( begin, end ), max_chunk_size );
+		std::vector< char > message = http::test::random_chunk( random, std::vector< char >( begin, end ), max_chunk_size );
 		message.insert( message.begin(), tools::begin( header ), tools::end( header ) -1 );
 
 		return message;
@@ -422,7 +422,7 @@ BOOST_AUTO_TEST_CASE( multiple_bodies_with_different_size )
 	    distribution_type distribution( 1, max_body_size );
 	    gen_type die_gen(random, distribution);
 
-	    const std::vector< char > new_body = test::random_body( random, die_gen() );
+	    const std::vector< char > new_body = http::test::random_body( random, die_gen() );
 	    const std::string 			length = tools::as_string( new_body.size() ) + "\r\n\r\n";
 
 	    all_messages.insert( all_messages.end(), tools::begin( message_header ) , tools::end( message_header ) -1 );
