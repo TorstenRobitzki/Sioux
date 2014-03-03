@@ -26,6 +26,11 @@ namespace {
         {
             return body_;
         }
+
+        std::string body_str() const
+        {
+            return std::string( body_.begin(), body_.end() );
+        }
     private:
         const std::size_t   max_accept_;
         std::vector< char > body_;
@@ -97,23 +102,88 @@ BOOST_AUTO_TEST_CASE( will_read_behind_the_end_of_an_empty_body )
          "" ), 6 );
 }
 
+
+static const char encoded_test_body[] =
+    "29\r\n"
+    "<html><body><p>The file you requested is \r\n"
+    "5;foobar\r\n"
+    "3,400\r\n"
+    "22\r\n"
+    "bytes long and was last modified: \r\n"
+    "1d\r\n"
+    "Sat, 20 Mar 2004 21:12:00 GMT\r\n"
+    "13\r\n"
+    ".</p></body></html>\r\n"
+    "0\r\n"
+    "Expires: Sat, 27 Mar 2004 21:12:00 GMT\r\n"
+    "\r\n";
+
 BOOST_AUTO_TEST_CASE( chunk_encoded_body )
 {
     BOOST_CHECK_EQUAL( test_body_decode_variations(
+        encoded_test_body,
+        "<html><body><p>The file you requested is 3,400bytes long and was last modified: Sat, 20 Mar 2004 21:12:00 GMT.</p></body></html>" ), 0 );
+}
+
+BOOST_AUTO_TEST_CASE( chunk_encoded_step_by_step )
+{
+    static const char test_body[] =
         "29\r\n"
         "<html><body><p>The file you requested is \r\n"
         "5;foobar\r\n"
         "3,400\r\n"
         "22\r\n"
         "bytes long and was last modified: \r\n"
-        "1d\r\n"
-        "Sat, 20 Mar 2004 21:12:00 GMT\r\n"
-        "13\r\n"
-        ".</p></body></html>\r\n"
         "0\r\n"
-        "Expires: Sat, 27 Mar 2004 21:12:00 GMT\r\n"
-        "\r\n",
-        "<html><body><p>The file you requested is 3,400bytes long and was last modified: Sat, 20 Mar 2004 21:12:00 GMT.</p></body></html>" ), 0 );
+        "\r\n";
+
+    const char* current = &test_body[ 0 ];
+    const char* end     = current + sizeof( test_body ) -1;
+
+    body_receiver decoder( 32 );
+    BOOST_CHECK( !decoder.chunked_done() );
+
+    std::size_t fed = decoder.feed_chunked_buffer( current, 50 );
+    BOOST_CHECK_EQUAL( fed, 32 + 4);
+    current += fed;
+    BOOST_CHECK( !decoder.chunked_done() );
+    BOOST_CHECK_EQUAL( decoder.body_str(), "<html><body><p>The file you requ");
+
+    fed = decoder.feed_chunked_buffer( current, 5 );
+    BOOST_CHECK_EQUAL( fed, 5 );
+    current += fed;
+    BOOST_CHECK( !decoder.chunked_done() );
+    BOOST_CHECK_EQUAL( decoder.body_str(), "<html><body><p>The file you requested");
+
+    fed = decoder.feed_chunked_buffer( current, end - current );
+    BOOST_CHECK_EQUAL( fed, 4 );
+    current += fed;
+    BOOST_CHECK( !decoder.chunked_done() );
+    BOOST_CHECK_EQUAL( decoder.body_str(), "<html><body><p>The file you requested is ");
+
+    fed = decoder.feed_chunked_buffer( current, end - current );
+    BOOST_CHECK_EQUAL( fed, 17 );
+    current += fed;
+    BOOST_CHECK( !decoder.chunked_done() );
+    BOOST_CHECK_EQUAL( decoder.body_str(), "<html><body><p>The file you requested is 3,400");
+
+    fed = decoder.feed_chunked_buffer( current, end - current );
+    BOOST_CHECK_EQUAL( fed, 38 );
+    current += fed;
+    BOOST_CHECK( !decoder.chunked_done() );
+    BOOST_CHECK_EQUAL( decoder.body_str(), "<html><body><p>The file you requested is 3,400bytes long and was last modified");
+
+    fed = decoder.feed_chunked_buffer( current, end - current );
+    BOOST_CHECK_EQUAL( fed, 2 );
+    current += fed;
+    BOOST_CHECK( !decoder.chunked_done() );
+    BOOST_CHECK_EQUAL( decoder.body_str(), "<html><body><p>The file you requested is 3,400bytes long and was last modified: ");
+
+    fed = decoder.feed_chunked_buffer( current, end - current );
+    BOOST_CHECK_EQUAL( fed, 7 );
+    current += fed;
+    BOOST_CHECK( decoder.chunked_done() );
+    BOOST_CHECK_EQUAL( decoder.body_str(), "<html><body><p>The file you requested is 3,400bytes long and was last modified: ");
 }
 
 BOOST_AUTO_TEST_CASE( will_not_consume_behind_the_end )

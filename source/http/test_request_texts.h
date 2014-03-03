@@ -132,6 +132,29 @@ namespace test {
         "Expires: Sat, 27 Mar 2004 21:12:00 GMT\r\n"
         "\r\n";
 
+    const char chunked_request_example[] =
+        "POST / HTTP/1.1\r\n"
+        "Host: web-sniffer.net\r\n"
+        "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"
+        "Accept-Language: de-de\r\n"
+        "Transfer-Encoding: chunked\r\n"
+        "Accept-Encoding: gzip, deflate\r\n"
+        "Connection: keep-alive\r\n"
+        "\r\n"
+        "29\r\n"
+        "<html><body><p>The file you requested is \r\n"
+        "5;foobar\r\n"
+        "3,400\r\n"
+        "22\r\n"
+        "bytes long and was last modified: \r\n"
+        "1d\r\n"
+        "Sat, 20 Mar 2004 21:12:00 GMT\r\n"
+        "13\r\n"
+        ".</p></body></html>\r\n"
+        "0\r\n"
+        "Expires: Sat, 27 Mar 2004 21:12:00 GMT\r\n"
+        "\r\n";
+
     const char chunked_response_example_body[] =
 		"<html><body><p>The file you requested is "
 		"3,400"

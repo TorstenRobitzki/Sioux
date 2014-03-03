@@ -1,10 +1,7 @@
-// Copyright (c) Torrox GmbH & Co KG. All rights reserved.
-// Please note that the content of this file is confidential or protected by law.
-// Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
-
 #include <boost/test/unit_test.hpp>
 #include "http/body_decoder.h"
 #include "http/request.h"
+#include "http/test_tools.h"
 #include "http/test_request_texts.h"
 
 static const http::request_header header_with_body(
@@ -119,5 +116,40 @@ BOOST_AUTO_TEST_CASE( test_header_with_empty_body )
 
     BOOST_CHECK_EQUAL( 0u, decoded.first );
     BOOST_REQUIRE( decoded.second != 0 );
+}
+
+BOOST_AUTO_TEST_CASE( decode_chunk_transfered_buffer )
+{
+    const http::request_header header( http::test::chunked_request_example );
+
+    http::body_decoder decoder;
+    BOOST_CHECK_EQUAL( http::http_ok, decoder.start( header ) );
+
+    std::pair< const char*, std::size_t > input = header.unparsed_buffer();
+    std::vector< char > body;
+
+    while ( !decoder.done() )
+    {
+        BOOST_REQUIRE_GT( input.second, 0 );
+
+        const std::size_t fed = decoder.feed_buffer( input.first, input.second );
+        BOOST_REQUIRE_GT( fed, 0 );
+        input.second -= fed;
+        input.first += fed;
+
+        for ( std::pair< std::size_t, const char* > current = decoder.decode(); current.first;
+                current = decoder.decode() )
+        {
+            body.insert( body.end(), current.second, current.second + current.first );
+        }
+    }
+
+    BOOST_CHECK(
+        http::test::compare_buffers(
+            std::vector< char >( body.begin(), body.end() ),
+            std::vector< char >(
+                http::test::begin( http::test::chunked_response_example_body ),
+                http::test::end( http::test::chunked_response_example_body ) ),
+            std::cerr ) );
 }
 

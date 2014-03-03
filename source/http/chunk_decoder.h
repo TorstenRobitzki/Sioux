@@ -30,6 +30,9 @@ namespace http {
         /**
          * @brief feeds size bytes to the buffer. The function returns the number of bytes taken by the decoder.
          *
+         * If the fed body contains a piece of body, take_chunk will called with a buffer that lies within the given
+         * buffer. If take_chunk() was called, feed_chunked_buffer() will return.
+         *
          * @pre chunked_done() returned false
          * @return the number of bytes takes is smaller or equal to size and will always be greater than 0.
          */
@@ -72,7 +75,9 @@ namespace http {
     std::size_t chunk_decoder< Sink >::feed_chunked_buffer( const char* c, std::size_t org_size )
     {
         std::size_t size = org_size;
-        for ( ; size && chunked_state_ != chunk_done; --size, ++c )
+        bool delivered = false;
+
+        for ( ; size && chunked_state_ != chunk_done && !delivered; --size, ++c )
         {
             switch ( chunked_state_ )
             {
@@ -124,6 +129,8 @@ namespace http {
                     const size_t bite = std::min( size, current_chunk_ );
 
                     const size_t feed = static_cast< Sink* >( this )->take_chunk( c, bite );
+                    delivered = true;
+
                     assert( feed <= bite );
                     assert( feed <= current_chunk_ );
 

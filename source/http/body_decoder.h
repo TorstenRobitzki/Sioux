@@ -8,18 +8,20 @@
 #include "http/message.h"
 #include "http/http.h"
 #include "http/parser.h"
+#include "http/chunk_decoder.h"
 
 namespace http
 {
 	/**
 	 * @brief decodes a message body
 	 *
-	 * @todo add chunked bodies
 	 * @todo add compression
 	 */
-	class body_decoder
+	class body_decoder : protected chunk_decoder< body_decoder >
 	{
 	public:
+	    body_decoder();
+
         /**
          * @brief initialized this buffer for decoding a new message body
          * @return http::http_ok, if the decoder can decode the given message
@@ -48,12 +50,16 @@ namespace http
          */
         std::pair< std::size_t, const char* > decode();
 
+        // implementation detail
+        std::size_t take_chunk(const char*, std::size_t);
 	private:
         void start_content_length_encoded( std::size_t size );
+        void start_chunk_encoded( std::size_t size );
 
         std::size_t	total_size_;
         std::size_t	current_size_;
         const char*	current_;
+        bool        chunked_;
 	};
 
 	///////////////////
@@ -61,15 +67,22 @@ namespace http
     template < class Base >
     http::http_error_code body_decoder::start( const http::message_base< Base >& request )
     {
-    	const http::header* length_header = request.find_header( "Content-Length" );
-    	if ( !length_header )
-    		return http::http_length_required;
+        if ( request.option_available("Transfer-Encoding", "chunked") )
+        {
+            chunked_ = true;
+        }
+        else
+        {
+            const http::header* length_header = request.find_header( "Content-Length" );
+            if ( !length_header )
+                return http::http_length_required;
 
-    	std::size_t length = 0;
-    	if ( !http::parse_number( length_header->value().begin(), length_header->value().end(), length ) )
-    		return http::http_bad_request;
+            std::size_t length = 0;
+            if ( !http::parse_number( length_header->value().begin(), length_header->value().end(), length ) )
+                return http::http_bad_request;
 
-    	start_content_length_encoded( length );
+            start_content_length_encoded( length );
+        }
 
     	return http::http_ok;
     }
