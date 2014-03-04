@@ -2,6 +2,21 @@ require_relative 'lib/rack/handler/sioux'
 require_relative './setup_rack_server.rb'
 
 class Adapter 
+    def init root
+        @root = root
+    end
+    
+    def validate_node node
+        true
+    end
+    
+    def authorize user, node
+        true
+    end
+    
+    def node_init node
+        "Test-Data"
+    end
 end
 
 class Server 

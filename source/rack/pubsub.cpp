@@ -139,9 +139,14 @@ namespace {
         return rack::call_rack_application( body, request, endpoint, application_, ruby_land_queue_ );
     }
 
-    boost::shared_ptr< server::async_response > pubsub_server::on_pubsub_request( const boost::shared_ptr< connection_t >&, const boost::shared_ptr< const http::request_header >& )
+    boost::shared_ptr< server::async_response > pubsub_server::on_pubsub_request(
+        const boost::shared_ptr< connection_t >& connection, const boost::shared_ptr< const http::request_header >& header )
     {
-        return boost::shared_ptr< server::async_response >();
+        const boost::shared_ptr< server::async_response > response = connector_.create_response( connection, header );
+
+        return response.get()
+            ? response
+            : connection->trait().error_response( connection, http::http_bad_request );
     }
 
     boost::shared_ptr< server::async_response > pubsub_server::on_publish_request( const boost::shared_ptr< connection_t >&, const boost::shared_ptr< const http::request_header >& )
