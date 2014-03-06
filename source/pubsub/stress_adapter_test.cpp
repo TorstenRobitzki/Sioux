@@ -1,7 +1,3 @@
-// Copyright (c) Torrox GmbH & Co KG. All rights reserved.
-// Please note that the content of this file is confidential or protected by law.
-// Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
-
 #include <boost/test/unit_test.hpp>
 #include "pubsub/stress_adapter.h"
 #include "pubsub/test_helper.h"
@@ -37,8 +33,8 @@ BOOST_AUTO_TEST_CASE( stress_adapter_sync_validation )
 	const configuration     test_config = configurator().authorization_not_required();
 	root					nodes(queue, test_object, test_config);
 
-	const node_name         valid_name   = create_node_name("{\"a\":\"1\", \"valid\":\"valid\", \"init\":42 }");
-	const node_name         invalid_name = create_node_name("{\"a\":\"1\", \"valid\":\"nope\", \"init\":42 }");
+	const node_name         valid_name   = create_node_name("{\"a\":\"1\", \"valid\":\"valid\", \"init\":\"42\" }");
+	const node_name         invalid_name = create_node_name("{\"a\":\"1\", \"valid\":\"nope\", \"init\":\"42\" }");
 
 	boost::shared_ptr<subscriber> user( new test::subscriber );
 

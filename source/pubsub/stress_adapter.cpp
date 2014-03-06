@@ -42,15 +42,15 @@ namespace pubsub
 		{
 			const std::pair<bool, key> key = node_name.find_key(key_domain("valid"));
 
-			if ( key.first && key.second.value() == "\"valid\"" )
+			if ( key.first && key.second.value() == "valid" )
 			{
 				cb->is_valid();
 			}
-			else if ( key.first && key.second.value() == "\"async_valid\"" )
+			else if ( key.first && key.second.value() == "async_valid" )
 			{
 				io_queue_.post(boost::bind(&pubsub::validation_call_back::is_valid, cb));
 			}
-			else if ( key.first && key.second.value() == "\"async_invalid\"" )
+			else if ( key.first && key.second.value() == "async_invalid" )
 			{
 				io_queue_.post(boost::bind(&pubsub::validation_call_back::not_valid, cb));
 			}

@@ -37,6 +37,13 @@ namespace pubsub {
     {
     }
 
+    static std::string convert_to_str( const json::value& val )
+    {
+        const std::pair< bool, json::string > as_str = val.try_cast< json::string >();
+
+        return as_str.first ? as_str.second.to_std_string() : tools::as_string( val );
+    }
+
     node_name::node_name(const json::object& keys)
     {
         const std::vector<json::string> json_key_names = keys.keys();
@@ -47,7 +54,7 @@ namespace pubsub {
 
         for ( std::vector<key_domain>::const_iterator k = domains.begin(); k != domains.end(); ++k )
         {
-            keys_.push_back(key(*k, tools::as_string(keys.at(json::string(k->name().c_str())))));
+            keys_.push_back(key(*k, convert_to_str(keys.at(json::string(k->name().c_str())))));
         }
     }
 
@@ -153,7 +160,7 @@ namespace pubsub {
         json::object result;
 
         for ( key_list::const_iterator key = keys_.begin(); key != keys_.end(); ++key )
-            result.add( json::string( key->domain().name() ), json::parse( key->value() ) );
+            result.add( json::string( key->domain().name() ), json::string( key->value() ) );
 
         return result;
     }
