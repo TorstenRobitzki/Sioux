@@ -10,6 +10,7 @@
 namespace pubsub
 {
     class root;
+    class node_name;
 
 namespace http
 {
@@ -23,6 +24,7 @@ namespace http
 
         json::object build_response( const json::string& session_id, const json::array& response, const json::array& updates ) const;
         static bool check_node_name( const json::string cmd, const json::value& token, json::object& node_name, json::object& response );
+        static pubsub::node_name node_name_from_json( const json::value& );
     private:
 
         // async_response implementation

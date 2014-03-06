@@ -1,4 +1,5 @@
 #include "pubsub_http/response.h"
+#include "pubsub/node.h"
 #include "tools/iterators.h"
 #include <algorithm>
 
@@ -128,6 +129,29 @@ bool response_base::check_node_name( const json::string cmd, const json::value& 
 
     return true;
 }
+
+static std::string convert_to_str( const json::value& val )
+{
+    const std::pair< bool, json::string > as_str = val.try_cast< json::string >();
+
+    return as_str.first ? as_str.second.to_std_string() : tools::as_string( val );
+}
+
+pubsub::node_name response_base::node_name_from_json( const json::value& val )
+{
+    pubsub::node_name result;
+    const json::object& hash = val.upcast< json::object >();
+
+    const std::vector< json::string > keys = hash.keys();
+    for ( std::vector< json::string >::const_iterator key = keys.begin(); key != keys.end(); ++key )
+    {
+        const pubsub::key new_key( key->to_std_string(), convert_to_str( hash.at( *key ) ) );
+        result.add( new_key );
+    }
+
+    return result;
+}
+
 
 const char* response_base::name() const
 {

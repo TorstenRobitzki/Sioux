@@ -149,7 +149,7 @@ namespace http
             if ( !check_node_name( internal::subscribe_token, *subscribe, node, response ) )
                 return response;
 
-            session_list_.subscribe( session_, node_name( node ) );
+            session_list_.subscribe( session_, node_name_from_json( node ) );
             return json::null();
         }
 
@@ -159,7 +159,7 @@ namespace http
             if ( !check_node_name( internal::unsubscribe_token, *unsubscribe, node, response ) )
                 return response;
 
-            if ( session_list_.unsubscribe( session_, node_name( node ) ) != 1u )
+            if ( session_list_.unsubscribe( session_, node_name_from_json( node ) ) != 1u )
             {
                 static const json::string unsubscribe_error_message( "not subscribed" );
                 response.add( internal::unsubscribe_token, node );
