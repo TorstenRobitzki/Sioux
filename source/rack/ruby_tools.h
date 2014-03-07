@@ -66,6 +66,13 @@ namespace rack
      *
      * In case of an error, the node_name is use to produce a meaningful error message.
      */
+    json::value ruby_to_json( VALUE data );
+
+    /**
+     * @brief converts a ruby object into a json value
+     *
+     * In case of an error, the node_name is use to produce a meaningful error message.
+     */
     json::value ruby_to_json( VALUE data, const pubsub::node_name& node_name );
 
     /**

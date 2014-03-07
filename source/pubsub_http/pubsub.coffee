@@ -5,8 +5,7 @@ global = `Function('return this')()`
 global.PubSub = global.PubSub || {}
 
 create_ajax_transport = ( url = '/pubsub' )->
-    ( obj, cb )->
-
+    ( obj, cb, message_url = url )->
         $.ajax( 
             url: url,
             type: 'POST',
@@ -53,6 +52,15 @@ class Impl
             @pending_unsubscriptions.push node_name
             issue_request.call @ 
         
+    publish: ( message, callback )->
+        cb = ( error, response )->
+            if error 
+                callback true
+            else
+                callback false, response[ 0 ] 
+                                
+        @transport( [ message ], cb, '/publish' )      
+                  
     issue_request= ->
         cmds = for pending in @pending_subscriptions
             { subscribe: pending }
@@ -146,11 +154,24 @@ PubSub.subscribe = ( node_name, callback )->
       
     impl.subscribe node_name, callback      
                  
+# Removes the subscription to the given node. No further updates to the node will be notified.                 
 PubSub.unsubscribe = ( node_name )->
     if arguments.length != 1
         throw 'wrong number of arguments to PubSub.unsubscribe'
 
     impl.unsubscribe node_name
+
+# Transmit a user defined message to the server. message can be anything as long as it's json encodeable. The function
+# will generate a http post request to /publish with the given message as json encoded body. The callback will take 
+# two arguments, the first is a boolean indicating an error and the second is the response from the server, if no error
+# occured.
+PubSub.publish = ( message, callback )->
+    impl ?= new Impl    
+
+    if arguments.length != 2
+        throw 'wrong number of arguments to PubSub.publish'
+      
+    impl.publish message, callback      
 
 # Sets an ajax transport function. That function takes 2 arguments, the first 
 # argument is an object to be transported. The second argument is a callback takeing a boolean. That boolean indicates

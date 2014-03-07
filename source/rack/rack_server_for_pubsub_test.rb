@@ -2,10 +2,6 @@ require_relative 'lib/rack/handler/sioux'
 require_relative './setup_rack_server.rb'
 
 class Adapter 
-    def init root
-        @root = root
-    end
-    
     def validate_node node
         true
     end
@@ -16,6 +12,17 @@ class Adapter
     
     def node_init node
         "Test-Data"
+    end
+    
+    def publish message, root
+        if message.key? 'update'
+            root[ message[ 'update' ] ] = message[ 'value' ]
+            [ 'ok', 200 ]
+        elsif message.key? 'echo'
+            [ message[ 'echo' ], 200 ]
+        else
+            [ 'error', 500 ]            
+        end            
     end
 end
 

@@ -1,4 +1,6 @@
 #include <ruby.h>
+#include <boost/thread/future.hpp>
+
 #include "rack/log.h"
 #include "rack/ruby_tools.h"
 #include "rack/ruby_land_queue.h"
@@ -12,6 +14,7 @@
 #include "pubsub_http/connector.h"
 #include "server/server.h"
 #include "tools/exception_handler.h"
+#include "json_handler/response.h"
 
 using namespace rack;
 
@@ -51,8 +54,18 @@ namespace {
         boost::shared_ptr< server::async_response > on_publish_request( const boost::shared_ptr< connection_t >&, const boost::shared_ptr< const http::request_header >& );
         boost::shared_ptr< server::async_response > on_request( const boost::shared_ptr< connection_t >&, const boost::shared_ptr< const http::request_header >& );
 
+        // application_interface implementation
         virtual std::vector< char > call( const std::vector< char >& body, const http::request_header& request,
             const boost::asio::ip::tcp::endpoint& );
+
+        typedef rack::adapter::pubsub_publish_result_t publish_result_t;
+
+        // function to be called on the C++ server side, delegating the ruby upcall to the ruby_land_queue
+        publish_result_t publish_request_proxy( const ::http::request_header& header, const json::value& body );
+
+        // converting arguments and return values of the upcall to ruby land
+        void publish_request_impl( boost::promise< publish_result_t >& result, const json::value&, application_interface& );
+
 
         // a pointer is used to destroy the queue_ and thus the contained response-objects before the server and
         // thus accessed objects like the logging-trait
@@ -63,6 +76,7 @@ namespace {
         pubsub::http::connector<>           connector_;
         server_t                            server_;
         VALUE                               application_;
+        VALUE                               self_;
 
     };
 
@@ -73,6 +87,7 @@ namespace {
         , connector_( *queue_, data_ )
         , server_( *queue_, 0, std::cout )
         , application_( application )
+        , self_( ruby_self )
     {
         server_.add_action( "/pubsub", boost::bind( &pubsub_server::on_pubsub_request, this, _1, _2 ) );
         server_.add_action( "/publish", boost::bind( &pubsub_server::on_publish_request, this, _1, _2 ) );
@@ -139,6 +154,22 @@ namespace {
         return rack::call_rack_application( body, request, endpoint, application_, ruby_land_queue_ );
     }
 
+    std::pair< json::value, http::http_error_code > pubsub_server::publish_request_proxy( const ::http::request_header&, const json::value& body )
+    {
+        boost::promise< publish_result_t > result;
+
+        rack::ruby_land_queue::call_back_t ruby_execution(
+            boost::bind( &pubsub_server::publish_request_impl, this, boost::ref( result ), boost::cref( body ), _1 ) );
+
+        ruby_land_queue_.push( ruby_execution );
+        return result.get_future().get();
+    }
+
+    void pubsub_server::publish_request_impl( boost::promise< publish_result_t >& result, const json::value& value, application_interface& )
+    {
+        result.set_value( adapter_.publish( value, self_ ) );
+    }
+
     boost::shared_ptr< server::async_response > pubsub_server::on_pubsub_request(
         const boost::shared_ptr< connection_t >& connection, const boost::shared_ptr< const http::request_header >& header )
     {
@@ -149,9 +180,12 @@ namespace {
             : connection->trait().error_response( connection, http::http_bad_request );
     }
 
-    boost::shared_ptr< server::async_response > pubsub_server::on_publish_request( const boost::shared_ptr< connection_t >&, const boost::shared_ptr< const http::request_header >& )
+    boost::shared_ptr< server::async_response > pubsub_server::on_publish_request(
+        const boost::shared_ptr< connection_t >&                connection,
+        const boost::shared_ptr< const http::request_header >&  request )
     {
-        return boost::shared_ptr< server::async_response >();
+        return boost::shared_ptr< server::async_response >(
+            new json::response< connection_t >( connection, request, boost::bind( &pubsub_server::publish_request_proxy, this, _1, _2 ) ) );
     }
 
     boost::shared_ptr< server::async_response > pubsub_server::on_request(

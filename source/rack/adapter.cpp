@@ -21,6 +21,66 @@ namespace rack
     {
     }
 
+    adapter::pubsub_publish_result_t convert_call_back_result( VALUE answer, const char* error_context_msg )
+    {
+        if ( TYPE( answer ) != T_ARRAY )
+        {
+            LOG_ERROR( log_context << error_context_msg << " result is not a ruby array" );
+        }
+        else if ( RARRAY_LEN( answer ) != 2 )
+        {
+            LOG_ERROR( log_context << error_context_msg << " size of returned array is not 2" );
+        }
+        else
+        {
+            const VALUE first_arg  = RARRAY_PTR( answer )[ 0 ];
+            const VALUE second_arg = RARRAY_PTR( answer )[ 1 ];
+
+            return adapter::pubsub_publish_result_t(
+                json::array( ruby_to_json( first_arg ) ),
+                static_cast< http::http_error_code >( NUM2INT( second_arg ) ) );
+        }
+
+        return adapter::pubsub_publish_result_t(
+            json::array( json::string( "internal error" ) ), http::http_internal_server_error );
+    }
+
+    adapter::pubsub_publish_result_t adapter::publish( const json::value& body, VALUE root )
+    {
+        static const ID publish_function = rb_intern( "publish" );
+        static const char* error_context_msg = "while trying to upcall pubsub publish handler: \"";
+
+        try
+        {
+            if ( !rb_respond_to( adapter_, publish_function ) )
+            {
+                return pubsub_publish_result_t(
+                    json::array( json::string( "adapter does not respond to publish." ) ),
+                    http::http_internal_server_error );
+            }
+            else
+            {
+                const json::value undecorated_body = body.upcast< json::array >().at( 0 );
+                const VALUE ruby_value = rack::json_to_ruby( undecorated_body );
+
+                return convert_call_back_result(
+                    rb_funcall( adapter_, publish_function, 2, ruby_value, root ),
+                    error_context_msg );
+            }
+        }
+        catch ( ... )
+        {
+            LOG_ERROR( log_context << error_context_msg << body << "\" => "
+                << tools::exception_text() );
+
+            // attention!, the error text is communicated to the outside.
+            return pubsub_publish_result_t(
+                json::array( json::string( "internal error" ) ),
+                http::http_internal_server_error );
+        }
+
+    }
+
     static void does_not_repond_to( const char* func )
     {
         LOG_WARNING( log_context << "user adapter does not respond_to \"" << func << "\"" );

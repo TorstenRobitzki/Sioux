@@ -7,6 +7,9 @@ require '../pubsub_http/pubsub.js'
 assert = chai.assert
 expect = chai.expect
 
+host = '127.0.0.1'
+port = 8080 
+
 start_rack_server = ( done )->
     @server = child_process.spawn 'ruby', ['./source/rack/rack_server_for_pubsub_test.rb', 'start']
 
@@ -20,11 +23,7 @@ stop_rack_server = ( done )->
     #@stop.stdout.on 'data', ( data ) -> console.log "stop: #{data}"
     @stop.stderr.on 'data', ( data ) -> console.log "stop: #{data}"
 
-    @server.on 'exit', ( code )->
-        try
-            console.log "done"
-            done()
-        catch            
+    @server.on 'exit', ( code )-> done()
 
 describe "pubsub.http rack", ->
 
@@ -42,7 +41,7 @@ describe "pubsub.http rack", ->
 
         it 'it response to a GET', ( done )->
 
-            req = http.request { agent: false, host: '127.0.0.1', port: 8080 }, ( result )->
+            req = http.request { agent: false, host: host, port: port }, ( result )->
                 expect( result.statusCode ).to.eql 200
 
                 body = ''
@@ -58,11 +57,10 @@ describe "pubsub.http rack", ->
             req.setHeader 'Connection', 'close'                
             req.end()
             
-    describe "used as a pubsub server", -> 
-        
+    describe "using the rack server as a pubsub server",->   
         closing = false
-        
-        beforeEach ( done ) ->
+
+        before ( done ) ->
             @timeout 5000
             closing = false
 
@@ -70,12 +68,13 @@ describe "pubsub.http rack", ->
                 # give the server some time to start
                 setTimeout done, 2000                
 
-            PubSub.configure_transport ( obj, cb )->
+        beforeEach ->
+            PubSub.configure_transport ( obj, cb, url = '/pubsub' )->
 
                 unless closing
                     try
                           
-                        req = http.request { host: '127.0.0.1', port: 8080, method: 'POST', path: '/pubsub' }, ( result )->
+                        req = http.request { host: host, port: port, method: 'POST', path: url }, ( result )->
                             
                             body = ''
                             
@@ -89,20 +88,55 @@ describe "pubsub.http rack", ->
                         req.on 'error', -> 
                     catch error
                         cb true                    
-                
-        afterEach ( done )->
+
+        after ( done )->           
             closing = true
 
             @timeout 60000
             try
                 stop_rack_server done
-                PubSub.reset()
             catch error            
 
-        it 'responds to a subscription', ( done )->
-            PubSub.subscribe { a: 'a', b: 'b' }, ( node_name, data, error )->
-                expect( node_name ).to.eql { a: 'a', b: 'b' }
-                expect( data ).to.eql "Test-Data"
-                expect( error ).to.satisfy ( v ) -> !v      
-                
-                done()        
+        afterEach ->
+            PubSub.reset()
+
+        describe "the rack library provides an easy way to call adapter.publish", ->            
+            it 'is possible to get a simple echo back', ( done )->
+                PubSub.publish { echo: 'Hallo Echo' }, ( error, resp )->
+                    expect( error ).to.be.false
+                    expect( resp ).to.eql 'Hallo Echo'
+                    done()
+                     
+        describe "used as a pubsub server", -> 
+                        
+            it 'responds to a subscription', ( done )->
+                PubSub.subscribe { a: 'a', b: 'b' }, ( node_name, data, error )->
+                    expect( node_name ).to.eql { a: 'a', b: 'b' }
+                    expect( data ).to.eql "Test-Data"
+                    expect( error ).to.satisfy ( v ) -> !v      
+                    
+                    done()        
+    
+            it 'can subscribe to more than one nodes', ( done )->
+                received = 0
+                do_done = ->
+                    received++
+                    done() if received == 2
+                    
+                PubSub.subscribe { a: '1', b: 'b' }, ( node_name, data, error )->
+                    do_done()        
+
+                PubSub.subscribe { a: '2', b: 'b' }, ( node_name, data, error )->
+                    do_done()        
+
+            it 'a node can be updated', ( done )->
+                PubSub.subscribe { a: 'update_test', b: 'b' }, ( node_name, data, error )->
+                    expect( error ).to.satisfy ( v ) -> !v
+                    
+                    unless data == 'foo'
+                        PubSub.publish { update: { a: 'update_test', b: 'b' }, value: 'foo' }, ( error, resp )->
+                            expect( error ).to.be.false
+                            expect( resp ).to.eql 'ok'
+                    else
+                        done()                    
+                                                             

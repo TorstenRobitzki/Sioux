@@ -70,6 +70,7 @@ namespace rack
         return json::string( RSTRING_PTR( str ), RSTRING_PTR( str ) + RSTRING_LEN( str ) );
 
     }
+
     VALUE node_to_hash( const pubsub::node_name& node_name )
     {
         VALUE hash = rb_hash_new();
@@ -118,6 +119,16 @@ namespace rack
         // JSON.parse( "#{data}" )[ 0 ] hack, as a JSON expression must be an object or array on the top level according
         // to rfc4627
         return *RARRAY_PTR( rb_funcall( json_parser, parse_function, 1, rb_str_new_std( "[" + data.to_json() + "]" ) ) );
+    }
+
+    json::value ruby_to_json( VALUE ruby_json )
+    {
+        const ID to_json_func = rb_intern( "to_json" );
+
+        VALUE ruby_string = rb_funcall( ruby_json, to_json_func, 0 );
+        Check_Type( ruby_string, T_STRING );
+
+        return json::parse( RSTRING_PTR( ruby_string ), RSTRING_PTR( ruby_string ) + RSTRING_LEN( ruby_string ) );
     }
 
     json::value ruby_to_json( VALUE ruby_json, const pubsub::node_name& node_name )

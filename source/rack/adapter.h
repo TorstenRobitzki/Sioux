@@ -1,12 +1,15 @@
-// Copyright (c) Torrox GmbH & Co KG. All rights reserved.
-// Please note that the content of this file is confidential or protected by law.
-// Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
-
 #ifndef RACK_ADAPTER_H
 #define RACK_ADAPTER_H
 
 #include "pubsub/pubsub.h"
+#include "http/http.h"
 #include <ruby.h>
+#include <utility>
+
+namespace json {
+    class value;
+    class string;
+}
 
 namespace rack
 {
@@ -19,6 +22,14 @@ namespace rack
     {
     public:
         adapter( VALUE ruby_adapter, ruby_land_queue& );
+
+        // publish version for bayeux:
+        // @todo move call to adapter.publish from bayeux.cpp
+
+        // publish version for pubsub:
+        typedef std::pair< json::value, http::http_error_code > pubsub_publish_result_t;
+
+        pubsub_publish_result_t publish( const json::value& body, VALUE root );
 
     private:
         void validate_node(const pubsub::node_name& node_name, const boost::shared_ptr< pubsub::validation_call_back >&);
