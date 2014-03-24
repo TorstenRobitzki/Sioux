@@ -100,6 +100,8 @@ namespace pubsub
 	private:
 		void post_initialization_request(const details::validation_step_data&);
 
+		bool not_in_error_state() const;
+
 		typedef std::set< boost::shared_ptr< subscriber > > subscriber_list;
 
 		boost::mutex							mutex_;
@@ -122,7 +124,7 @@ namespace pubsub
 			initialization_failed
 		} 										state_;
 
-		const boost::shared_ptr<const configuration>  config_;
+		const boost::shared_ptr< const configuration >  config_;
 	};
 
 	/**

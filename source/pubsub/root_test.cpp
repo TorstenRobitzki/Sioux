@@ -681,3 +681,63 @@ BOOST_AUTO_TEST_CASE( second_subscriptions_to_the_very_same_node_with_authorizat
     BOOST_CHECK( test_user( second_subscriber ).on_update_called( random_node_name, json::null() ) );
 
 }
+
+BOOST_AUTO_TEST_CASE( second_subscription_to_invalid_node_should_be_flagged )
+{
+    boost::asio::io_service                 queue;
+    test::adapter                           adapter;
+    pubsub::root                            root( queue, adapter, configuration() );
+
+    boost::shared_ptr< ::pubsub::subscriber > subscriber( new test::subscriber );
+
+    for ( unsigned times = 0; times != 5; ++times )
+    {
+        adapter.answer_validation_request( random_node_name, false );
+        root.subscribe( subscriber, random_node_name );
+        tools::run( queue );
+
+        BOOST_CHECK( static_cast< test::subscriber* >( subscriber.get() )->on_invalid_node_subscription_called( random_node_name ) );
+    }
+}
+
+BOOST_AUTO_TEST_CASE( second_subscription_to_uninitializable_node_should_be_flagged )
+{
+    boost::asio::io_service                 queue;
+    test::adapter                           adapter;
+    pubsub::root                            root( queue, adapter, configuration() );
+
+    boost::shared_ptr< ::pubsub::subscriber > subscriber( new test::subscriber );
+
+    for ( unsigned times = 0; times != 5; ++times )
+    {
+        adapter.answer_validation_request( random_node_name, true );
+        adapter.answer_authorization_request( subscriber, random_node_name, true );
+        adapter.skip_initialization_request( random_node_name );
+
+        root.subscribe( subscriber, random_node_name );
+        tools::run( queue );
+
+        BOOST_CHECK( static_cast< test::subscriber* >( subscriber.get() )->on_failed_node_subscription_called( random_node_name ) );
+    }
+}
+
+BOOST_AUTO_TEST_CASE( second_subscription_to_invalid_node_should_not_cause_an_assertation )
+{
+    boost::asio::io_service                 queue;
+    test::adapter                           adapter;
+    pubsub::root                            root( queue, adapter, configuration() );
+
+    boost::shared_ptr< ::pubsub::subscriber > subscriber( new test::subscriber );
+
+    adapter.answer_validation_request( random_node_name, false );
+    adapter.answer_authorization_request( subscriber, random_node_name, true );
+
+    for ( unsigned times = 0; times != 2; ++times )
+    {
+        root.subscribe( subscriber, random_node_name );
+
+        tools::run( queue );
+
+        BOOST_CHECK( !adapter.authorization_requested( subscriber, random_node_name ) );
+    }
+}

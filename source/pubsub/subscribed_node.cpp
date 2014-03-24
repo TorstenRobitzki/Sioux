@@ -191,21 +191,38 @@ namespace pubsub {
 		}
 	}
 
-	void subscribed_node::add_subscriber( const boost::shared_ptr<subscriber>& user, adapter&, boost::asio::io_service&,
+	void subscribed_node::add_subscriber( const boost::shared_ptr< subscriber >& user, adapter&, boost::asio::io_service& queue,
 	    const node_name& name )
 	{
-		boost::mutex::scoped_lock lock(mutex_);
+		boost::mutex::scoped_lock lock( mutex_ );
 
-		if ( config_->authorization_required() )
+		if ( not_in_error_state() )
 		{
-			unauthorized_.insert(user);
+			if ( config_->authorization_required() )
+			{
+				unauthorized_.insert( user );
+			}
+			else
+			{
+				subscribers_.insert( user );
+
+				if ( state_ == valid_and_initialized )
+				    user->on_update( name, data_ );
+			}
 		}
+		else if ( state_ == invalid )
+		{
+			queue.post(
+				boost::bind( &subscriber::on_invalid_node_subscription, user, name ) );
+		}
+		else if ( state_ == initialization_failed )
+		{
+			queue.post(
+				boost::bind( &subscriber::on_failed_node_subscription, user, name ) );
+		} 
 		else
 		{
-			subscribers_.insert(user);
-
-			if ( state_ == valid_and_initialized )
-			    user->on_update( name, data_ );
+			assert( !"this state should be invalid" );
 		}
 	}
 
@@ -270,7 +287,7 @@ namespace pubsub {
 
     bool subscribed_node::authorization_required() const
     {
-        return config_->authorization_required();
+        return config_->authorization_required() && not_in_error_state();
     }
 
 	void subscribed_node::authorized_subscriber(const details::user_authorizer& auth)
@@ -356,6 +373,11 @@ namespace pubsub {
 				boost::cref(init->name_),
 				boost::static_pointer_cast<initialization_call_back>(init)));
 
+	}
+
+	bool subscribed_node::not_in_error_state() const
+	{
+		return state_ != invalid && state_ != initialization_failed;
 	}
 
 	boost::shared_ptr<validation_call_back> create_validator(

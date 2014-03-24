@@ -76,7 +76,9 @@ namespace pubsub
 
         /**
          * @brief will be called, when the initialization of a node that this subscriber subscribed
-         *        to, failed. This default implementation does nothing.
+         *        to, failed. 
+         * 
+         * This default implementation does nothing.
          */
         virtual void on_failed_node_subscription(const node_name& node);
 
