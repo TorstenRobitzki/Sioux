@@ -722,7 +722,6 @@ BOOST_FIXTURE_TEST_CASE( hurry_a_blocked_connection, context )
 // durring tests, there was a situation, where after a browser refresh, the server did not respond to a subscription
 BOOST_FIXTURE_TEST_CASE( second_subscription_to_invalid_node_must_be_communicated, context )
 {
-    /*
     data_.add_configuration( pubsub::node_group(), pubsub::configurator().authorization_not_required() );
 
     answer_validation_request( node1, false );
@@ -737,7 +736,7 @@ BOOST_FIXTURE_TEST_CASE( second_subscription_to_invalid_node_must_be_communicate
 
     const json::array response = json_multiple_post(
            asio_mocks::read_plan()
-        << asio_mocks::json_msg( "{ 'cmd': [ { 'subscribe': { 'a':1 ,'b':1 } } ] }" )
+        << asio_mocks::json_msg( "{ 'cmd': [ { 'subscribe': { 'a':'1' ,'b':'1' } } ] }" )
         << asio_mocks::json_msg( "{ 'id': '192.168.210.1:9999/0' }" )
         << asio_mocks::disconnect_read() );
 
@@ -747,8 +746,7 @@ BOOST_FIXTURE_TEST_CASE( second_subscription_to_invalid_node_must_be_communicate
     BOOST_CHECK_NE( response.find( json::parse_single_quoted( "{ "
         "'id'     : '192.168.210.1:9999/0',"
         "'resp'   : [ { "
-        "   'subscribe': {'a': 1, 'b': 1},"
+        "   'subscribe': {'a': '1', 'b': '1'},"
         "   'error'    : 'invalid node' } ]"
     "}" ) ), -1 );
-    */
 }
