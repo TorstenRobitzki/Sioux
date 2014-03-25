@@ -25,6 +25,17 @@ namespace pubsub
     class node_name;
     class subscriber;
 
+    class root_interface
+    {
+    public:
+        virtual void subscribe( const boost::shared_ptr< subscriber >&, const node_name& node_name) = 0;
+        virtual bool unsubscribe( const boost::shared_ptr< subscriber >&, const node_name& node_name) = 0;
+        virtual unsigned unsubscribe_all( const boost::shared_ptr< subscriber >& ) = 0;
+        virtual void update_node( const node_name& node_name, const json::value& new_data ) = 0;
+
+        virtual ~root_interface() {}
+    };
+
     /**
      * @brief root of a changeable and observable tree like data structure
      *

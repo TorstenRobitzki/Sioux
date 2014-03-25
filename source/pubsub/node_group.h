@@ -7,6 +7,7 @@
 
 #include <boost/shared_ptr.hpp>
 #include <iosfwd>
+#include <vector>
 
 namespace pubsub
 {
@@ -59,6 +60,8 @@ namespace pubsub
         void print(std::ostream& out) const;
 
         class impl;
+        class filtered_impl;
+        explicit node_group( const boost::shared_ptr<impl>& );
     private:
         boost::shared_ptr<impl> pimpl_;
     };
@@ -99,7 +102,7 @@ namespace pubsub
 
     private:
         friend class node_group;
-        mutable boost::shared_ptr<node_group::impl> pimpl_;
+        mutable boost::shared_ptr<node_group::filtered_impl> pimpl_;
     };
 
     /**
@@ -113,6 +116,13 @@ namespace pubsub
      * @relates build_node_group
      */
     build_node_group has_key(const key&);
+
+    /**
+     * @brief returns a set of node_groups that equaly distributes the key space among all groups
+     * @post equaly_distributed_node_groups( N ).size() == N
+     * @pre number_of_groups != 0
+     */
+    std::vector< node_group > equaly_distributed_node_groups( unsigned number_of_groups );
 
 } // namespace pubsub
 

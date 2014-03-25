@@ -61,7 +61,16 @@ namespace pubsub
     class node_group::impl
     {
     public:
-        impl()
+        virtual bool in_group(const node_name& name) const = 0;
+        virtual void print(std::ostream& out) const = 0;
+
+        virtual ~impl() {}
+    };
+
+    class node_group::filtered_impl : public node_group::impl
+    {
+    public:
+        filtered_impl()
         {
         }
 
@@ -76,11 +85,12 @@ namespace pubsub
 
         void add_filter(std::auto_ptr<filter> filter)
         {
+            assert( filter.get() );
             filters_.push_back(filter.get());
             filter.release();
         }
 
-        ~impl()
+        ~filtered_impl()
         {
             for ( filter_list::const_iterator i = filters_.begin(); i != filters_.end(); ++i )
                 delete *i;
@@ -97,8 +107,8 @@ namespace pubsub
         }
 
     private:
-        impl(const impl&);
-        impl& operator=(const impl&);
+        filtered_impl(const filtered_impl&);
+        filtered_impl& operator=(const filtered_impl&);
 
         typedef std::vector<filter*> filter_list;
         filter_list filters_;
@@ -106,14 +116,21 @@ namespace pubsub
 
 
     node_group::node_group()
-        : pimpl_(new impl)
+        : pimpl_(new filtered_impl)
     {
     }
 
     node_group::node_group(const build_node_group& builder)
         : pimpl_(builder.pimpl_)
     {
-        builder.pimpl_.reset(new impl);
+        assert( pimpl_.get() );
+        builder.pimpl_.reset(new filtered_impl);
+    }
+
+    node_group::node_group( const boost::shared_ptr<impl>& p )
+        : pimpl_( p )
+    {
+        assert( p.get() );
     }
 
     bool node_group::in_group(const node_name& name) const
@@ -145,7 +162,7 @@ namespace pubsub
     ///////////////////////////
     // class build_node_group
     build_node_group::build_node_group()
-        : pimpl_(new node_group::impl)
+        : pimpl_(new node_group::filtered_impl)
     {
     }
 
@@ -171,6 +188,36 @@ namespace pubsub
     build_node_group has_key(const key& k)
     {
         return build_node_group().has_key(k);
+    }
+
+    namespace {
+        struct mod_filter : node_group::impl
+        {
+            mod_filter( unsigned n, unsigned mod ) : n_( n ), mod_( mod ) {}
+
+            unsigned n_, mod_;
+
+            bool in_group(const node_name&) const
+            {
+                return true;
+            }
+
+            void print( std::ostream& o ) const
+            {
+                o << "f(key) % " << mod_ << " == " << n_;
+            }
+        };
+    }
+
+    std::vector< node_group > equaly_distributed_node_groups( unsigned number_of_groups )
+    {
+        assert( number_of_groups );
+        std::vector< node_group > result;
+
+        for ( unsigned n = 0 ; n != number_of_groups; ++n  )
+            result.push_back( node_group( boost::shared_ptr< node_group::impl >( new mod_filter( n, number_of_groups ) ) ) );
+
+        return result;
     }
 
 } // namespace pubsub

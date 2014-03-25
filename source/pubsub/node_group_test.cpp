@@ -3,10 +3,14 @@
 // Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
 
 #include <boost/test/unit_test.hpp>
+#include <boost/random/linear_congruential.hpp>
+#include <boost/random/uniform_int.hpp>
+#include <boost/random/variate_generator.hpp>
 #include "pubsub/node_group.h"
 #include "pubsub/key.h"
 #include "pubsub/node.h"
 #include "json/json.h"
+#include "tools/asstring.h"
 
 /**
  * @test test the node_group compare operations
@@ -120,4 +124,71 @@ BOOST_AUTO_TEST_CASE(has_key_has_domain_group_test)
     BOOST_CHECK(!filter_b_2_has_a.in_group(a_4_c_2));
     BOOST_CHECK(!filter_b_2_has_a.in_group(pubsub::node_name()));
     BOOST_CHECK(!filter_b_2_has_a.in_group(b_2_c_2));
+}
+
+/**
+ * @test equaly_distributed_node_groups returns a list of the given size
+ */
+BOOST_AUTO_TEST_CASE( equaly_distributed_node_groups_returns_a_list_of_the_given_size )
+{
+    BOOST_CHECK_EQUAL( pubsub::equaly_distributed_node_groups( 4u ).size(), 4u );
+    BOOST_CHECK_EQUAL( pubsub::equaly_distributed_node_groups( 1u ).size(), 1u );
+    BOOST_CHECK_EQUAL( pubsub::equaly_distributed_node_groups( 14u ).size(), 14u );
+    BOOST_CHECK_EQUAL( pubsub::equaly_distributed_node_groups( 7u ).size(), 7u );
+}
+
+std::vector< pubsub::node_name > generate_random_names( unsigned n )
+{
+    boost::minstd_rand random;
+
+    typedef boost::uniform_int< int > distribution_type;
+    typedef boost::variate_generator< boost::minstd_rand&, distribution_type > gen_type;
+
+    distribution_type distribution(std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
+    gen_type die_gen(random, distribution);
+
+    std::vector< pubsub::node_name > names( n );
+    for ( std::vector< pubsub::node_name >::iterator name = names.begin(); name != names.end(); ++name )
+    {
+        name->add( pubsub::key( pubsub::key_domain( "A" ), tools::as_string( die_gen() ) ) );
+    }
+
+    return names;
+}
+
+/**
+ * @test the result of equaly_distributed_node_groups distributes keys with 3 different domains
+ *       over 3 different key_groups
+ */
+BOOST_AUTO_TEST_CASE( equaly_distributed_node_groups_distributes_equaly_over_3_groups )
+{
+    unsigned const number_of_groups = 3u;
+    unsigned const number_of_names  = 1000u;
+
+    const std::vector< pubsub::node_name > names = generate_random_names( number_of_names );
+    const std::vector< pubsub::node_group > groups = pubsub::equaly_distributed_node_groups( number_of_groups );
+    std::vector< unsigned > count( number_of_groups, 0u );
+
+    for ( std::vector< pubsub::node_name >::const_iterator name = names.begin(); name != names.end(); ++name )
+    {
+        bool found = false;
+        for ( unsigned group_idx = 0; group_idx != number_of_groups; ++group_idx )
+        {
+            if ( found )
+            {
+                BOOST_REQUIRE( !groups[ group_idx ].in_group( *name ) );
+            }
+            else if ( groups[ group_idx ].in_group( *name ) )
+            {
+                found = true;
+                ++count[ group_idx ];
+            }
+        }
+
+        BOOST_REQUIRE( found );
+    }
+
+    for ( unsigned group_idx = 0; group_idx != number_of_groups; ++group_idx )
+        BOOST_CHECK_CLOSE( static_cast< double >( number_of_names ) / number_of_groups,
+            static_cast< double >( count[ group_idx ] ), 0.01 );
 }
