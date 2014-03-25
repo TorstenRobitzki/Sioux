@@ -7,7 +7,7 @@ global.PubSub = global.PubSub || {}
 create_ajax_transport = ( url = '/pubsub' )->
     ( obj, cb, message_url = url )->
         $.ajax( 
-            url: url,
+            url: message_url,
             type: 'POST',
             contentType: 'application/json;charset=UTF-8',
             data: JSON.stringify obj )
