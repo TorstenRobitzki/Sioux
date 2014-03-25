@@ -8,6 +8,7 @@
 #include "http/http.h"
 #include "http/request.h"
 #include "server/error.h"
+#include "server/fitting_uri.h"
 #include "tools/substring.h"
 #include <boost/utility.hpp>
 #include <boost/shared_ptr.hpp>
@@ -88,26 +89,6 @@ namespace server
 
         action_list_t actions_;
 
-        struct fitting_uri
-        {
-            explicit fitting_uri( const tools::substring& s ) : uri_( s ) {}
-
-            template < class P >
-            bool operator()( const P& pair ) const
-            {
-                const std::size_t s = std::min( uri_.size(), pair.first.size() );
-
-                if ( s != pair.first.size() )
-                    return false;
-
-                const tools::substring a( uri_.begin(), uri_.begin() + s );
-                const tools::substring b( pair.first.c_str(), pair.first.c_str() + s );
-
-                return a == b;
-            }
-
-            const tools::substring  uri_;
-        };
     };
 
 

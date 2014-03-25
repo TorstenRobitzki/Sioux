@@ -52,21 +52,18 @@
                 update_chat( data );
         });
         
-        $( '#chat-form' ).submit( function() {
+        $( '#chat-form' ).submit( function( e ) {
+            e.preventDefault(); 
+
             var text = $( '#chat-input' ).val().trim();
             
             if ( text.length )
             {
-                $.ajax( {
-                    url: '/say',
-                    type: 'POST',
-                    data: JSON.stringify( { text: text } )  
-                });
+                PubSub.publish( { text: text }, function() {} );
             }
                
             $( '#chat-input' ).val( '' );       
                      
-            return false;
         });
     });
     
@@ -78,7 +75,7 @@
 		<div id="header" class="container">
 			<div id="logo">
 				<h1><a href="#">Sioux Chat </a></h1>
-				<p>a C++ / JavaScript bayeux chat example</a></p>
+				<p>a C++ / JavaScript chat example</a></p>
 			</div>
 		</div>
 		<!-- end #header -->

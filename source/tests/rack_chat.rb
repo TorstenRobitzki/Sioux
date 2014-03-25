@@ -1,19 +1,16 @@
-# Copyright (c) Torrox GmbH & Co KG. All rights reserved.
-# Please note that the content of this file is confidential or protected by law.
-# Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
-
 $LOAD_PATH << File.expand_path('../../rack/lib', __FILE__)
 
 require 'rack'
 require 'rack/handler/sioux'
 require 'rack/static'
+require 'pathname'
 
 puts "starting rack_chat...."
 puts "connect to server via: \'http://localhost:8080\'"
 
 class Adapter
     @@SAY_CHANNEL  = { 'p1' => 'say' }
-    @@CHAT_CHANNEL = { 'p1' => 'chat' } 
+    @@CHAT_CHANNEL = { 'channel' => 'chat' } 
     @@MAX_MESSAGES = 20
 
     def initialize
@@ -26,27 +23,26 @@ class Adapter
     end
 
     # this callback is called after the node was validated. Return true, if the subscriber is allowed to subscribe to
-    # the node    
+    # the node. If authorization is disabled by configuration, this function is not required.
     def authorize subscriber, node
         true
     end
      
-    # This callback is called after validation and authorization. return the initial data wrapped in an hash with 
-    # 'data' field. An additional 'id' field will be transported to the clients too
+    # This callback is called after validation and authorization. return the initial data.
     def node_init node
-        { 'data' => @messages }
+        @messages
     end
     
     # This callback will be invoked, when a client invokes cometd.publish()
-    def publish node, data, root 
-        return [ false, 'invalid channel' ] unless node == @@SAY_CHANNEL
-        
+    def publish message, root
+        puts "message: #{message.inspect}"
+        puts "text: #{message['text']}"
         @messages.shift if @messages.size == @@MAX_MESSAGES 
-        @messages << { 'head' => '?', 'text' => data }
+        @messages << { 'head' => '?', 'text' => message[ 'text' ] }
 
-        root[ @@CHAT_CHANNEL ] = { 'data' => @messages }
+        root[ @@CHAT_CHANNEL ] = @messages
 
-        [ true, '' ]
+        'ok'
     end
 end
 
@@ -54,6 +50,7 @@ ROOT = File.expand_path(File.dirname(__FILE__))
 
 app = Rack::Builder.new do
     use Rack::Static, :urls => [ '/jquery' ], :root => ROOT
+    use Rack::Static, :urls => [ '/pubsub_http' ], :root => Pathname( ROOT ).parent
     use Rack::Static, :urls => [ '/' ], :index => '/index.html', :root => File.join( ROOT, 'chat' )
     run lambda { | env | [ 404, { 'Content-Type' => 'text/html' }, [] ] }
 end

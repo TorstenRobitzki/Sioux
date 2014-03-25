@@ -19,7 +19,7 @@ build_example 'chat',
 
 task :chat => :pubsub_js_library
 
-task :rack_chat => :all_rack_bayeux do 
+task :rack_chat => :pubsub_js_library do 
     ruby './source/tests/rack_chat.rb'
 end
 
