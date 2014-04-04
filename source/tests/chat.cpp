@@ -1,5 +1,4 @@
 #include "server/server.h"
-#include "server/secure_session_generator.h"
 #include "http/parser.h"
 #include "file/file.h"
 #include "pubsub/root.h"
@@ -30,7 +29,7 @@ namespace
     {
     public:
         chat_adapter()
-            : chat_channel_( pubsub::node_name().add( pubsub::key( pubsub::key_domain( "channel" ), "\"chat\"" ) ) )
+            : chat_channel_( pubsub::node_name().add( pubsub::key( pubsub::key_domain( "channel" ), "chat" ) ) )
             , max_size_( 20u )
             , root_( 0 )
         {
@@ -50,11 +49,16 @@ namespace
         }
 
     private:
-        std::pair< json::value, http::http_error_code > publish_message( const ::http::request_header& header, const json::value& body )
+        std::pair< json::value, http::http_error_code > publish_message( const ::http::request_header& header, const json::value& input )
         {
+            const json::array messages = input.upcast< json::array >();
+
+            if ( messages.length() != 1u )
+                throw std::runtime_error( "malformed input to publish_message()");
+
             boost::mutex::scoped_lock lock( mutex_ );
 
-            json::object request = body.upcast< json::object >();
+            json::object request = messages.at( 0 ).upcast< json::object >();
             json::object decorated_entry;
             decorated_entry.add( json::string( "head" ), json::string() );
             decorated_entry.add( json::string( "text" ), request.at( "text" ) );
@@ -104,7 +108,6 @@ int main()
     pubsub::root                        data( queue, adapter, pubsub::configurator().authorization_not_required() );
     adapter.set_root( data );
 
-    server::secure_session_generator    session_generator;
     pubsub::http::connector<>           pubsub_connector( queue, data );
 
     server::logging_server<>            server( queue, 0, std::cout );
@@ -113,7 +116,7 @@ int main()
     file::add_file_handler( server, "/pubsub_http", boost::filesystem::canonical( __FILE__ ).parent_path().parent_path() );
 
     server.add_action( "/pubsub", boost::bind( on_pubsub_request, boost::ref( pubsub_connector ), _1, _2 ) );
-    server.add_action( "/say", boost::bind( &chat_adapter::create_response, boost::ref( adapter ), _1, _2 ) );
+    server.add_action( "/publish", boost::bind( &chat_adapter::create_response, boost::ref( adapter ), _1, _2 ) );
 
     file::add_file_handler( server, "/jquery", boost::filesystem::canonical( __FILE__ ).parent_path() );
     file::add_file_handler( server, "/", boost::filesystem::canonical( __FILE__ ).parent_path() / "chat" );
