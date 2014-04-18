@@ -17,7 +17,7 @@ namespace http
 	 *
 	 * @todo add compression
 	 */
-	class body_decoder : protected chunk_decoder< body_decoder >
+	class body_decoder : public chunk_decoder< body_decoder >
 	{
 	public:
 	    body_decoder();
