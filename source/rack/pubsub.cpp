@@ -1,5 +1,6 @@
 #include <ruby.h>
 #include <boost/thread/future.hpp>
+#include <boost/lexical_cast.hpp>
 
 #include "rack/log.h"
 #include "rack/ruby_tools.h"
@@ -156,13 +157,18 @@ namespace {
 
     std::pair< json::value, http::http_error_code > pubsub_server::publish_request_proxy( const ::http::request_header&, const json::value& body )
     {
+        LOG_MAIN( log_context << "pubsub_server::publish_request_proxy(" << body << ")" );
         boost::promise< publish_result_t > result;
 
         rack::ruby_land_queue::call_back_t ruby_execution(
             boost::bind( &pubsub_server::publish_request_impl, this, boost::ref( result ), boost::cref( body ), _1 ) );
 
         ruby_land_queue_.push( ruby_execution );
-        return result.get_future().get();
+
+        const publish_result_t& future_result = result.get_future().get();   
+        LOG_MAIN( log_context << "pubsub_server::publish_request_proxy: " << future_result.first << ":" << future_result.second );
+
+        return future_result;
     }
 
     void pubsub_server::publish_request_impl( boost::promise< publish_result_t >& result, const json::value& value, application_interface& )
@@ -201,10 +207,10 @@ namespace {
 
 extern "C" VALUE update_node_pubsub( VALUE self, VALUE node, VALUE value )
 {
+    LOG_MAIN( log_context << "update_node_pubsub: " );
     const pubsub::node_name node_name  = hash_to_node( node );
     const json::value       node_value = ruby_to_json( value, node_name );
-
-    LOG_DETAIL( log_context << "update: " << node_name << " to " << node_value );
+    LOG_MAIN( log_context << node_name << " to " << node_value );
 
     pubsub_server* server_ptr = 0;
     Data_Get_Struct( self, pubsub_server, server_ptr );
@@ -212,7 +218,18 @@ extern "C" VALUE update_node_pubsub( VALUE self, VALUE node, VALUE value )
 
     server_ptr->update_node( node_name, node_value );
 
+    LOG_DETAIL( log_context << "update_node_pubsub()." );
     return self;
+}
+
+static void configure_logging( VALUE configuration )
+{
+    logging::add_output( std::cout );
+    LOG_INFO( rack::log_context << "starting pubsub_server...." );
+
+    const logging::log_level pubsub_output_level = boost::lexical_cast< logging::log_level >( str_from_hash( configuration, "Loglevel.pubsub" ) );
+    LOG_INFO( rack::log_context << "setting log level for pubsub to: " << pubsub_output_level );
+    logging::set_level( rack::log_context, pubsub_output_level );
 }
 
 extern "C" VALUE run_pubsub( VALUE self, VALUE application, VALUE configuration )
@@ -221,9 +238,7 @@ extern "C" VALUE run_pubsub( VALUE self, VALUE application, VALUE configuration 
 
     try
     {
-        logging::add_output( std::cout );
-        LOG_INFO( rack::log_context << "starting pubsub_server...." );
-
+        configure_logging( configuration );
         pubsub_server server( application, self, configuration );
 
         rack::local_data_ptr local_ptr( self, server );

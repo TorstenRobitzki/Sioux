@@ -23,7 +23,7 @@ namespace rack
 
     int from_hash( VALUE hash, const char* entry )
     {
-        VALUE ruby_result = access_hash( hash, entry );
+        const VALUE ruby_result = access_hash( hash, entry );
 
         if ( TYPE( ruby_result ) != T_FIXNUM )
             rb_raise( rb_eTypeError, "expected Fixnum for %s", entry );
@@ -33,12 +33,18 @@ namespace rack
 
     bool bool_from_hash( VALUE hash, const char* entry )
     {
-        VALUE ruby_result = access_hash( hash, entry );
+        const VALUE ruby_result = access_hash( hash, entry );
 
         if ( TYPE( ruby_result ) != T_TRUE  && TYPE( ruby_result ) != T_FALSE )
             rb_raise( rb_eTypeError, "expected boolean for %s", entry );
 
         return TYPE( ruby_result ) == T_TRUE;
+    }
+
+    std::string str_from_hash( VALUE hash, const char* entry )
+    {
+        const VALUE ruby_result = access_hash( hash, entry );
+        return rb_str_to_std( ruby_result );
     }
 
     VALUE rb_str_new_sub( const tools::substring& s )
@@ -171,4 +177,17 @@ namespace rack
 
         return result;
     }
+
+    std::ostream& operator<<( std::ostream& out, const log& value )
+    {
+        static const ID func_name = rb_intern("inspect");
+        assert( func_name );
+
+        VALUE str = rb_funcall( value.v, func_name, 0 );
+        Check_Type( str, T_STRING );
+
+        out.write( RSTRING_PTR( str ), RSTRING_LEN( str ) );
+        return out;
+    }
+
 }

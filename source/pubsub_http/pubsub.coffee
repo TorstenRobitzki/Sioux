@@ -54,10 +54,11 @@ class Impl
         
     publish: ( message, callback )->
         cb = ( error, response )->
-            if error 
-                callback true
-            else
-                callback false, response[ 0 ] 
+            if callback
+                if error
+                    callback true
+                else
+                    callback false, response[ 0 ]
                                 
         @transport( [ message ], cb, '/publish' )      
                   
@@ -164,11 +165,11 @@ PubSub.unsubscribe = ( node_name )->
 # Transmit a user defined message to the server. message can be anything as long as it's json encodeable. The function
 # will generate a http post request to /publish with the given message as json encoded body. The callback will take 
 # two arguments, the first is a boolean indicating an error and the second is the response from the server, if no error
-# occured.
+# occured. The callback argument is optional.
 PubSub.publish = ( message, callback )->
     impl ?= new Impl    
 
-    if arguments.length != 2
+    if arguments.length != 2 && arguments.length != 1
         throw 'wrong number of arguments to PubSub.publish'
       
     impl.publish message, callback      

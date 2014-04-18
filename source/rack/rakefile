@@ -11,13 +11,21 @@ namespace :rack do
     desc 'build the ruby extension shared library'
     task :bayeux_sioux
 
+    JS_LIBRARY_FILE = './source/rack/vendor/assets/javascripts/pubsub.js'
+    file JS_LIBRARY_FILE =>  PUBSUB_CLIENT_LIBRARY_FILE_NAME do | file |
+        cp PUBSUB_CLIENT_LIBRARY_FILE_NAME, file.name
+    end
+
+    GEM_SPEC_FILE = File.expand_path('../sioux.gemspec', __FILE__ )
+
     desc 'build a gem file (\'sioux-m.m.gem\') for the ruby rack component'
-    task :gem => :pubsub_js_library do 
-        require 'rubygems/builder'
+    task :gem => [ JS_LIBRARY_FILE, GEM_SPEC_FILE ] do | build_gem |
          
         Dir.chdir( File.expand_path('..', __FILE__ ) ) do
-            load File.expand_path('../sioux.gemspec', __FILE__ )
-            Gem::Builder.new( RACK_GEM_SPEC ).build
+            require 'rubygems/package_task'
+            load File.expand_path( GEM_SPEC_FILE, __FILE__ )
+
+            Gem::Package.build RACK_GEM_SPEC
         end 
     end
 end

@@ -36,6 +36,12 @@ namespace rack
      */
     bool bool_from_hash( VALUE hash, const char* entry );
 
+    /**
+     * returns a string entry out of a hash
+     * raises ruby exceptions, if no such enty exists
+     */
+    std::string str_from_hash( VALUE hash, const char* entry );
+
     VALUE rb_str_new_sub( const tools::substring& s );
     VALUE rb_str_new_std( const std::string& s );
 
@@ -105,6 +111,21 @@ namespace rack
 
         const VALUE obj_;
     };
+
+    struct log
+    {
+        explicit log( VALUE av ) : v( av )
+        {
+        }
+
+        VALUE v;
+    };
+
+    /**
+     * @brief textual representation of a ruby value
+     */
+    std::ostream& operator<<( std::ostream& out, const log& value );
+
 }
 
 #endif /* RACK_RUBY_TOOLS_H_ */

@@ -2,7 +2,7 @@ GEM
   remote: https://rubygems.org/
   specs:
     rack (1.5.2)
-    rake (10.1.0)
+    rake (10.3.0)
 
 PLATFORMS
   ruby
