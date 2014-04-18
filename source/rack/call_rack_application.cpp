@@ -5,6 +5,7 @@
 #include "http/filter.h"
 #include "http/request.h"
 #include "http/parser.h"
+#include "http/server_header.h"
 #include "tools/split.h"
 #include "tools/asstring.h"
 
@@ -12,7 +13,6 @@ static void fill_http_headers( VALUE environment, const http::request_header& re
 {
     static const http::filter header_to_be_excluded( "Content-Length, Content-Type" );
     static const ID upcase = rb_intern( "upcase!" );
-
     for ( http::request_header::const_iterator header = request.begin(), end = request.end(); header != end; ++header )
     {
         if ( !header_to_be_excluded( header->name() ) )
@@ -132,6 +132,7 @@ std::vector< char > rack::call_rack_application( const std::vector< char >& body
     const std::string status_line = http::status_line( "1.1", static_cast< http::http_error_code >( NUM2INT( ruby_status ) ) );
 
     VALUE result = rb_str_new( status_line.data(), status_line.size() );
+    result = rb_str_plus( result, rb_str_new2( SIOUX_SERVER_HEADER ) );
     result = rb_str_plus( result, ruby_headers );
     result = rb_str_plus( result, ruby_body );
 
