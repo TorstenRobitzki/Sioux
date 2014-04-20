@@ -15,6 +15,5 @@ RACK_GEM_SPEC = Gem::Specification.new do | gem |
     
     gem.licenses = ["MIT"]
     gem.files = Dir[ 'lib/**/*' ] + Dir[ 'vendor/**/*' ]
-    gem.add_dependency "railties", "~> 3.1"
     puts "files: #{gem.files}"
 end
