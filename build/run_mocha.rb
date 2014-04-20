@@ -8,7 +8,7 @@ def mocha_test_task test_name, *options
         single_test = args[ :argument ]
         testfilter = single_test.nil? ? '' : "-g \"#{single_test}\"" 
         
-        cmd = "mocha --compilers coffee:coffee-script #{testfilter} #{sources}"
+        cmd = "mocha --compilers coffee:coffee-script/register #{testfilter} #{sources}"
         result = system cmd
         
         raise "#{test_name} failed!" unless result
