@@ -22,10 +22,8 @@ namespace :rack do
     task :gem => [ JS_LIBRARY_FILE, GEM_SPEC_FILE ] do | build_gem |
          
         Dir.chdir( File.expand_path('..', __FILE__ ) ) do
-            require 'rubygems/package_task'
-            load File.expand_path( GEM_SPEC_FILE, __FILE__ )
-
-            Gem::Package.build RACK_GEM_SPEC
+            load File.expand_path('../sioux.gemspec', __FILE__ )
+            Gem::Builder.new( RACK_GEM_SPEC ).build
         end 
     end
 end
