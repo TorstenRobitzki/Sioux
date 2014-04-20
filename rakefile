@@ -51,7 +51,11 @@ end
 
 SYSTEMLIBRARIES = test_system_library( 'pthread' ) + test_system_library( 'rt' )
 
-SHARED_LINK_FLAGS = "-shared -flat_namespace #{LINK_FLAGS}"
+if RbConfig::CONFIG['host_os'] =~ /darwin|mac os/
+    SHARED_LINK_FLAGS = "-shared -flat_namespace #{LINK_FLAGS}"
+else
+    SHARED_LINK_FLAGS = "-shared #{LINK_FLAGS}"
+end
 SHARED_LINK_FLAGS_BY_FLAVORS = LINK_FLAGS_BY_FLAVORS
 
 RUBY_EXTENSION_LINK_FLAGS = '-static'
