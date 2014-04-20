@@ -1,4 +1,4 @@
 test 'json_handler_test', 
-    :libraries => [ 'json_handler', 'json', 'server', 'http', 'asio_mocks', 'tools'], 
+    :libraries => [ 'json_handler', 'json', 'server', 'http', 'asio_mocks','http', 'tools'], 
     :extern_libs => ['boost_date_time', 'boost_regex', 'boost_random', 'boost_system', 'boost_thread', 'boost_test_exec_monitor'], 
     :sources =>  FileList['./source/json_handler/*_test.cpp'] 

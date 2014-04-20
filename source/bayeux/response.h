@@ -393,7 +393,7 @@ namespace bayeux
 	void response< Connection >::messages( const json::array& msg, const json::string& session_id )
 	{
         this->bayeux_response_ += msg;
-        this->bayeux_response_.add( build_connect_response( this->blocking_connect_, session_id ) );
+        this->bayeux_response_.add( this->build_connect_response( this->blocking_connect_, session_id ) );
 
         write_reponse();
 	}
@@ -403,7 +403,7 @@ namespace bayeux
     {
         timer_.cancel();
 
-        response_ = build_response( this->bayeux_response_ );
+        response_ = this->build_response( this->bayeux_response_ );
         connection_->async_write(
             response_,
             boost::bind( &response::response_written, this->shared_from_this(), _1, _2 ),
