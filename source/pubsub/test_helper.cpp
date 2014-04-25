@@ -158,7 +158,7 @@ namespace test {
     {
         boost::mutex::scoped_lock lock(mutex_);
 
-        boost::shared_ptr<authorization_call_back> cb;        
+        boost::shared_ptr< pubsub::authorization_call_back > cb; 
         if ( search_and_remove(authorization_request_, std::make_pair(user, name), cb) )
         {
             is_authorized ? cb->is_authorized() : cb->not_authorized();
@@ -197,7 +197,7 @@ namespace test {
     {
         boost::mutex::scoped_lock lock(mutex_);
         
-        boost::shared_ptr<validation_call_back> cb;
+        boost::shared_ptr< pubsub::validation_call_back > cb;
         if ( search_and_remove(validation_request_, name, cb) )
         {
             is_valid ? cb->is_valid() : cb->not_valid();
@@ -230,7 +230,7 @@ namespace test {
     {
         boost::mutex::scoped_lock lock(mutex_);
 
-        boost::shared_ptr<initialization_call_back> cb;
+        boost::shared_ptr< pubsub::initialization_call_back > cb;
         if ( search_and_remove(initialization_request_, name, cb) )
         {
             cb->initial_value(answer);
@@ -282,7 +282,7 @@ namespace test {
             && validations_to_skip_.empty() && authorizations_to_skip_.empty() && initializations_to_skip_.empty();
     }
 
-    void adapter::validate_node(const node_name& name, const boost::shared_ptr<validation_call_back>& cb)
+    void adapter::validate_node(const node_name& name, const boost::shared_ptr< pubsub::validation_call_back >& cb)
     {
         boost::mutex::scoped_lock lock(mutex_);
 
@@ -298,7 +298,7 @@ namespace test {
         }
     }
 
-    void adapter::node_init(const node_name& name, const boost::shared_ptr<initialization_call_back>& cb)
+    void adapter::node_init( const node_name& name, const boost::shared_ptr< pubsub::initialization_call_back >& cb )
     {
         boost::mutex::scoped_lock lock(mutex_);
 
@@ -309,7 +309,7 @@ namespace test {
         }
         else if ( search_and_remove(initialization_answers_defered_, name, value) )
         {
-            queue_->post( boost::bind( &initialization_call_back::initial_value, cb, value ) );
+            queue_->post( boost::bind( &pubsub::initialization_call_back::initial_value, cb, value ) );
         }
         else if ( !search_and_remove(initializations_to_skip_, name) )
         {
@@ -317,7 +317,8 @@ namespace test {
         }
     }
 
-    void adapter::authorize(const boost::shared_ptr< ::pubsub::subscriber>& user, const node_name& name, const boost::shared_ptr<authorization_call_back>& cb)
+    void adapter::authorize( const boost::shared_ptr< ::pubsub::subscriber >& user, const node_name& name, 
+        const boost::shared_ptr< pubsub::authorization_call_back >& cb )
     {
         boost::mutex::scoped_lock lock(mutex_);
         const authorization_request_list::key_type key(user, name);

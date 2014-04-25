@@ -277,6 +277,36 @@ namespace test {
         unauthorized_subscription_reported_list     unauthorized_subscription_reports_;
         initialization_failed_reported_list         initialization_failed_reports_;
     };
+
+    /**
+     * @brief implements pubsub::validation_call_back by doing nothing
+     */
+    class validation_call_back : public ::pubsub::validation_call_back
+    {
+    public:
+        virtual void is_valid() {}
+        virtual void not_valid() {}
+    };
+
+    /**
+     * @brief implements pubsub::authorization_call_back by doing nothing
+     */
+    class authorization_call_back : public ::pubsub::authorization_call_back
+    {
+    public:
+        virtual void is_authorized() {}
+        virtual void not_authorized() {}
+    };
+
+    /**
+     * @brief implements pubsub::initialization_call_back by doing nothing
+     */
+    class initialization_call_back : public ::pubsub::initialization_call_back
+    {
+    public:
+        virtual void initial_value(const json::value&) {}
+    };
+
 }
 }
 #endif // include guard
