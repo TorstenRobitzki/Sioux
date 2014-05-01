@@ -20,6 +20,12 @@ connector< Timer >::connector( boost::asio::io_service& queue, pubsub::root& dat
 {
 }
 
+template < class Timer >
+connector< Timer >::~connector()
+{
+    session_list_.shut_down();
+}
+
 template class connector<>;
 template class connector< asio_mocks::timer >;
 

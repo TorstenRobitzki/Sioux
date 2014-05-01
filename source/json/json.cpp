@@ -732,6 +732,11 @@ namespace json
         return get_impl<object_impl>().at(key);
     }
 
+    value& object::at(const char* key)
+    {
+        return get_impl< object_impl >().at( string( key ) );
+    }
+
     const value& object::at(const string& key) const
     {
         return get_impl<object_impl>().at(key);

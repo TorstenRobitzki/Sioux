@@ -267,7 +267,6 @@ BOOST_FIXTURE_TEST_CASE( accessing_a_session_perodically_within_the_timeout_peri
 
         asio_mocks::advance_time( boost::posix_time::seconds( 19 ) );
         tools::run( *this );
-
     }
 }
 

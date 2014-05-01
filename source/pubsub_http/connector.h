@@ -147,7 +147,7 @@ namespace pubsub
 
     ## updates
 
-    An update is a message that is send only from the server to the client. It contains updates of a the subscribed
+    An update is a message that is send only from the server to the client. It contains updates of a subscribed
     data, or completely new versions of the subscribed data. In both cases, it's an object with a "version" field,
     denoting the new version of the data and "key" field, giving the name of the object. If the message is an update
     from a former version, the message contains a an "update" field and a "from" field. The "update" field contains the
@@ -188,6 +188,8 @@ namespace http
          */
         connector( boost::asio::io_service& queue, pubsub::root& data, server::session_generator& session_id_generator );
 
+        ~connector();
+        
         /**
          * @brief creates a new response object for a given http request.
          *
@@ -204,6 +206,10 @@ namespace http
             const boost::shared_ptr< const ::http::request_header >&  header );
 
     private:
+        // not implemented
+        connector& operator=( const connector& );
+        connector( const connector& );
+
         server::secure_session_generator    default_session_generator_;
         sessions< Timer >                   session_list_;
         pubsub::root&                       data_;

@@ -244,6 +244,12 @@ namespace json
         value& at(const string& key);
 
         /**
+         * @brief returns a reference to the element with the given key
+         * @exception std::out_of_range if key is not in keys()
+         */
+        value& at(const char* key);
+
+        /**
          * @brief returns the element with the given key
          * @exception std::out_of_range
          */
