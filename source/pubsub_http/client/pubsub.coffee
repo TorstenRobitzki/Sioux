@@ -16,9 +16,19 @@ create_ajax_transport = ( url = '/pubsub' )->
         
 class Node 
     constructor: ( @cb )->    
-        
-    update: ( key, data )->
-        @cb( key, data )  
+        @data = null
+        @version = null
+
+    update: ( update )->
+
+        return false if update[ 'update' ] && @version != update.from
+
+        @data = if update[ 'update' ] then PubSub.update( @data, update.update ) else update.data
+        @version = update.version
+
+        @cb( update.key, @data )
+
+        true
                              
     error: ( key, error )->
         @cb( key, null, error )
@@ -26,9 +36,7 @@ class Node
 class Impl
     constructor: ( @transport = create_ajax_transport() )->
         @subjects = new PubSub.NodeList
-
-        @pending_subscriptions = []
-        @pending_unsubscriptions = []
+        clear_pendings.call @
 
         # if the session_id is null, there is currently no connection to the server
         @session_id = null
@@ -62,6 +70,11 @@ class Impl
                                 
         @transport( [ message ], cb, '/publish' )      
                   
+    clear_pendings= ->
+        @pending_subscriptions   = []
+        @pending_unsubscriptions = []
+        @pending_resubscriptions = []
+
     issue_request= ->
         cmds = for pending in @pending_subscriptions
             { subscribe: pending }
@@ -69,9 +82,12 @@ class Impl
         for pending in @pending_unsubscriptions
             cmds.push { unsubscribe: pending }    
 
-        @pending_subscriptions = []
-        @pending_unsubscriptions = []
-            
+        for pending in @pending_resubscriptions
+            cmds.push { unsubscribe: pending }
+            cmds.push { subscribe: pending }
+
+        clear_pendings.call @
+
         payload = if @session_id
             if cmds.length then { id: @session_id, cmd: cmds } else { id: @session_id }
         else 
@@ -91,7 +107,11 @@ class Impl
             
     handle_update= ( update )->
         node = @subjects.get( update.key )
-        node.update update.key, update.data if node
+
+        if node && !node.update update
+            # resubscribe because of a version missmatch
+            @subjects.remove update.key
+            @pending_resubscriptions.push update.key
                                                         
     receive_call_back= ( error, response )->
         @current_transports--
@@ -124,8 +144,8 @@ class Impl
          
     try_reconnect= ->
         @reconnecting = false
-        @pending_unsubscriptions = []
-        @pending_subscriptions = []
+
+        clear_pendings.call @
         
         @subjects.each ( name ) => @pending_subscriptions.push name
         issue_request.call @
