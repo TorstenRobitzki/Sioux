@@ -86,6 +86,10 @@ describe "PubSub.update", ->
                 assert.deepEqual update( [ update_range, 0, 0, [ 1, 2 ] ] ), [ 1, 2 ]
 
         describe "and the update operation is an 'edit_at'", ->
+            it "raises an exception", ->
+                test = -> update [ edit_at, 0, [] ]
+
+                assert.throw test, RangeError, 'bad index for edit: 0'
 
         describe "and the update operation is a mix out of simple operations", ->
             it "will apply all operations in the given order", ->
@@ -197,7 +201,15 @@ describe "PubSub.update", ->
 
         describe "and the update operation is an 'edit_at'", ->
 
-        describe "and the update operation is incomplete", ->
+            it "updates an array", ->
+                assert.deepEqual(
+                    PubSub.update( [ 1, 2, [ 1, 2 ], 4 ], [ edit_at, 2, [ delete_at, 0 ] ] ),
+                    [ 1, 2, [ 2 ], 4 ] )
+
+            it "updates an object", ->
+                assert.deepEqual(
+                    PubSub.update( [ 1, 2, {}, 4 ], [ edit_at, 2, [ insert_at, 'a', 42 ] ] ),
+                    [ 1, 2, { a: 42 }, 4 ] )
 
     describe "given the input is an empty object", ->
         update = ( update_operations )->
@@ -228,6 +240,8 @@ describe "PubSub.update", ->
                 assert.throw -> update( [ update_range, 0, 1, [] ] )
 
         describe "and the update operation is an 'edit_at'", ->
+            it "will throw",->
+                assert.throw -> update( [ edit_at, 'a',[ insert_at, 0, 1 ] ] )
 
     describe "given the input is a not empty object", ->
         update = ( update_operations )->
@@ -269,3 +283,40 @@ describe "PubSub.update", ->
                 assert.throw -> update( [ update_range, 0, 1, [] ] )
 
         describe "and the update operation is an 'edit_at'", ->
+            it "will throw, if the given key doesn't exist", ->
+                test = -> update [ edit_at, 'c', [ insert_at, 0 , 1 ] ]
+
+                assert.throw test, RangeError, 'bad index for edit: c'
+
+            it "updates an array", ->
+                assert.deepEqual(
+                    PubSub.update( { a: 1, b: [ 1, 2 ] }, [ edit_at, 'b', [ delete_at, 0 ] ] ),
+                     { a: 1, b: [ 2 ] } )
+
+            it "updates an object", ->
+                assert.deepEqual(
+                    PubSub.update( { a: 1, b: {} }, [ edit_at, 'b', [ insert_at, 'a', 42 ] ] ),
+                    { a: 1, b: { a: 42 } } )
+
+    describe "given the input and update is a little bit more complex", ->
+        input  = -> [ 1, 2, { a: 'Hallo' } ]
+        update = -> [
+            insert_at, 0, 4,                # -> [ 4, 1, 2, { a: 'Hallo' } ]
+            update_at, 3, [ 'a', 'Hallo'],  # -> [ 4, 1, 2, [ 'a', 'Hallo' ] ]
+            delete_at, 1,                   # -> [ 4, 2, [ 'a', 'Hallo' ] ]
+            update_range, 2, 2, [ 1, 2 ],   # -> [ 4, 2, 1, 2, [ 'a', 'Hallo' ] ]
+            delete_range, 0, 2,             # -> [ 1, 2, [ 'a', 'Hallo' ] ]
+            edit_at, 2, [ delete_at, 1 ]    # -> [ 1, 2, [ 'a' ] ]
+            ]
+
+        it "will change the argument", ->
+            input_copy = input()
+            result = PubSub.update input_copy, update
+
+            assert.deepEqual input_copy, result
+
+        it "will apply all operations", ->
+            assert.deepEqual PubSub.update( input(), update() ), [ 1, 2, [ 'a' ] ]
+
+
+

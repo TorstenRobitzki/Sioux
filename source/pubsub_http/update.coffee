@@ -1,23 +1,13 @@
 global = `Function('return this')()`
 global.PubSub = global.PubSub || {}
 
-update_at       = 1
-delete_at       = 2
-insert_at       = 3
-delete_range    = 4
-update_range    = 5
-edit_at         = 6
-
 update_at_operation = ( input, update_operations )->
     index = argument = 0
     [ index, argument, update_operations... ] = update_operations
 
     throw new RangeError "bad index for update: #{index}" if typeof input[ index ] == 'undefined'
 
-    if typeof index == 'string'
-        input[ index ] = argument
-    else
-        input.splice index, 1, argument
+    input[ index ] = argument
 
     [ input, update_operations ]
 
@@ -68,7 +58,17 @@ update_range_operation = ( input, update_operations )->
 
     [ input, update_operations ]
 
-operations = [ null, update_at_operation, delete_at_operation, insert_at_operation, delete_range_operation, update_range_operation ]
+edit_at_operation = ( input, update_operations )->
+    index = update = 0
+    [ index, update, update_operations... ] = update_operations
+
+    throw new RangeError "bad index for edit: #{index}" if typeof input[ index ] == 'undefined'
+
+    input[ index ] = PubSub.update input[ index ], update
+
+    [ input, update_operations ]
+
+operations = [ null, update_at_operation, delete_at_operation, insert_at_operation, delete_range_operation, update_range_operation, edit_at_operation ]
 
 next_operation = ( input, update_operations )->
     operation = 0
@@ -77,7 +77,7 @@ next_operation = ( input, update_operations )->
 
     operations[ operation ]( input, update_operations )
 
-# Updates an array or object (input), with the given operations and returns the updated value 
+# Updates an array or object (input), with the given operations and returns the updated input 
 PubSub.update = ( input, update_operations )->
     [ input, update_operations ] = next_operation( input, update_operations ) while update_operations.length != 0
 
