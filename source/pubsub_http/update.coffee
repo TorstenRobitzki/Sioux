@@ -15,7 +15,10 @@ update_at_operation = ( input, update_operations )->
 
     throw new RangeError "bad index for update: #{index}" if typeof input[ index ] == 'undefined'
 
-    input.splice index, 1, argument
+    if typeof index == 'string'
+        input[ index ] = argument
+    else
+        input.splice index, 1, argument
 
     [ input, update_operations ]
 
@@ -25,7 +28,10 @@ delete_at_operation = ( input, update_operations )->
 
     throw new RangeError "bad index for delete: #{index}" if typeof input[ index ] == 'undefined'
 
-    input.splice index, 1
+    if typeof index == 'string'
+        delete input[ index ]
+    else
+        input.splice index, 1
 
     [ input, update_operations ]
 
@@ -34,10 +40,13 @@ insert_at_operation = ( input, update_operations )->
     argument = 0
     [ index, argument, update_operations... ] = update_operations
 
-    throw new RangeError "bad index for insert: #{index}" if index < 0    
-    throw new RangeError "bad index for insert: #{index}" if index > input.length
-
-    input.splice index, 0, argument
+    if typeof index == 'string'
+        throw new RangeError "bad index for insert: #{index}" unless typeof input[ index ] == 'undefined'
+        input[ index ] = argument
+    else
+        throw new RangeError "bad index for insert: #{index}" if index < 0
+        throw new RangeError "bad index for insert: #{index}" if index > input.length
+        input.splice index, 0, argument
 
     [ input, update_operations ]
 

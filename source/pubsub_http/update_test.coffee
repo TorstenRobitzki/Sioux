@@ -70,6 +70,10 @@ describe "PubSub.update", ->
         describe "and the update operation is an 'update_range'", ->
         describe "and the update operation is an 'edit_at'", ->
 
+        describe "and the update operation is a mix out of simple operations", ->
+            it "will apply all operations in the given order", ->
+                assert.deepEqual update( [ 3, 0, 3, 3, 0, 3, 1, 1, 'foo', 2, 0 ]), [ 'foo' ]
+
     describe "given the input is a not empty array", ->
         update = ( update_instructions )->
             PubSub.update( [ 1, 2, 3, 4 ], update_instructions )
@@ -146,21 +150,56 @@ describe "PubSub.update", ->
             PubSub.update( {}, update_operations )
 
         describe "and the update operation is an 'update_at'", ->
-            xit "raises an exception", ->
-                test = -> update 'foo', 3
+            it "raises an exception", ->
+                test = -> update [ update_at, 'foo', 'bar' ]
 
-                assert.throw test, RangeError, "update unknown key: 'foo'"
+                assert.throw test, RangeError, 'bad index for update: foo'
 
         describe "and the update operation is an 'delete_at'", ->
+            it "raises an exception", ->
+                test = -> update [ delete_at, 'foo', 'bar' ]
+
+                assert.throw test, RangeError, 'bad index for delete: foo'
+
         describe "and the update operation is an 'insert_at'", ->
+            it "inserts that element", ->
+                assert.deepEqual update( [ insert_at, 'a', 42 ] ), { a: 42 }
+
         describe "and the update operation is an 'delete_range'", ->
         describe "and the update operation is an 'update_range'", ->
         describe "and the update operation is an 'edit_at'", ->
 
     describe "given the input is a not empty object", ->
+        update = ( update_operations )->
+            PubSub.update { a: 1, b: 2 }, update_operations
+
         describe "and the update operation is an 'update_at'", ->
+            it "raises an exception, if the key is not valid", ->
+                test = -> update [ update_at, 'foo', 'bar' ]
+
+                assert.throw test, RangeError, 'bad index for update: foo'
+
+            it "updates the given object", ->
+                assert.deepEqual update( [ update_at, 'b', 'changed' ] ), { a: 1, b: 'changed' }
+
         describe "and the update operation is an 'delete_at'", ->
+            it "raises an exception, if that key is not valid", ->
+                test = -> update [ delete_at, 'foo', 'bar' ]
+
+                assert.throw test, RangeError, 'bad index for delete: foo'
+
+            it "deletes the given key", ->
+                assert.deepEqual update( [ delete_at, 'b' ] ), { a: 1 }
+
         describe "and the update operation is an 'insert_at'", ->
+            it "raises an exception, if that key is already given", ->
+                test = -> update [ insert_at, 'a', 'bar' ]
+
+                assert.throw test, RangeError, 'bad index for insert: a'
+
+            it "inserts the given element", ->
+                assert.deepEqual update( [ insert_at, 'c', 3 ] ), { a: 1, b: 2, c: 3 }
+
         describe "and the update operation is an 'delete_range'", ->
         describe "and the update operation is an 'update_range'", ->
         describe "and the update operation is an 'edit_at'", ->
