@@ -67,7 +67,24 @@ describe "PubSub.update", ->
                 assert.throw test, RangeError, 'bad index for insert: 1'
 
         describe "and the update operation is an 'delete_range'", ->
+
+            it "raises an exception", ->
+                test = -> update [ delete_range, 1, 4 ]
+
+                assert.throw test, RangeError, 'bad range for delete: [1,4]'
+
         describe "and the update operation is an 'update_range'", ->
+
+            it "raises an exception, if the range is not empty beginning with 0", ->
+                test = ( s, e ) ->
+                    -> update [ update_range, s, e, [ 1, 2, 3 ] ]
+
+                assert.throw test( 1, 1 ), RangeError, 'bad range for update: [1,1]'
+                assert.throw test( 1, 2 ), RangeError, 'bad range for update: [1,2]'
+
+            it "replaces the empty array when the given range is empty and starting with 0", ->
+                assert.deepEqual update( [ update_range, 0, 0, [ 1, 2 ] ] ), [ 1, 2 ]
+
         describe "and the update operation is an 'edit_at'", ->
 
         describe "and the update operation is a mix out of simple operations", ->
@@ -140,7 +157,44 @@ describe "PubSub.update", ->
                 assert.throw test, RangeError, 'bad index for insert: 5'
 
         describe "and the update operation is an 'delete_range'", ->
+            it "raises an exception, if the range is not within the array", ->
+                test = ( s, e )->
+                    ()-> update [ delete_range, s, e ]
+
+                assert.throw test( 0, 5 ), RangeError, 'bad range for delete: [0,5]'
+                assert.throw test( -1, 1 ), RangeError, 'bad range for delete: [-1,1]'
+                assert.throw test( 1, 7 ), RangeError, 'bad range for delete: [1,7]'
+
+            it "raises an exception, if the end of range is not behind the start", ->
+                test = -> update [ delete_range, 1, 1 ]
+
+                assert.throw test, RangeError, 'bad range for delete: [1,1]'
+
+            it "deletes the given range", ->
+                assert.deepEqual update( [ delete_range, 0, 4 ] ), []
+                assert.deepEqual update( [ delete_range, 0, 1 ] ), [ 2, 3, 4 ]
+                assert.deepEqual update( [ delete_range, 3, 4 ] ), [ 1, 2, 3 ]
+                assert.deepEqual update( [ delete_range, 0, 3 ] ), [ 4 ]
+                assert.deepEqual update( [ delete_range, 1, 4 ] ), [ 1 ]
+
         describe "and the update operation is an 'update_range'", ->
+            it "raises an exception, if the given range is invalid", ->
+                test = ( s, e )->
+                    ()-> update [ update_range, s, e ]
+
+                assert.throw test( 0, 5 ), RangeError, 'bad range for update: [0,5]'
+                assert.throw test( -1, 1 ), RangeError, 'bad range for update: [-1,1]'
+                assert.throw test( 1, 7 ), RangeError, 'bad range for update: [1,7]'
+
+            it "replaces the given range", ->
+                assert.deepEqual update( [ update_range, 0, 4, [] ] ), []
+                assert.deepEqual update( [ update_range, 1, 3, [ 'a', 'b' ] ] ), [ 1, 'a', 'b', 4 ]
+
+
+            it "acts like an insert, if the range is empty", ->
+                assert.deepEqual update( [ update_range, 0, 0, [ -1, 0 ] ] ), [ -1, 0, 1, 2, 3, 4 ]
+                assert.deepEqual update( [ update_range, 4, 4, [ 'a', 'b' ] ] ), [ 1, 2, 3, 4, 'a', 'b' ]
+
         describe "and the update operation is an 'edit_at'", ->
 
         describe "and the update operation is incomplete", ->
@@ -166,7 +220,13 @@ describe "PubSub.update", ->
                 assert.deepEqual update( [ insert_at, 'a', 42 ] ), { a: 42 }
 
         describe "and the update operation is an 'delete_range'", ->
+            it "will throw",->
+                assert.throw -> update( [ delete_range, 0, 1, [] ] )
+
         describe "and the update operation is an 'update_range'", ->
+            it "will throw",->
+                assert.throw -> update( [ update_range, 0, 1, [] ] )
+
         describe "and the update operation is an 'edit_at'", ->
 
     describe "given the input is a not empty object", ->
@@ -201,5 +261,11 @@ describe "PubSub.update", ->
                 assert.deepEqual update( [ insert_at, 'c', 3 ] ), { a: 1, b: 2, c: 3 }
 
         describe "and the update operation is an 'delete_range'", ->
+            it "will throw",->
+                assert.throw -> update( [ delete_range, 0, 1, [] ] )
+
         describe "and the update operation is an 'update_range'", ->
+            it "will throw",->
+                assert.throw -> update( [ update_range, 0, 1, [] ] )
+
         describe "and the update operation is an 'edit_at'", ->

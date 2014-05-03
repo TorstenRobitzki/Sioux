@@ -9,8 +9,7 @@ update_range    = 5
 edit_at         = 6
 
 update_at_operation = ( input, update_operations )->
-    index = 0
-    argument = 0
+    index = argument = 0
     [ index, argument, update_operations... ] = update_operations
 
     throw new RangeError "bad index for update: #{index}" if typeof input[ index ] == 'undefined'
@@ -36,8 +35,7 @@ delete_at_operation = ( input, update_operations )->
     [ input, update_operations ]
 
 insert_at_operation = ( input, update_operations )->
-    index = 0
-    argument = 0
+    index = argument = 0
     [ index, argument, update_operations... ] = update_operations
 
     if typeof index == 'string'
@@ -50,19 +48,34 @@ insert_at_operation = ( input, update_operations )->
 
     [ input, update_operations ]
 
+delete_range_operation = ( input, update_operations )->
+    start = end = 0
+    [ start, end, update_operations... ] = update_operations
+
+    throw new RangeError "bad range for delete: [#{start},#{end}]" if start < 0 || start >= end || end > input.length
+
+    input.splice start, end - start
+
+    [ input, update_operations ]
+
+update_range_operation = ( input, update_operations )->
+    start = end = substitute = 0 
+    [ start, end, substitute, update_operations... ] = update_operations
+
+    throw new RangeError "bad range for update: [#{start},#{end}]" if start < 0 || start > end || end > input.length
+
+    input.splice start, end - start, substitute...
+
+    [ input, update_operations ]
+
+operations = [ null, update_at_operation, delete_at_operation, insert_at_operation, delete_range_operation, update_range_operation ]
+
 next_operation = ( input, update_operations )->
     operation = 0
 
     [ operation, update_operations... ] = update_operations
 
-    switch operation
-        when update_at
-            update_at_operation( input, update_operations )
-        when delete_at
-            delete_at_operation( input, update_operations )
-        when insert_at
-            insert_at_operation( input, update_operations )
-
+    operations[ operation ]( input, update_operations )
 
 # Updates an array or object (input), with the given operations and returns the updated value 
 PubSub.update = ( input, update_operations )->
