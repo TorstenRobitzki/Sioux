@@ -8,11 +8,11 @@ test 'pubsub_http_test',
     :sources =>  FileList['./source/pubsub_http/*_test.cpp'] 
 
 js_test 'pubsub_http_js_test', 
-    :sources => FileList[ './source/pubsub_http/*_test.coffee' ]
+    :sources => FileList[ './source/pubsub_http/client/*_test.coffee' ]
 
-PUBSUB_CLIENT_LIBRARY_FILE_NAME = './source/pubsub_http/pubsub.js'
+PUBSUB_CLIENT_LIBRARY_FILE_NAME = './source/pubsub_http/client/pubsub.js'
 
-FileList.new( './source/pubsub_http/*.coffee' ) { | files | files.exclude /test/ }.each do | src |
+FileList.new( './source/pubsub_http/client/*.coffee' ) { | files | files.exclude /test/ }.each do | src |
     file PUBSUB_CLIENT_LIBRARY_FILE_NAME => src
 end 
  
