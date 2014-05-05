@@ -201,6 +201,10 @@ namespace pubsub
          */
         bool update(const json::value& new_data, unsigned keep_update_size_percent);
 
+        /**
+         * @brief prints the given node in a human readable manner onto the given stream.
+         */
+        void print( std::ostream& out ) const;
     private:
         void remove_old_versions(std::size_t max_size);
 
@@ -209,6 +213,11 @@ namespace pubsub
         json::array     updates_;
     };
 
+    /**
+     * @brief prints the given node in a human readable manner onto the given stream.
+     * @relates node
+     */
+    std::ostream& operator<<( std::ostream& out, const node& n );
 
 }
 

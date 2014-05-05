@@ -310,5 +310,19 @@ namespace pubsub {
             updates_.erase(0, 1u);
     }
 
+    void node::print( std::ostream& out ) const
+    {
+        out << "data: " << data_;
+        out << "\nversion: " << version_;
+        out << "\nupdates: " << updates_;
+    }
+
+    std::ostream& operator<<( std::ostream& out, const node& n )
+    {
+        n.print( out );
+        return out;
+    }
+
+
 } // namespace pubsub
 
