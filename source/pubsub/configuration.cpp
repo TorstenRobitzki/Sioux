@@ -86,6 +86,12 @@ namespace pubsub
         return *this;
     }
 
+    const configurator& configurator::max_update_size( unsigned s ) const
+    {
+        config_.max_update_size( s );
+        return *this;
+    }
+
     configurator::operator const configuration() const
     {
         return config_;

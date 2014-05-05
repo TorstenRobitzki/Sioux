@@ -86,6 +86,7 @@ namespace pubsub
         const configurator& node_timeout(const boost::posix_time::time_duration&) const;
         const configurator& authorization_required() const;
         const configurator& authorization_not_required() const;
+        const configurator& max_update_size( unsigned ) const;
 
         operator const configuration() const;
     private:
