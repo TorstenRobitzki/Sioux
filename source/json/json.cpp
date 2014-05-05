@@ -757,6 +757,16 @@ namespace json
     	return get_impl< object_impl >().find( key );
     }
 
+    value* object::find( const char* key )
+    {
+        return find( string( key ) );
+    }
+
+    const value* object::find( const char* key ) const
+    {
+        return find( string( key ) );
+    }
+
     object object::copy() const
     {
         return object( new object_impl( get_impl< object_impl >() ) );
@@ -838,6 +848,18 @@ namespace json
     {
         assert( idx < get_impl<array_impl>().members_.size() );
         return get_impl<array_impl>().members_.at(idx);
+    }
+
+    value& array::last()
+    {
+        assert( !get_impl<array_impl>().members_.empty() );
+        return get_impl<array_impl>().members_.back();
+    }   
+
+    const value& array::last() const
+    {
+        assert( !get_impl<array_impl>().members_.empty() );
+        return get_impl<array_impl>().members_.back();
     }
 
     void array::erase(std::size_t index, std::size_t size)

@@ -274,6 +274,16 @@ namespace json
         const value* find( const string& key ) const;
 
         /**
+         * @copydoc find( const string& key )
+         */
+        value* find( const char* key );
+
+        /**
+         * @copydoc find( const string& key )
+         */
+        const value* find( const char* key ) const;
+
+        /**
          * @brief returns a deep copy of this object.
          *
          * The copied object contains the same references, not a deep copies of
@@ -358,6 +368,18 @@ namespace json
          * @brief element with the given index
          */
         value& at(std::size_t);
+
+        /**
+         * @brief returns the last element
+         * @pre !empty()
+         */
+        value& last();
+
+        /**
+         * @brief returns the last element
+         * @pre !empty()
+         */
+        const value& last() const;
 
         /**
          * @brief erases size elements starting with the element at index
