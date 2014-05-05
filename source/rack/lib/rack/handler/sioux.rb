@@ -49,7 +49,7 @@ module Rack
                 'Port'                          => 8080,
                 'Adapter'                       => nil,
                 'Protocol'                      => 'pubsub',
-                'Pubsub.max_update_size'        => 0,
+                'Pubsub.max_update_size'        => 30,
                 'Pubsub.authorization_required' => true,
                 'Loglevel.pubsub'               => 'info',
                 'Bayeux.max_messages_size_per_client' => 10 * 1024
