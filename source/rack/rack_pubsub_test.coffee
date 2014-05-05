@@ -2,7 +2,7 @@ chai            = require 'chai'
 child_process   = require 'child_process'
 http            = require 'http'
 
-require '../pubsub_http/pubsub.js'
+require '../pubsub_http/client/pubsub.js'
 
 assert = chai.assert
 expect = chai.expect
