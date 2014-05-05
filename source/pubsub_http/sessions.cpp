@@ -102,6 +102,11 @@ namespace http {
             return use_counter_ == 0;
         }
 
+        void unsubscribe( const pubsub::node_name& node )
+        {
+            boost::mutex::scoped_lock lock( version_mutex_ );
+            node_versions_.erase( node );
+        }
 
     private:
         void on_event( const json::object& update, const json::object& respond )
@@ -132,11 +137,49 @@ namespace http {
                 con->update( responds, updates );
         }
 
+        json::array sum_up_updates( const json::array& list )
+        {
+            assert( !list.empty() );
+            json::array result( list.at( 0u ).upcast< json::array >().copy() );
+
+            for ( std::size_t i = 1; i != list.length(); ++i )
+                result += list.at( i ).upcast< json::array >();
+
+            return result;
+        }
+
         virtual void on_update( const pubsub::node_name& name, const node& data )
         {
             json::object update;
+
+            std::pair< bool, json::value > upgrade = std::make_pair( false, json::null() );
+            node_version old_version;
+
+            {
+                boost::mutex::scoped_lock lock( version_mutex_ );
+
+                node_versions_t::iterator version_pos = node_versions_.find( name );
+
+                if ( version_pos != node_versions_.end() )
+                {
+                    upgrade = data.get_update_from( version_pos->second );
+                    old_version = version_pos->second;
+                }
+
+                node_versions_[ name ] = data.current_version();
+            }
+
+            if ( upgrade.first )
+            {
+                update.add( internal::from_token, old_version.to_json() );
+                update.add( internal::update_token, sum_up_updates( upgrade.second.upcast< json::array >() ) );
+            }
+            else
+            {
+                update.add( internal::data_token, data.data() );
+            }
+
             update.add( internal::key_token, name.to_json() );
-            update.add( internal::data_token, data.data() );
             update.add( internal::version_token, data.current_version().to_json() );
 
             on_event( update, json::object() );
@@ -180,6 +223,10 @@ namespace http {
         boost::shared_ptr< waiting_connection > connection_;
         json::array                             updates_;
         json::array                             responds_;
+
+        boost::mutex                            version_mutex_;
+        typedef std::map< pubsub::node_name, node_version > node_versions_t;
+        node_versions_t                         node_versions_;
     };
 
     ///////////////////////
@@ -306,6 +353,7 @@ namespace http {
 
         session_list_t::const_iterator pos = sessions_.find( session->id() );
         assert( pos != sessions_.end() );
+        session->unsubscribe( node_name );
 
         return root_.unsubscribe( pos->second, node_name );
     }

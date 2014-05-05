@@ -4,11 +4,13 @@
 #include "pubsub/root.h"
 #include "pubsub/configuration.h"
 #include "pubsub/test_helper.h"
+#include "pubsub/node_group.h"
 #include "pubsub_http/sessions.h"
 #include "pubsub_http/response_decl.h"
 #include "server/test_session_generator.h"
 #include "asio_mocks/test_timer.h"
 #include "tools/io_service.h"
+#include "json/delta.h"
 
 namespace {
 
