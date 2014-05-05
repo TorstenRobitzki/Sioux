@@ -70,5 +70,5 @@ BOOST_FIXTURE_TEST_CASE( a_subscribed_client_gets_updates, subscribed )
     BOOST_REQUIRE_EQUAL( response.length(), 1u );
     BOOST_CHECK_EQUAL( response.at( 0 ), expected );
 }
-x
+
 
