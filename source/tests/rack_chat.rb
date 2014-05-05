@@ -42,7 +42,7 @@ class Adapter
 
         root[ @@CHAT_CHANNEL ] = @messages
 
-        'ok'
+        [ true, 200 ]
     end
 end
 

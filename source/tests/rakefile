@@ -1,7 +1,3 @@
-# Copyright (c) Torrox GmbH & Co KG. All rights reserved.
-# Please note that the content of this file is confidential or protected by law.
-# Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
-
 build_example 'bayeux_reply', 
     :libraries => ['bayeux', 'pubsub', 'server', 'json', 'http', 'asio_mocks', 'tools'], 
     :extern_libs => ['boost_date_time', 'boost_regex', 'boost_system', 'boost_thread'], 
@@ -17,7 +13,14 @@ build_example 'chat',
     :extern_libs => [ 'boost_filesystem', 'boost_date_time', 'boost_regex', 'boost_random', 'boost_system', 'boost_thread' ], 
     :sources =>  FileList[ './source/tests/chat.cpp' ] 
 
-task :chat => :pubsub_js_library
+LOCAL_PUBSUB_CLIENT = File.expand_path( '../', __FILE__ ) + '/chat/pubsub.js'
+
+task :chat => [ :pubsub_js_library, LOCAL_PUBSUB_CLIENT ]
+task :rack_chat => [ :pubsub_js_library, LOCAL_PUBSUB_CLIENT ]
+
+file LOCAL_PUBSUB_CLIENT => PUBSUB_CLIENT_LIBRARY_FILE_NAME do | file |
+    cp PUBSUB_CLIENT_LIBRARY_FILE_NAME, LOCAL_PUBSUB_CLIENT, verbose: true
+end
 
 task :rack_chat => :pubsub_js_library do 
     ruby './source/tests/rack_chat.rb'

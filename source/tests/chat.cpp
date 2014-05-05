@@ -113,8 +113,6 @@ int main()
     server::logging_server<>            server( queue, 0, std::cout );
 
     // routing
-    file::add_file_handler( server, "/pubsub_http", boost::filesystem::canonical( __FILE__ ).parent_path().parent_path() );
-
     server.add_action( "/pubsub", boost::bind( on_pubsub_request, boost::ref( pubsub_connector ), _1, _2 ) );
     server.add_action( "/publish", boost::bind( &chat_adapter::create_response, boost::ref( adapter ), _1, _2 ) );
 
