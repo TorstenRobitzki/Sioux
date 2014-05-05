@@ -45,7 +45,6 @@ namespace {
 
 BOOST_FIXTURE_TEST_CASE( a_subscribed_client_gets_updates, subscribed )
 {
-    /*
     data_.update_node( node1, json::parse_single_quoted("[1,2,4,4,5,6,7,8,9,10]") );
 
     const json::array response = json_multiple_post(
@@ -68,9 +67,8 @@ BOOST_FIXTURE_TEST_CASE( a_subscribed_client_gets_updates, subscribed )
     expected = replace_version( expected, next_version );
     expected = replace_from( expected, first_version );
 
-    BOOST_REQUIRE_EQUAL( response, expected );
-    */
+    BOOST_REQUIRE_EQUAL( response.length(), 1u );
+    BOOST_CHECK_EQUAL( response.at( 0 ), expected );
 }
-
-
+x
 
