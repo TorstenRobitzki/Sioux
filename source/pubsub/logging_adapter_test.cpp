@@ -7,21 +7,21 @@
 namespace {
 
     struct context {
-        pubsub::test::adapter   mock;
         std::ostringstream      output;
+        pubsub::test::adapter   mock;
         pubsub::logging_adapter logging;
         pubsub::adapter&        adapter;
 
         context() 
-            : mock()
-            , output()
+            : output()
+            , mock()
             , logging( mock, output )
             , adapter( logging )
         {}
 
         explicit context( std::ostream& user_provided_output ) 
-            : mock()
-            , output()
+            : output()
+            , mock()
             , logging( mock, user_provided_output )
             , adapter( logging )
         {}
