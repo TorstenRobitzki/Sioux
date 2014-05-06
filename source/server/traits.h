@@ -132,22 +132,33 @@ namespace server
     class connection_config
     {
     public:
+        connection_config();
+        
         /**
          * @brief returns an idle timeout of 30 seconds
          */
         boost::posix_time::time_duration keep_alive_timeout() const;
 
         /**
-         * @brief returns a connection timeout of 3 seconds
-         * @todo lookup reasonable values from the appache documentation
+         * @brief returns the connection timeout.
+         *
+         * the default is 3 seconds.
          */
         boost::posix_time::time_duration timeout() const;
+
+        /**
+         * @brief sets a new connection timeout
+         * @post timeout() == new_timeout
+         */
+        void timeout( const boost::posix_time::time_duration& new_timeout );
 
         /**
          * @brief when accepting a new connection fails, the next attempt to accept a new connection
          *        is not made before this timeout have been reached.
          */
         boost::posix_time::time_duration reaccept_timeout() const;
+    private:
+        boost::posix_time::time_duration timeout_;
     };
 
     /**

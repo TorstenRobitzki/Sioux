@@ -51,6 +51,7 @@ module Rack
                 'Protocol'                      => 'pubsub',
                 'Pubsub.max_update_size'        => 30,
                 'Pubsub.authorization_required' => true,
+                'Sioux.timeout'                 => 30,
                 'Loglevel.pubsub'               => 'info',
                 'Bayeux.max_messages_size_per_client' => 10 * 1024
             }
@@ -85,6 +86,7 @@ module Rack
                     'Protocol=protocol' => 'Protocol to be used between server and client (pubsub|bayeux; default: pubsub)',
                     'Pubsub.max_update_size=SIZE' => 'the ratio of update costs to full nodes data size in %. (default: 0)',
                     'Pubsub.authorization_required=yes|no' => 'describes whether or not a reading node access must be authorized. (default: yes)',
+                    'Sioux.timeout=SECONDS' => 'Timeout in seconds for read and writing data from / to a client in seconds (default: 30).',
                     'Loglevel.pubsub=fatal|error|warning|info|main|detail|debug' => 'loglevel for Pubsub protocol. (default: info)',
                     'Bayeux.max_messages_size_per_client=SIZE' => 'maximum size of messages, that will be buffered for a client before messages will be discard. (default: 10240)'
                 }

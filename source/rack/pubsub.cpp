@@ -94,6 +94,9 @@ namespace {
         server_.add_action( "/publish", boost::bind( &pubsub_server::on_publish_request, this, _1, _2 ) );
         server_.add_action( "/", boost::bind( &pubsub_server::on_request, this, _1, _2 ) );
 
+        const unsigned timeout = rack::from_hash( configuration, "Sioux.timeout" );
+        server_.trait().timeout( boost::posix_time::seconds( timeout ) );
+
         const unsigned port = rack::from_hash( configuration, "Port" );
 
         using namespace boost::asio::ip;
