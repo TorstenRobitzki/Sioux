@@ -9,7 +9,6 @@ puts "starting rack_chat...."
 puts "connect to server via: \'http://localhost:8080\'"
 
 class Adapter
-    @@SAY_CHANNEL  = { 'p1' => 'say' }
     @@CHAT_CHANNEL = { 'channel' => 'chat' } 
     @@MAX_MESSAGES = 20
 
