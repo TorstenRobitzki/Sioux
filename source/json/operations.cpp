@@ -2,6 +2,7 @@
 #include "json/delta.h"
 #include "tools/asstring.h"
 #include <cmath>
+#include <ostream>
 
 namespace json
 {
@@ -122,6 +123,11 @@ namespace operations {
         return length( position_ ) + new_value_.size() + 5;
     }
 
+    void update_at::print( std::ostream& out ) const
+    {
+        out << "update_at";
+    }
+
     /////////////////
     // class edit_at
     edit_at::edit_at( int position, const value& update_instructions )
@@ -143,6 +149,11 @@ namespace operations {
     std::size_t edit_at::size() const
     {
         return length( position_ ) + update_instructions_.size() + 5;
+    }
+
+    void edit_at::print( std::ostream& out ) const
+    {
+        out << "edit_at";
     }
 
     ///////////////////
@@ -212,6 +223,11 @@ namespace operations {
     std::size_t delete_at::size() const
     {
         return length( position_ ) + 4;
+    }
+
+    void delete_at::print( std::ostream& out ) const
+    {
+        out << "delete_at";
     }
 
     ///////////////////
@@ -295,6 +311,11 @@ namespace operations {
         return length( position_ ) + new_value_.size() + 5;
     }
 
+    void insert_at::print( std::ostream& out ) const
+    {
+        out << "insert_at";
+    }
+
     //////////////////////
     // class delete_range
     delete_range::delete_range( int from, int to )
@@ -374,6 +395,11 @@ namespace operations {
     std::size_t delete_range::size() const
     {
         return length( from_ ) + length( to_ ) + 5;
+    }
+
+    void delete_range::print( std::ostream& out ) const
+    {
+        out << "delete_range";
     }
 
     //////////////////////
@@ -496,6 +522,17 @@ namespace operations {
     std::size_t update_range::size() const
     {
         return length( from_ ) + length( to_ ) + new_values_.size() + 6;
+    }
+
+    void update_range::print( std::ostream& out ) const
+    {
+        out << "update_range";
+    }
+
+    std::ostream& operator<<( std::ostream& out, const update_operation& op )
+    {
+        op.print( out );
+        return out;
     }
 
     array& operator<<( array& output, const update_operation& op )

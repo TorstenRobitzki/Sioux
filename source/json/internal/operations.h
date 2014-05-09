@@ -3,6 +3,7 @@
 
 #include "json/json.h"
 #include <boost/shared_ptr.hpp>
+#include <iosfwd>
 
 namespace json {
 
@@ -42,6 +43,11 @@ namespace json {
              */
             virtual boost::shared_ptr< update_operation > merge( const update_operation& other ) const;
 
+            /**
+             * @brief prints an update_operation in a human readable manner for debugging
+             */
+            virtual void print( std::ostream& out ) const = 0;
+
             virtual ~update_operation() {}
         };
 
@@ -55,8 +61,9 @@ namespace json {
         private:
             void accept( visitor& ) const;
             void serialize( array& ) const;
-            boost::shared_ptr< update_operation > merge( const update_operation& other ) const;
             std::size_t size() const;
+            boost::shared_ptr< update_operation > merge( const update_operation& other ) const;
+            void print( std::ostream& out ) const;
 
             int     position_;
             value   new_value_;
@@ -70,6 +77,7 @@ namespace json {
             void accept( visitor& ) const;
             void serialize( array& ) const;
             std::size_t size() const;
+            void print( std::ostream& out ) const;
 
             int     position_;
             value   update_instructions_;
@@ -86,6 +94,7 @@ namespace json {
             void serialize( array& ) const;
             boost::shared_ptr< update_operation > merge( const update_operation& other ) const;
             std::size_t size() const;
+            void print( std::ostream& out ) const;
 
             int     position_;
         };
@@ -102,6 +111,7 @@ namespace json {
             void serialize( array& ) const;
             boost::shared_ptr< update_operation > merge( const update_operation& other ) const;
             std::size_t size() const;
+            void print( std::ostream& out ) const;
 
             int     position_;
             value   new_value_;
@@ -119,6 +129,7 @@ namespace json {
             void serialize( array& ) const;
             boost::shared_ptr< update_operation > merge( const update_operation& other ) const;
             std::size_t size() const;
+            void print( std::ostream& out ) const;
 
             int from_;
             int to_;
@@ -137,11 +148,14 @@ namespace json {
             void serialize( array& ) const;
             boost::shared_ptr< update_operation > merge( const update_operation& other ) const;
             std::size_t size() const;
+            void print( std::ostream& out ) const;
 
             int     from_;
             int     to_;
             array   new_values_;
         };
+
+        std::ostream& operator<<( std::ostream& out, const update_operation& );
 
         array& operator<<( array&, const update_operation& );
 
