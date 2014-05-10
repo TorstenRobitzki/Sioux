@@ -1,48 +1,12 @@
 #include "json/delta.h"
 #include "json/json.h"
 #include "json/internal/operations.h"
+#include "json/internal/heuristic.h"
 #include "tools/asstring.h"
 #include <stdexcept>
 #include <set>
 
 namespace json {
-
-
-    const number& update_at_operation()
-    {
-        static const number result( update_at );
-        return result;
-    }
-
-    const number& delete_at_operation()
-    {
-        static const number result( delete_at );
-        return result;
-    }
-
-    const number& insert_at_operation()
-    {
-        static const number result( insert_at );
-        return result;
-    }
-
-    const number& delete_range_operation()
-    {
-        static const number result( delete_range );
-        return result;
-    }
-
-    const number& update_range_operation()
-    {
-        static const number result( update_range );
-        return result;
-    }
-
-    const number& edit_at_operation()
-    {
-        static const number result( edit_at );
-        return result;
-    }
 
 
     namespace {
@@ -78,8 +42,7 @@ namespace json {
             bool operator<( const vertex& rhs ) const
             {
                 return length < rhs.length
-                    || length == rhs.length && index < rhs.index
-                    || length == rhs.length && index && rhs.index && costs < rhs.costs;
+                    || length == rhs.length && index < rhs.index;
             }
 
             /**
@@ -121,6 +84,7 @@ namespace json {
             array_diff( const array& a, const array& b, std::size_t max_size )
                 : a_( a )
                 , b_( b )
+                , heuristic_( a, b )
                 , max_size_( max_size )
                 , vertices_()
                 , open_list_()
@@ -160,7 +124,7 @@ namespace json {
                     i != stack.rend(); ++i )
                     ( *i )->serialize( result );
 
-                assert( result.size() == goal->total_costs );
+                assert( result.size() == goal->costs );
 
                 return result;
             }
@@ -198,7 +162,7 @@ namespace json {
 
                 const std::size_t costs = previous->costs + operation->size() - 2
                     + ( previous->operation.get() ? 1 : 0 ); // minus brackets + (optional )comma
-                const std::size_t estimated_costs = heuristic( index - inserts_so_far, index );
+                const std::size_t estimated_costs = heuristic_( index - inserts_so_far, index );
 
                 const vertex v( length, index, operation, previous, estimated_costs + costs, costs );
 
@@ -206,8 +170,10 @@ namespace json {
 
                 if ( insert_pos == vertices_.end() || insert_pos->costs > costs )
                 {
-                    if ( insert_pos == vertices_.end() )
-                        insert_pos = vertices_.insert( v ).first;
+                    if ( insert_pos != vertices_.end() )
+                        vertices_.erase( insert_pos );
+
+                    insert_pos = vertices_.insert( v ).first;
 
                     open_list_.insert( insert_pos );
                 }
@@ -259,97 +225,13 @@ namespace json {
                 return false;
             }
 
-            // this function should never ever overestimate the costs of updating a to be equal to b
-            std::size_t heuristic( int a_index, int b_index ) const
-            {
-                assert( a_index <= a_.length() );
-                assert( b_index <= b_.length() );
-
-                const int a_length = a_.length() - a_index;
-                const int b_length = b_.length() - b_index;
-
-                // applying an array delete
-                if ( a_length > b_length )
-                    return 2;
-
-                // array - insert possible
-                if ( a_length < b_length )
-                    return ( b_length - a_length ) * 2;
-
-                return 0;
-            }
-
-            const array&        a_;
-            const array&        b_;
-            const std::size_t   max_size_;
-            vertex_list_t       vertices_;
-            cost_list_t         open_list_;
+            const array&                a_;
+            const array&                b_;
+            const details::heuristic    heuristic_;
+            const std::size_t           max_size_;
+            vertex_list_t               vertices_;
+            cost_list_t                 open_list_;
         };
-
-
-        std::pair<bool, value> delta( const array& a, const array& b, std::size_t max_size )
-        {
-            array_diff diff( a, b, max_size );
-            return diff();
-        }
-
-        std::pair<bool, value> delta( const object& a, const object& b, std::size_t max_size )
-        {
-            array result;
-
-            const std::vector<string> akeys = a.keys();
-            const std::vector<string> bkeys = b.keys();
-
-            std::vector<string>::const_iterator pa = akeys.begin(), pb = bkeys.begin();
-
-            for ( ; (pa != akeys.end() || pb != bkeys.end()) && result.size() < max_size; ) 
-            {
-                if ( pb == bkeys.end() || pa != akeys.end() && *pa < *pb )
-                {
-                    result.add( delete_at_operation() )
-                          .add( *pa );
-
-                    ++pa;
-                }
-                else if ( pa == akeys.end() || pb != bkeys.end() && *pb < *pa )
-                {
-                    result.add( insert_at_operation() )
-                          .add( *pb )
-                          .add( b.at( *pb ) );
-
-                    ++pb;
-                }
-                else
-                {
-                    assert( *pa == *pb );
-                    const value b_element = b.at( *pb );
-
-                    std::pair<bool, value> edit_op = delta(a.at(*pa), b_element, max_size - result.size());
-
-                    // use edit, if possible and shorter
-                    if ( edit_op.first && edit_op.second.size() < b_element.size() )
-                    {
-                        result.add( edit_at_operation() )
-                              .add( *pa )
-                              .add( edit_op.second );
-
-                    }
-                    else
-                    {
-                        result.add( update_at_operation() )
-                              .add( *pa)
-                              .add( b_element );
-                    }
-
-                    ++pa;
-                    ++pb;
-                }
-            }
-
-            return result.size() <= max_size
-                ? std::make_pair(true, value(result))
-                : std::make_pair(false, value(b));
-        }
 
         template < class T >
         struct second_dispatch : default_visitor
@@ -405,6 +287,12 @@ namespace json {
         a.visit(dispatch);
 
         return result;
+    }
+
+    std::pair<bool, value> delta( const array& a, const array& b, std::size_t max_size )
+    {
+        array_diff diff( a, b, max_size );
+        return diff();
     }
 
 } // namespace json

@@ -1,5 +1,6 @@
 #include "json/delta.h"
 #include "json/json.h"
+#include "json/update_codes.h"
 #include "tools/asstring.h"
 
 namespace json {

@@ -10,6 +10,7 @@
 #include "json/delta.h"
 #include "tools/asstring.h"
 #include <limits>
+#include <fstream>
 
 BOOST_AUTO_TEST_CASE(array_update)
 {
@@ -70,7 +71,7 @@ BOOST_AUTO_TEST_CASE(edit_operations)
         json::update(start_obj, update_obj));
 
 }
-namespace 
+namespace
 {
     void check_delta_and_update(const json::value& a, const json::value& b)
     {
@@ -183,31 +184,15 @@ BOOST_AUTO_TEST_CASE(object_delta)
     BOOST_CHECK_EQUAL("[2,\"A\",1,\"B\",2,2,\"C\",3,\"D\",1]", delta("{\"A\":1,\"B\":1,\"C\":1}", "{\"B\":2,\"D\":1}"));
 }
 
-#ifdef NDEBUG
-
-/*
- * last time executed on my laptop:
- * 0.514734s wall, 0.510000s user + 0.000000s system = 0.510000s CPU (99.1%)
- *
- * after refactoring:
- * 0.279367s wall, 0.280000s user + 0.000000s system = 0.280000s CPU (100.2%)
- */
-BOOST_AUTO_TEST_CASE( delta_performance_test )
+/* this test tries to reproduce some endless loop found in the wild */
+BOOST_AUTO_TEST_CASE( delta_of_larger_structure )
 {
-    static const unsigned array_size = 10 * 1000 * 1000;
-    json::array array1;
-    for ( int i = 0; i != array_size; ++i )
-        array1.add( json::number( i ) );
+    std::ifstream input( "./source/json/fixtures.json" );
+    std::istreambuf_iterator< char > begin( input ), end;
 
-    const json::array array2 = array1.copy();
+    json::array fixture = json::parse( begin, end ).upcast< json::array >();
+    json::array a = fixture.at( 0 ).upcast< json::array >();
+    json::array b = fixture.at( 1 ).upcast< json::array >();
 
-    array1.insert( array_size / 2u, json::string( "foo" ) );
-
-    boost::timer::auto_cpu_timer t;
-    std::pair< bool, json::value > result = json::delta( array1, array2, 100 );
-
-    BOOST_CHECK( result.first );
-    BOOST_CHECK_EQUAL( result.second, json::parse( "[2,5000000]" ) );
+    check_delta_and_update( a, b );
 }
-
-#endif

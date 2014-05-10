@@ -11,8 +11,9 @@
 namespace json
 {
     class value;
-    class number;
-
+    class object;
+    class array;
+    
     /**
      * @brief calculates the shortes update sequence that will alter object a to become object b
      * @relates value
@@ -50,6 +51,10 @@ namespace json
      */
     std::pair<bool, value> delta(const value& a, const value& b, std::size_t max_size);
 
+    std::pair<bool, value> delta( const object& a, const object& b, std::size_t max_size );
+
+    std::pair<bool, value> delta( const array& a, const array& b, std::size_t max_size );
+
     /**
      * @brief updates input with the given update_operations
      *
@@ -57,51 +62,6 @@ namespace json
      * In all other cases, update_operations is returned.
      */
     value update(const value& input, const value& update_operations);
-
-    /**
-     * @brief Enumeration to name the update operations used by delta() and update()
-     * @relates delta
-     * @relates update
-     */
-    enum update_operation_code
-    {
-        update_at = 1,
-        delete_at = 2,
-        insert_at = 3,
-        delete_range = 4,
-        update_range = 5,
-        edit_at   =6
-    };
-
-    /**
-     * @brief returns a reference to a static const json::number(1)
-     */
-    const number& update_at_operation();
-
-    /**
-     * @brief returns a reference to a static const json::number(2)
-     */
-    const number& delete_at_operation();
-
-    /**
-     * @brief returns a reference to a static const json::number(3)
-     */
-    const number& insert_at_operation();
-
-    /**
-     * @brief returns a reference to a static const json::number(4)
-     */
-    const number& delete_range_operation();
-
-    /**
-     * @brief returns a reference to a static const json::number(5)
-     */
-    const number& update_range_operation();
-
-    /**
-     * @brief returns a reference to a static const json::number(6)
-     */
-    const number& edit_at_operation();
 
 } //namespace json 
 
