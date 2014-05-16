@@ -100,6 +100,8 @@ namespace
     }
 }
 
+BOOST_AUTO_TEST_SUITE( operations )
+
 BOOST_AUTO_TEST_CASE( update_operation_visiting )
 {
     test_visitor v;
@@ -521,5 +523,34 @@ BOOST_AUTO_TEST_CASE( delete_range_size )
     check_size( json::operations::delete_range( 12, 99 ) );
     check_size( json::operations::delete_range( 44, 100 ) );
 }
+
+static void add_to_list( json::operations::operations_list_t& list, json::operations::update_operation* op )
+{
+    list.push_back( boost::shared_ptr< json::operations::update_operation >( op ) );
+}
+
+BOOST_AUTO_TEST_CASE( serialize_operations_list )
+{
+    typedef json::operations::operations_list_t list_t;
+    list_t list;
+    add_to_list( list, new json::operations::delete_at( 7 ) );
+    add_to_list( list, new json::operations::insert_at( 4, json::string( "asd" ) ) );
+
+    BOOST_CHECK_EQUAL(
+        json::parse_single_quoted( "[ 2, 7, 3, 4, 'asd' ]" ),
+        json::operations::serialize( list ) );
+}
+
+BOOST_AUTO_TEST_CASE( parse_operations )
+{
+    json::array op_list = json::parse_single_quoted( "[ 1, 3, [], 2, 4, 3, 1, {}, 4, 1, 5, 5, 1, 7, [1,2], 6, 1, 4 ]" ).upcast< json::array >();
+
+    BOOST_CHECK_EQUAL(
+        json::operations::serialize(
+            json::operations::parse_operations( op_list ) ),
+        op_list );
+}
+
+BOOST_AUTO_TEST_SUITE_END()
 
 

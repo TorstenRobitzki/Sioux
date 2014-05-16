@@ -31,6 +31,26 @@ namespace operations {
 
             return static_cast< int >( std::log10( val ) ) + 1;
         }
+
+        int get_int( const json::array& input, std::size_t& pos )
+        {
+            if ( pos >= input.length() )
+                throw std::runtime_error( "parse_operations cant extract a number (to short)" );
+
+            const json::number num = input.at( pos ).upcast< json::number >();
+            pos++;
+
+            return num.to_int();
+        }
+
+        value get_value( const json::array& input, std::size_t& pos )
+        {
+            if ( pos >= input.length() )
+                throw std::runtime_error( "parse_operations cant extract a value (to short)" );
+
+            pos++;
+            return input.at( pos - 1 );
+        }
     }
 
     //////////////////////////
@@ -45,6 +65,12 @@ namespace operations {
     update_at::update_at( int position, const value& new_value )
         : position_( position )
         , new_value_( new_value )
+    {
+    }
+
+    update_at::update_at( const array& input, std::size_t& pos )
+        : position_( get_int( input, pos ) )
+        , new_value_( get_value( input, pos ) )
     {
     }
 
@@ -137,6 +163,12 @@ namespace operations {
     {
     }
 
+    edit_at::edit_at( const array& input, std::size_t& pos )
+        : position_( get_int( input, pos ) )
+        , update_instructions_( get_value( input, pos ) )
+    {
+    }
+
     void edit_at::accept( visitor& v ) const
     {
         v.visit( *this );
@@ -162,6 +194,12 @@ namespace operations {
     delete_at::delete_at( int position )
         : position_( position )
     {
+    }
+
+    delete_at::delete_at( const array& input, std::size_t& pos )
+        : position_( get_int( input, pos ) )
+    {
+
     }
 
     int delete_at::position() const
@@ -236,6 +274,12 @@ namespace operations {
     insert_at::insert_at( int position, const value& new_value )
         : position_( position )
         , new_value_( new_value )
+    {
+    }
+
+    insert_at::insert_at( const array& input, std::size_t& pos )
+        : position_( get_int( input, pos ) )
+        , new_value_( get_value( input, pos ) )
     {
     }
 
@@ -331,6 +375,12 @@ namespace operations {
                 + ", " + tools::as_string( to ) + ")" );
     }
 
+    delete_range::delete_range( const array& input, std::size_t& pos )
+        : from_( get_int( input, pos ) )
+        , to_( get_int( input, pos ) )
+    {
+    }
+
     int delete_range::from() const
     {
         return from_;
@@ -416,6 +466,13 @@ namespace operations {
         if ( to < from )
             throw std::invalid_argument( "from must be smaller than to update_range(" + tools::as_string( from )
                 + ", " + tools::as_string( to ) + ")" );
+    }
+
+    update_range::update_range( const array& input, std::size_t& pos )
+        : from_( get_int( input, pos ) )
+        , to_( get_int( input, pos ) )
+        , new_values_( get_value( input, pos ).upcast< array >() )
+    {
     }
 
     int update_range::from() const
@@ -568,6 +625,49 @@ namespace operations {
     {
     }
 
+    static update_operation* parse_operation( const json::array& input, std::size_t& pos )
+    {
+        const int op_code = get_int( input, pos );
+
+        switch ( op_code )
+        {
+        case json::update_at:
+            return new update_at( input, pos );
+        case json::delete_at:
+            return new delete_at( input, pos );
+        case json::insert_at:
+            return new insert_at( input, pos );
+        case json::delete_range:
+            return new delete_range( input, pos );
+        case json::update_range:
+            return new update_range( input, pos );
+        case json::edit_at:
+            return new edit_at( input, pos );
+        default:
+            throw std::runtime_error( "unknown operations code: (" + tools::as_string( op_code ) + ")");
+        }
+    }
+
+    operations_list_t parse_operations( const json::array& input )
+    {
+        operations_list_t result;
+        for ( std::size_t pos = 0; pos != input.length(); )
+        {
+            result.push_back( boost::shared_ptr< update_operation > ( parse_operation( input, pos ) ) );
+        }
+
+        return result;
+    }
+
+    array serialize( const operations_list_t& list )
+    {
+        array result;
+
+        for ( operations_list_t::const_iterator i = list.begin(); i != list.end(); ++i )
+            result << **i;
+
+        return result;
+    }
 
 }
 }

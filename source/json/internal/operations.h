@@ -55,6 +55,7 @@ namespace json {
         {
         public:
             update_at( int position, const value& new_value );
+            update_at( const array& input, std::size_t& pos );
 
             int position() const;
             const value& new_value() const;
@@ -73,6 +74,7 @@ namespace json {
         {
         public:
             edit_at( int position, const value& update_instructions );
+            edit_at( const array& input, std::size_t& pos );
         private:
             void accept( visitor& ) const;
             void serialize( array& ) const;
@@ -87,6 +89,7 @@ namespace json {
         {
         public:
             explicit delete_at( int position );
+            delete_at( const array& input, std::size_t& pos );
 
             int position() const;
         private:
@@ -103,6 +106,7 @@ namespace json {
         {
         public:
             insert_at( int position, const value& new_value );
+            insert_at( const array& input, std::size_t& pos );
 
             int position() const;
             const value& new_value() const;
@@ -121,6 +125,7 @@ namespace json {
         {
         public:
             delete_range( int from, int to );
+            delete_range( const array& input, std::size_t& pos );
 
             int from() const;
             int to() const;
@@ -139,6 +144,7 @@ namespace json {
         {
         public:
             update_range( int from, int to, const array& values );
+            update_range( const array& input, std::size_t& pos );
 
             int from() const;
             int to() const;
@@ -173,6 +179,10 @@ namespace json {
             virtual ~visitor() {}
         };
 
+        typedef std::vector< boost::shared_ptr< update_operation > > operations_list_t;
+        operations_list_t parse_operations( const json::array& input );
+
+        array serialize( const operations_list_t& );
     }
 }
 
