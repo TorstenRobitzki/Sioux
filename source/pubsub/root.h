@@ -23,6 +23,7 @@ namespace pubsub
     class configuration;
     class node_group;
     class node_name;
+    class node_version;
     class subscriber;
 
     /**
@@ -56,7 +57,7 @@ namespace pubsub
          * configuration passed to the c'tor is used.
          */
         void add_configuration(const node_group& node_name, const configuration& new_config);
-        
+
         /**
          * @brief removes the named configuration
          * @pre the configuration must have been added by exactly the same node_name
@@ -89,6 +90,16 @@ namespace pubsub
          *            should only be called if whom ever triggered the data change, was authorized to do so.
          */
         void update_node(const node_name& node_name, const json::value& new_data);
+
+        class merge_conflict;
+
+        /**
+         * @brief incooperates a set of update to the given version of the given node
+         *
+         * If there are newer versions of the node data, the function tries to merge the updates with newer updates.
+         * If the given updates conflict with newer updates, the function throws a merge_conflict
+         */
+        void delta_update_node( const node_name& node_name, const node_version& version, const json::array& updates );
 
     private:
         // no copy, no assignment; not implemented
