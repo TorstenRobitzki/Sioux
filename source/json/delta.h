@@ -13,7 +13,7 @@ namespace json
     class value;
     class object;
     class array;
-    
+
     /**
      * @brief calculates the shortes update sequence that will alter object a to become object b
      * @relates value
@@ -63,7 +63,9 @@ namespace json
      */
     value update(const value& input, const value& update_operations);
 
-} //namespace json 
+    array merge_updates( const array& first, const array& second );
+
+} //namespace json
 
 #endif // include guard
 
