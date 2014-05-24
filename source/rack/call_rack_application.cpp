@@ -11,21 +11,22 @@
 
 static void fill_http_headers( VALUE environment, const http::request_header& request )
 {
-    static const http::filter header_to_be_excluded( "Content-Length, Content-Type" );
+    static const http::filter headers_without_prefix( "Content-Length, Content-Type" );
     static const ID upcase = rb_intern( "upcase!" );
+
     for ( http::request_header::const_iterator header = request.begin(), end = request.end(); header != end; ++header )
     {
-        if ( !header_to_be_excluded( header->name() ) )
-        {
-            const tools::substring name( header->name() );
-            std::string header_name( name.begin(), name.end() );
-            std::replace( header_name.begin(), header_name.end(), '-', '_' );
+        const tools::substring name( header->name() );
+        std::string header_name( name.begin(), name.end() );
+        std::replace( header_name.begin(), header_name.end(), '-', '_' );
 
-            VALUE header_name_cgi = rb_str_concat( rb_str_new2( "HTTP_" ), rack::rb_str_new_std( header_name ) );
-            rb_funcall( header_name_cgi, upcase, 0 );
+        VALUE header_name_cgi = headers_without_prefix( header->name() )
+            ? rack::rb_str_new_std( header_name )
+            : rb_str_concat( rb_str_new2( "HTTP_" ), rack::rb_str_new_std( header_name ) );
 
-            rb_hash_aset( environment, header_name_cgi, rack::rb_str_new_sub( header->value() ) );
-        }
+        rb_funcall( header_name_cgi, upcase, 0 );
+
+        rb_hash_aset( environment, header_name_cgi, rack::rb_str_new_sub( header->value() ) );
     }
 }
 
