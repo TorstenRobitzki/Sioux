@@ -54,7 +54,11 @@ apply_path = ( input, path )->
 
     [ input, index ]
 
-default_callbacks = ( input ) -> {
+perform_updates_impl = ( update_operations, callbacks, path )->
+    update_operations = next_operation( update_operations, callbacks, path ) while update_operations.length != 0
+
+# Provides a set of callbacks, that apply all update operations to the given input
+PubSub.default_callbacks = ( input ) -> {
     insert: ( path, argument )->
         [ obj, index ] = apply_path input, path
 
@@ -100,15 +104,12 @@ default_callbacks = ( input ) -> {
         obj.splice index, num_elements
 }
 
-perform_updates_impl = ( update_operations, callbacks, path )->
-    update_operations = next_operation( update_operations, callbacks, path ) while update_operations.length != 0
-
 # Performs the callbacks on the given list of update_operations
 PubSub.perform_updates = ( update_operations, callbacks )->
     perform_updates_impl( update_operations, callbacks, [] )
 
 # Updates an array or object (input), with the given operations and returns the updated input
 PubSub.update = ( input, update_operations )->
-    perform_updates_impl( update_operations, default_callbacks( input ), [] )
+    perform_updates_impl( update_operations, PubSub.default_callbacks( input ), [] )
 
     input

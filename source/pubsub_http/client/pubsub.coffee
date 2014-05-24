@@ -15,7 +15,34 @@ create_ajax_transport = ( url = '/pubsub' )->
         .error( ( jqXHR, textStatus )-> cb true )
 
 class Node
-    constructor: ( @cb )->
+    constructor: ( cb )->
+        @cb = if typeof cb == 'function'
+            {
+                update: ( key, data, update )->
+                    PubSub.perform_updates update, PubSub.default_callbacks( data )
+                    cb( key, data )
+                    data
+
+                data: ( key, data )->
+                    cb( key, data )
+                    data
+
+                error: cb
+            }
+        else
+            {
+                update: ( key, data, update )->
+                    PubSub.perform_updates update, cb
+
+                data: ( key, data )->
+                    cb.insert null, data
+
+                error: if cb[ 'error' ] == undefined
+                        ->
+                    else
+                        ( key, data, error )-> cb.error error
+            }
+
         @data = null
         @version = null
 
@@ -23,15 +50,17 @@ class Node
 
         return false if update[ 'update' ] && @version != update.from
 
-        @data = if update[ 'update' ] then PubSub.update( @data, update.update ) else update.data
-        @version = update.version
+        @data = if update[ 'update' ]
+            @cb.update( update.key, @data, update.update )
+        else
+            @cb.data( update.key, update.data )
 
-        @cb( update.key, @data )
+        @version = update.version
 
         true
 
     error: ( key, error )->
-        @cb( key, null, error )
+        @cb.error( key, null, error )
 
 class Impl
     constructor: ( @transport = create_ajax_transport() )->
@@ -193,21 +222,28 @@ PubSub.reset = ->
 #                 given, the update callback will be used (or insert/delete, if that callback is not given too).
 #                 This callback has the following signature:
 #
-#                 update_range( path, from_index, to_index, update_array )
+#                 update_range( path, num_elements, update_array )
 #
-# delete_range  : is called, when a range of an array in the subscribed node is ti be deleted. If that callback is not
+# delete_range  : is called, when a range of an array in the subscribed node is to be deleted. If that callback is not
 #                 given, the delete callback will be used.
 #                 This callback has the following signature:
 #
-#                 delete_range( path, from_index, to_index, update_array )
+#                 delete_range( path, num_elements )
+#
+# error         : is called, when an error occured. This callback has the following signature:
+#
+#                 error( reason )
 #
 # For all of the callbacks above, the parameters have the following meanings:
 #
 # path         : If the subscribed node is a nested data structure, the path is an array, containing the indixes to address
 #                the part of the node to be modified. If path is null, the node itself is address.
+#
 # data         : The updated / inserted data of the node or a part of the node.
-# from_index   : For a range operation, this argument is an integer denoting the first effected element.
-# to_index     : For a range operation, this argument is an integer denoting the first not effected element.
+#
+# num_elements : For a range operation, this argument is an integer denoting the number of elements (including the one
+#                given by path) effected by the operation (to removed / to be replaced).
+#
 # update_array : For an update_range operation, this arguments give the content for the range that has to be updated / replaced.
 #
 # The behaviour of subscribing more than once to the same subject is undefined and should be avoided.
@@ -223,7 +259,7 @@ PubSub.subscribe = ( node_name, callback )->
             throw 'at least insert and delete callbacks must be given'
 
         check_name = ( name )->
-            for n in [ 'insert', 'update', 'delete', 'update_range', 'delete_range' ]
+            for n in [ 'insert', 'update', 'delete', 'update_range', 'delete_range', 'error' ]
                 return if n == name
 
             throw "unknown callback '#{name}'"

@@ -28,7 +28,7 @@ describe "pubsub.http interface", ->
 
     updates = []
 
-    describe "given the client is subscribed to a node", ->
+    describe "given the client is subscribed to a node with a callback", ->
 
         beforeEach ->
             updates = []
@@ -77,7 +77,6 @@ describe "pubsub.http interface", ->
                 it "will not call the callback, if the given version is unknown", ->
                     assert.deepEqual updates, [ [ 1, 2, 3, 4 ] ]
 
-
     describe "given the client is not subscribed to a node", ->
 
         noop = ->
@@ -97,6 +96,26 @@ describe "pubsub.http interface", ->
             assert.throws =>
                 PubSub.subscribe { a: '1', b: 'Hallo' }, { insert: noop, delete: noop, foobar: noop }
             , "unknown callback 'foobar'"
+
+    describe "given the client is subscribed to a node with a callback set", ->
+
+        beforeEach ->
+            updates = []
+            PubSub.reset()
+            http_requests = []
+            PubSub.configure_transport record_http_requests
+
+            PubSub.subscribe { a: '1', b: 'Hallo' },
+                {
+                    insert: ( path, data )-> updates.push [ 'insert', path, data ]
+                    delete: ( path )-> updates.push [ 'delete', path ]
+                }
+
+            simulate_response { id: 'abc',  update: [ { key: { a: '1', b: 'Hallo' }, data: [ 1, 2, 3, 4 ], version: 22345 } ] }
+
+        it 'will receive an insert for the very first upate', ->
+            assert.deepEqual updates, [ [ 'insert', null, [ 1, 2, 3, 4 ] ] ]
+
 
     describe "an update contains every kind of operations", ->
 
