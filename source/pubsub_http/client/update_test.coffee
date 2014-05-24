@@ -25,13 +25,13 @@ describe "PubSub.update", ->
             assert.deepEqual update( "asdasdd" ), "asdasdd"
 
     describe "given the input is an empty array", ->
-        
+
         update = ( update_instructions )->
             PubSub.update( [], update_instructions )
 
         describe "and the update operation is an 'update_at'", ->
             it "raises an exception, if the index is negative", ->
-                test = -> update [ update_at, -4, 1 ] 
+                test = -> update [ update_at, -4, 1 ]
 
                 assert.throw test, RangeError, 'bad index for update: -4'
 
@@ -42,7 +42,7 @@ describe "PubSub.update", ->
 
         describe "and the update operation is an 'delete_at'", ->
             it "raises an exception, if the index is negative", ->
-                test = -> update [ delete_at, -4 ] 
+                test = -> update [ delete_at, -4 ]
 
                 assert.throw test, RangeError, 'bad index for delete: -4'
 
@@ -54,7 +54,7 @@ describe "PubSub.update", ->
         describe "and the update operation is an 'insert_at'", ->
 
             it "raises an exception, if the index is negative", ->
-                test = -> update [ insert_at, -4, 1 ] 
+                test = -> update [ insert_at, -4, 1 ]
 
                 assert.throw test, RangeError, 'bad index for insert: -4'
 
@@ -85,12 +85,6 @@ describe "PubSub.update", ->
             it "replaces the empty array when the given range is empty and starting with 0", ->
                 assert.deepEqual update( [ update_range, 0, 0, [ 1, 2 ] ] ), [ 1, 2 ]
 
-        describe "and the update operation is an 'edit_at'", ->
-            it "raises an exception", ->
-                test = -> update [ edit_at, 0, [] ]
-
-                assert.throw test, RangeError, 'bad index for edit: 0'
-
         describe "and the update operation is a mix out of simple operations", ->
             it "will apply all operations in the given order", ->
                 assert.deepEqual update( [ 3, 0, 3, 3, 0, 3, 1, 1, 'foo', 2, 0 ]), [ 'foo' ]
@@ -101,7 +95,7 @@ describe "PubSub.update", ->
 
         describe "and the update operation is an 'update_at'", ->
             it "raises an exception, if the index is negative", ->
-                test = -> update [ update_at, -1, 1 ] 
+                test = -> update [ update_at, -1, 1 ]
 
                 assert.throw test, RangeError, 'bad index for update: -1'
 
@@ -119,9 +113,9 @@ describe "PubSub.update", ->
             it "updates an element in the middle", ->
                 assert.deepEqual update( [ update_at, 1, 'test' ] ), [ 1, 'test', 3, 4 ]
 
-        describe "and the update operation is an 'delete_at'", ->        
+        describe "and the update operation is an 'delete_at'", ->
             it "raises an exception, if the index is negative", ->
-                test = -> update [ delete_at, -14 ] 
+                test = -> update [ delete_at, -14 ]
 
                 assert.throw test, RangeError, 'bad index for delete: -14'
 
@@ -142,7 +136,7 @@ describe "PubSub.update", ->
         describe "and the update operation is an 'insert_at'", ->
 
             it "raises an exception, if the index is negative", ->
-                test = -> update [ insert_at, -4, 1 ] 
+                test = -> update [ insert_at, -4, 1 ]
 
                 assert.throw test, RangeError, 'bad index for insert: -4'
 
@@ -298,6 +292,83 @@ describe "PubSub.update", ->
                     PubSub.update( { a: 1, b: {} }, [ edit_at, 'b', [ insert_at, 'a', 42 ] ] ),
                     { a: 1, b: { a: 42 } } )
 
+
+    describe "given a set of callbacks is provided to update", ->
+
+        logged_updates = []
+
+        update_logger = {
+            insert:       ( path, data )->                       logged_updates.push [ 'insert', path, data ],
+            delete:       ( path )->                             logged_updates.push [ 'delete', path ],
+            update:       ( path, data )->                       logged_updates.push [ 'update', path, data ],
+            update_range: ( path, num_elements, update_array )-> logged_updates.push [ 'update_range', path, num_elements, update_array ],
+            delete_range: ( path, num_elements )->               logged_updates.push [ 'delete_range', path, num_elements ]
+        }
+
+        describe "the input is an array", ->
+
+            update = ( update_operations )->
+                logged_updates = []
+                # [ 1, 2, 3 ]
+                PubSub.perform_updates( update_operations, update_logger )
+                logged_updates
+
+
+            it 'will call the insert callback', ->
+                assert.deepEqual update( [ insert_at, 0, 5 ] ), [ [ 'insert', [ 0 ], 5 ] ]
+
+            it 'will call the delete callback', ->
+                assert.deepEqual update( [ delete_at, 2 ] ), [ [ 'delete', [ 2 ] ] ]
+
+            it 'will call the update callback', ->
+                assert.deepEqual update( [ update_at, 0, 5 ] ), [ [ 'update', [ 0 ], 5 ] ]
+
+            it 'will call the update_range callback', ->
+                assert.deepEqual update( [ update_range, 0, 1, [ 2, 3, 4]  ] ), [ [ 'update_range', [ 0 ], 1, [ 2, 3, 4 ] ] ]
+
+            it 'will call the delete_range callback', ->
+                assert.deepEqual update( [ delete_range, 0, 2 ] ), [ [ 'delete_range', [ 0 ], 2 ] ]
+
+        describe "the input is an object",->
+
+            update = ( update_operations )->
+                logged_updates = []
+                #  { a: 1, b: 2, c: 3 }
+                PubSub.perform_updates( update_operations, update_logger )
+                logged_updates
+
+            it 'will call the insert callback', ->
+                assert.deepEqual update( [ insert_at, 'd', 5 ] ), [ [ 'insert', [ 'd' ], 5 ] ]
+
+            it 'will call the delete callback', ->
+                assert.deepEqual update( [ delete_at, 'a' ] ), [ [ 'delete', [ 'a' ] ] ]
+
+            it 'will call the update callback', ->
+                assert.deepEqual update( [ update_at, 'a', 5 ] ), [ [ 'update', [ 'a' ], 5 ] ]
+
+        describe 'the input is a nested set of arrays and objects', ->
+
+            update = ( update_operations )->
+                logged_updates = []
+                # [ 1, [ 1, 2, 3 ], { a: 1, b: 2 , c: [ 0 ] } ]
+                PubSub.perform_updates( update_operations, update_logger )
+                logged_updates
+
+            it 'will call the insert callback when editing a nested array', ->
+                assert.deepEqual update( [ edit_at, 2, [ edit_at, 'c',[ insert_at, 0, 5 ] ] ] ), [ [ 'insert', [ 2, 'c', 0 ], 5 ] ]
+
+            it 'will call the delete callback', ->
+                assert.deepEqual update( [ edit_at, 1, [ delete_at, 2 ] ] ), [ [ 'delete', [ 1, 2 ] ] ]
+
+            it 'will call the update callback', ->
+                assert.deepEqual update( [ edit_at, 1, [ update_at, 0, 2 ] ] ), [ [ 'update', [ 1, 0 ], 2 ] ]
+
+            it 'will call the update_range callback', ->
+                assert.deepEqual update( [ edit_at, 1, [ update_range, 0, 3, [ 5 ] ] ] ), [ [ 'update_range', [ 1, 0 ], 3, [ 5 ] ] ]
+
+            it 'will call the delete_range callback', ->
+                assert.deepEqual update( [ edit_at, 1, [ delete_range, 1, 3 ] ] ), [ [ 'delete_range', [ 1, 1 ], 2 ] ]
+
     describe "given the input and update is a little bit more complex", ->
         input  = -> [ 1, 2, { a: 'Hallo' } ]
         update = -> [
@@ -317,6 +388,4 @@ describe "PubSub.update", ->
 
         it "will apply all operations", ->
             assert.deepEqual PubSub.update( input(), update() ), [ 1, 2, [ 'a' ] ]
-
-
 
