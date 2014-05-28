@@ -14,7 +14,7 @@ CPP = ENV["SIOUX_CPP"] || ENV["CPP"] || 'g++'
 ADDITIONAL_DEFINES = ENV[ 'SIOUX_DEFINES' ]
 
 SOURCE_FOLDER = File.expand_path 'source'
-INCLUDE_FOLDER = SOURCE_FOLDER 
+INCLUDE_FOLDER = SOURCE_FOLDER
 SOURCE_FOLDER_PATHNAME = Pathname.new SOURCE_FOLDER
 OUTPUT_FOLDER = File.expand_path 'obj'
 EXE_FOLDER = File.expand_path 'bin'
@@ -45,7 +45,7 @@ LINK_FLAGS_BY_FLAVORS = {
 	'coverage' => '-fprofile-arcs -ftest-coverage -lgcov',
 }
 
-def test_system_library library 
+def test_system_library library
     Regexp.new( "-l#{library}(\s|$)" ).match( RbConfig::CONFIG[ 'LIBS' ] ) ? "-l#{library} " : ''
 end
 
@@ -93,7 +93,7 @@ def shared_library_file_name lib, flavor
 end
 
 def external_library_file_name lib, flavor
-    lib.start_with?('boost') ? 
+    lib.start_with?('boost') ?
         "#{lib}#{BOOST_LIBRARY_POST_FIX_BY_FLAVOR[flavor]}" : lib
 end
 
@@ -117,7 +117,7 @@ end
 def expand_include_file_name file_name, path_list, current_path
 	path_list.each do |path|
 		result = File.join(File.realpath(path, current_path), file_name)
-		
+
 		return result if File.exists?(result)
 	end
 
@@ -133,7 +133,7 @@ def scan_file_for_includes source_file, current_path
 	cache_key = [current_path, source_file]
 	cache = SCAN_FILE_CACHE.fetch(cache_key, nil)
 	return cache if cache
-	
+
 	rake_output_message("scanning #{source_file}\n")
 
 	File.foreach(source_file) do |line|
@@ -141,26 +141,26 @@ def scan_file_for_includes source_file, current_path
 			dependent_include_files[expand_include_file_name($1, INCLUDE_PATH, current_path)] = 1
 		end
 	end
-	
-	SCAN_FILE_CACHE[cache_key] = dependent_include_files 
+
+	SCAN_FILE_CACHE[cache_key] = dependent_include_files
 	dependent_include_files
 end
 
-def build_dependencies source_file, dependency_file, flavor	
+def build_dependencies source_file, dependency_file, flavor
 	already_scanned = {}
 	to_be_scanned   = {source_file => 1}
 
 	while !to_be_scanned.empty?
 		file_name = to_be_scanned.first[0]
 		to_be_scanned.delete file_name
-		
+
 		unless already_scanned.has_key? file_name then
 			already_scanned[file_name] = 1
 
 			to_be_scanned.merge! scan_file_for_includes(file_name, File.split(source_file)[0] )
-		end			
+		end
 	end
-	
+
 	File.open(dependency_file, 'w') do |output|
 		YAML.dump(already_scanned.keys, output)
 	end
@@ -185,8 +185,8 @@ end
 
 def build_ruby_extension shared_lib, objects, libraries, external_libraries, flavor
     File.delete( shared_lib ) if File.exist?(shared_lib)
-    sh "#{CPP} -o #{shared_lib} #{SHARED_LINK_FLAGS} #{SHARED_LINK_FLAGS_BY_FLAVORS[flavor]} " + 
-       "-L#{File.join(LIBRARY_FOLDER, flavor)} " + 
+    sh "#{CPP} -o #{shared_lib} #{SHARED_LINK_FLAGS} #{SHARED_LINK_FLAGS_BY_FLAVORS[flavor]} " +
+       "-L#{File.join(LIBRARY_FOLDER, flavor)} " +
        "#{objects.join(' ')} " +
        "#{libraries.collect{ | lib | "-l#{ lib }" }.join(' ') } " +
        "#{external_libraries.collect{ | lib | "-l#{ lib }" }.join(' ') } " +
@@ -195,7 +195,7 @@ end
 
 def build_executable executable, objects, libraries, external_libraries, flavor
     File.delete(executable) if File.exist?(executable)
-    sh "#{CPP} #{objects.join(' ')} -o #{executable} #{LINK_FLAGS} #{LINK_FLAGS_BY_FLAVORS[flavor]} " + 
+    sh "#{CPP} #{objects.join(' ')} -o #{executable} #{LINK_FLAGS} #{LINK_FLAGS_BY_FLAVORS[flavor]} " +
        "-L#{File.join(LIBRARY_FOLDER, flavor)} " +
        "#{libraries.collect{ | lib | "-l#{ lib }" }.join(' ') } " +
        "#{external_libraries.collect{ | lib | "-l#{ lib }" }.join(' ') } " +
@@ -205,7 +205,7 @@ end
 # List of libraries in the source folder
 ALL_SOURCE_FOLDERS = FileList[File.join(SOURCE_FOLDER, '*')].reject do |file|
     !File.directory?(file)
-end     
+end
 
 LIBRARIES = ALL_SOURCE_FOLDERS.collect do | lib_path |
 	library_name_from_path lib_path
@@ -216,13 +216,13 @@ end
 FLAVORS.each do |flavor|
 	directory File.join(LIBRARY_FOLDER, flavor)
 
-	LIBRARIES.each do |lib| 
+	LIBRARIES.each do |lib|
 		CLEAN.include File.join(OUTPUT_FOLDER, flavor, lib, '*.' + OBJECT_FILE_EXT)
 		CLEAN.include File.join(OUTPUT_FOLDER, flavor, lib, '*.' + DEPENDS_FILE_EXT)
 
-		GCOV_PATTERN.each { |p| CLEAN.include File.join(OUTPUT_FOLDER, flavor, lib, p)  }		
+		GCOV_PATTERN.each { |p| CLEAN.include File.join(OUTPUT_FOLDER, flavor, lib, p)  }
 	end
-	
+
 	CLOBBER.include File.join(LIBRARY_FOLDER, flavor, '*');
 end
 
@@ -230,46 +230,46 @@ def create_object_to_source_dependencies source_files, flavor
 	[source_files].flatten.collect do |source_file|
 		object_file  = object_file_name_from_source source_file, flavor, OBJECT_FILE_EXT
 		depends_file = object_file_name_from_source source_file, flavor, DEPENDS_FILE_EXT
-		object_dir   = File.dirname object_file 
+		object_dir   = File.dirname object_file
 
-		directory object_dir 
-		
+		directory object_dir
+
 		depends = [source_file] + read_dependencies(depends_file) + [object_dir]
 
 		file object_file => depends + [depends_file] do
 			build_object(source_file, object_file, flavor, depends_file)
 		end
 
-		file depends_file => depends do 
+		file depends_file => depends do
 			build_dependencies(source_file, depends_file, flavor)
 		end
-		
+
 		object_file
 	end
 end
 
-# create libraries task 
+# create libraries task
 LIBRARY_TASKS = LIBRARIES.collect do |library_name|
 	libs_by_name_and_flavor = {}
 	source_files = FileList[File.join(SOURCE_FOLDER, library_name, '*.cpp')].exclude(/.*test\.cpp/)
 
 	FLAVORS.each do |flavor|
-		object_files = create_object_to_source_dependencies source_files, flavor 
+		object_files = create_object_to_source_dependencies source_files, flavor
 		lib_file     = library_file_name(library_name, flavor)
-		lib_dir      = File.dirname lib_file 
+		lib_dir      = File.dirname lib_file
 
 		directory lib_dir
-		file lib_file => lib_dir 
+		file lib_file => lib_dir
 
 		libs_by_name_and_flavor[[library_name, flavor]] = file lib_file  => object_files do |lib|
-			build_library lib.name, object_files, flavor unless object_files.empty? 
+			build_library lib.name, object_files, flavor unless object_files.empty?
 		end
 	end
 
 	task library_name.to_sym, [:flavor] do |t, args|
 		args.with_defaults(:flavor => 'debug')
 		check_flavor args.flavor
-		
+
 		libs_by_name_and_flavor[[library_name, args.flavor]].invoke
 	end
 end
@@ -284,7 +284,7 @@ def create_executable_task name, *dependencies
     sources    = params.delete(:sources)
     libraries  = params.delete(:libraries)
     external_libs = params.delete(:extern_libs)
-    
+
     raise "unrecongnized parameters to 'test': #{params}" unless params.empty?
 
     tests_by_flavor = {}
@@ -292,19 +292,19 @@ def create_executable_task name, *dependencies
     FLAVORS.each do |flavor|
         exe_name        = exe_file_name name, flavor
         exe_dir         = File.dirname exe_name
-        
+
         object_files       = create_object_to_source_dependencies sources, flavor
         libraries_files    = libraries.collect {|l| library_file_name l, flavor }
         external_lib_files = external_libs.collect {|e| external_library_file_name e, flavor }
 
         directory exe_dir
-        file exe_name => exe_dir 
+        file exe_name => exe_dir
 
         tests_by_flavor[flavor] = file exe_name => object_files + libraries_files do |exe|
             build_executable exe_name, object_files, libraries, external_lib_files, flavor
-        end 
+        end
     end
-    
+
     task name.to_sym, [ :flavor, :single_test ] do |t, args|
         args.with_defaults(:flavor => 'debug', :single_test => 'all' )
         check_flavor args.flavor
@@ -318,32 +318,32 @@ end
 def test test_name, *dependencies
     ALL_TEST_NAMES << test_name
     UNIT_TEST_NAMES << test_name
-    
+
     create_executable_task test_name, *dependencies
 end
 
 def js_test test_name, *options
     ALL_TEST_NAMES << test_name
     UNIT_TEST_NAMES << test_name
-    
-    mocha_test_task test_name, *options 
+
+    mocha_test_task test_name, *options
 end
 
 def build_example example_name, *dependencies
     ALL_EXAMPLE_NAMES << example_name
-    
+
     create_executable_task example_name, *dependencies
 end
 
 def component_test test_name, *dependencies
     ALL_TEST_NAMES << test_name
     COMPONENT_TEST_NAMES << test_name
-    
+
     params = { :sources => [], :dependencies => [] }
     dependencies.each {|p| params.merge! p }
     sources         = params.delete( :sources )
     dependencies    = params.delete( :dependencies )
-    
+
     raise "unrecongnized parameters to 'component_test': #{params}" unless params.empty?
 
     task test_name.to_sym, [ :argument ] => dependencies do | t, args |
@@ -351,18 +351,18 @@ def component_test test_name, *dependencies
 
         sources.each do | source |
             require source
-           
+
             runargs = single_test.nil? ? [] : [ '-n' , "#{single_test}" ]
             error_cnt = MiniTest::Unit.new.run runargs
-            
+
             raise "#{error_cnt} errors occured while running \'#{test_name}\'" if error_cnt != 0
-        end 
+        end
     end
 end
 
 # build tasks for a ruby extension
 def ruby_extension lib_name, *dependencies
-    SHARED_LIBARARIES << lib_name 
+    SHARED_LIBARARIES << lib_name
 
     params = { :libraries => [], :extern_libs => [], :sources => [] }
     dependencies.each { | p | params.merge! p }
@@ -371,11 +371,11 @@ def ruby_extension lib_name, *dependencies
     external_libs = params.delete( :extern_libs )
 
     raise "unrecongnized parameters to 'shared_library': #{params}" unless params.empty?
-    
+
     FLAVORS.each do | flavor |
         lib_file    = shared_library_file_name lib_name, flavor
         lib_dir     = File.dirname lib_file
-        
+
         object_files       = create_object_to_source_dependencies sources, flavor
         libraries_files    = libraries.collect {|l| library_file_name l, flavor }
         external_lib_files = external_libs.collect {|e| external_library_file_name e, flavor }
@@ -386,24 +386,24 @@ def ruby_extension lib_name, *dependencies
 
         file lib_file => object_files + libraries_files do | args |
             build_ruby_extension lib_file, object_files, libraries, external_lib_files, flavor
-        end 
-    end     
+        end
+    end
 
     task lib_name.to_sym, [ :flavor ] do |t, args|
         args.with_defaults( :flavor => 'debug' )
         check_flavor args.flavor
-    
+
         Rake::Task[ shared_library_file_name lib_name, args.flavor ].invoke
     end
 end
- 
+
 # include sub rake files (this will populate ALL_TEST_NAMES)
 ALL_SOURCE_FOLDERS.each do |folder|
     rakefile = File.join( folder, 'rakefile')
 
     if File.exist? rakefile then
         load rakefile
-    end  
+    end
 end
 
 desc 'build all libraries used to build a sioux server'
@@ -430,10 +430,12 @@ task :list_unit_tests do
 
     puts <<EOD
 
-All unit tests have two parameters. The first parameter is the build flavor, the second parameter is the test case to be run.
-The default for the flavor is 'debug'. The default for the test case is 'all'. Example:
+Most unit tests have two parameters. The first parameter is the build flavor, the second parameter is the test case to be run.
+The default for the flavor is 'debug'. The default for the test case is 'all'. JavaScript tests just have the test case as
+parameter. Example:
 
-\trake json_test[debug,json_string_test]
+\trake json_test[debug,json_string_test] or
+\trake pubsub_http_js_test[search_phrase]
 
 builds the json_test and executes just the json_string_test test case out of the json_test.
 EOD
@@ -444,13 +446,13 @@ task :list_component_tests do
     puts "list of all available component tests:\n\n"
 
     COMPONENT_TEST_NAMES.each{ | test | puts "\t#{test}\n" };
-    
+
     puts <<EOD.gsub( /^    /, '' )
 
     All component take a single test name as an optional parameter to execute just a single test. Example:
-    
+
     \trake bayeux_network_test[test_simple_subscribe_publish]
-        
+
 EOD
 end
 
@@ -458,7 +460,7 @@ desc 'lists the available tests'
 task :list_tests do
     puts "list of all available tests:\n\n"
 	puts ALL_TEST_NAMES.collect{|t| "\t#{t}" }.join("\n")
-	puts 
+	puts
 end
 
 desc 'lists the available examples'
@@ -477,7 +479,7 @@ end
 
 desc 'build a \'documentation.zip\' file.'
 task :docu_zip => :docu do
-    sh "zip -jDr9 documentation.zip #{DOCUMENTATION_FOLDER}" 
+    sh "zip -jDr9 documentation.zip #{DOCUMENTATION_FOLDER}"
 end
 
 desc 'lists all flavors and there meaning'
@@ -492,5 +494,5 @@ task :list_flavors do
 STOP
 end
 
-task :default => [:libs] 
+task :default => [:libs]
 
