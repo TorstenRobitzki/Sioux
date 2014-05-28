@@ -1,6 +1,7 @@
 assert = require( 'chai' ).assert
 
 require './update.coffee'
+require './test_tools.coffee'
 
 update_at       = 1
 delete_at       = 2
@@ -295,22 +296,12 @@ describe "PubSub.update", ->
 
     describe "given a set of callbacks is provided to update", ->
 
-        logged_updates = []
-
-        update_logger = {
-            insert:       ( path, data )->                       logged_updates.push [ 'insert', path, data ],
-            delete:       ( path )->                             logged_updates.push [ 'delete', path ],
-            update:       ( path, data )->                       logged_updates.push [ 'update', path, data ],
-            update_range: ( path, num_elements, update_array )-> logged_updates.push [ 'update_range', path, num_elements, update_array ],
-            delete_range: ( path, num_elements )->               logged_updates.push [ 'delete_range', path, num_elements ]
-        }
-
         describe "the input is an array", ->
 
             update = ( update_operations )->
                 logged_updates = []
                 # [ 1, 2, 3 ]
-                PubSub.perform_updates( update_operations, update_logger )
+                PubSub.perform_updates( update_operations, update_logger( logged_updates ) )
                 logged_updates
 
 
@@ -334,7 +325,7 @@ describe "PubSub.update", ->
             update = ( update_operations )->
                 logged_updates = []
                 #  { a: 1, b: 2, c: 3 }
-                PubSub.perform_updates( update_operations, update_logger )
+                PubSub.perform_updates( update_operations, update_logger( logged_updates ) )
                 logged_updates
 
             it 'will call the insert callback', ->
@@ -351,7 +342,7 @@ describe "PubSub.update", ->
             update = ( update_operations )->
                 logged_updates = []
                 # [ 1, [ 1, 2, 3 ], { a: 1, b: 2 , c: [ 0 ] } ]
-                PubSub.perform_updates( update_operations, update_logger )
+                PubSub.perform_updates( update_operations, update_logger( logged_updates ) )
                 logged_updates
 
             it 'will call the insert callback when editing a nested array', ->
@@ -388,4 +379,3 @@ describe "PubSub.update", ->
 
         it "will apply all operations", ->
             assert.deepEqual PubSub.update( input(), update() ), [ 1, 2, [ 'a' ] ]
-

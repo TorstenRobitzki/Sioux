@@ -115,30 +115,3 @@ describe "pubsub.http interface", ->
 
         it 'will receive an insert for the very first upate', ->
             assert.deepEqual updates, [ [ 'insert', null, [ 1, 2, 3, 4 ] ] ]
-
-
-    describe "an update contains every kind of operations", ->
-
-        beforeEach ->
-            updates = []
-            PubSub.reset()
-            http_requests = []
-            PubSub.configure_transport record_http_requests
-
-            PubSub.subscribe { a: '1', b: 'Hallo' }, ( node, data, error )->
-                assert.deepEqual node, { a: '1', b: 'Hallo' }
-                assert.isUndefined error
-                updates.push JSON.parse( JSON.stringify data )
-
-            simulate_response { id: 'abc',  update: [ { key: { a: '1', b: 'Hallo' }, data: [ 1, 2, 3, 4 ], version: 22345 } ] }
-
-        describe "given the client is subscribed to a node and provides handlers for every kind of update", ->
-
-            it 'calls the update handler', ->
-            it 'calls the insert handler', ->
-            it 'calls the delete handler', ->
-            it 'calls the range_update handler', ->
-            it 'calls the range_delete handler', ->
-            it 'calls the edit handler', ->
-
-
