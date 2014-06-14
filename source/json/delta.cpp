@@ -30,11 +30,11 @@ namespace json {
 
             // if operation is not null, previous must point to a valid vertex and when vertex points to
             // a valid vertex, the operation must not be null.
-            boost::shared_ptr< const operations::update_operation >   operation;
-            vertex_list_t::const_iterator   previous;
+            mutable boost::shared_ptr< const operations::update_operation >   operation;
+            mutable vertex_list_t::const_iterator   previous;
 
-            std::size_t                     total_costs;
-            std::size_t                     costs;
+            mutable std::size_t                     total_costs;
+            mutable std::size_t                     costs;
 
             /**
              * an order by identity
@@ -43,6 +43,14 @@ namespace json {
             {
                 return length < rhs.length
                     || length == rhs.length && index < rhs.index;
+            }
+
+            void update( const vertex& other ) const
+            {
+                operation = other.operation;
+                previous = other.previous;
+                total_costs = other.total_costs;
+                costs = other.costs;
             }
 
             /**
@@ -171,9 +179,13 @@ namespace json {
                 if ( insert_pos == vertices_.end() || insert_pos->costs > costs )
                 {
                     if ( insert_pos != vertices_.end() )
-                        vertices_.erase( insert_pos );
-
-                    insert_pos = vertices_.insert( v ).first;
+                    {
+                        insert_pos->update( v );
+                    }
+                    else
+                    {
+                        insert_pos = vertices_.insert( v ).first;
+                    }
 
                     open_list_.insert( insert_pos );
                 }
@@ -236,7 +248,7 @@ namespace json {
         template < class T >
         struct second_dispatch : default_visitor
         {
-            second_dispatch(std::pair<bool, value>& r, const T& a, std::size_t m) 
+            second_dispatch(std::pair<bool, value>& r, const T& a, std::size_t m)
                 : result(r)
                 , first_parameter(a)
                 , max_size(m)
@@ -260,8 +272,8 @@ namespace json {
 
         struct first_dispatch : default_visitor
         {
-            first_dispatch(std::pair<bool, value>& r, const value& b, std::size_t m) 
-                : result(r) 
+            first_dispatch(std::pair<bool, value>& r, const value& b, std::size_t m)
+                : result(r)
                 , second_parameter(b)
                 , max_size(m)
             {
@@ -271,13 +283,13 @@ namespace json {
             const value&            second_parameter;
             const std::size_t       max_size;
 
-            void visit(const object& obj) 
+            void visit(const object& obj)
             {
                 second_dispatch< object > disp( result, obj, max_size );
                 second_parameter.visit( disp );
             }
 
-            void visit(const array& arr)  
+            void visit(const array& arr)
             {
                 second_dispatch< array > disp( result, arr, max_size );
                 second_parameter.visit( disp );
