@@ -16,7 +16,7 @@ namespace http {
     public:
         /**
          * @brief constucts a filter from a comma seperated list of header names
-         * 
+         *
          * Example header_filter f("Connect, Via, Vary,\r\nFooBar")
          */
         explicit filter(const char*);

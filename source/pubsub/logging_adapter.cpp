@@ -5,14 +5,14 @@
 
 namespace pubsub {
 
-    logging_adapter::logging_adapter( adapter& a, std::ostream& l ) 
+    logging_adapter::logging_adapter( adapter& a, std::ostream& l )
         : adapter_( a )
         , log_( l )
         , first_( true )
     {
         log_ << "[";
     }
-    
+
     logging_adapter::~logging_adapter()
     {
         log_ << "]";
@@ -33,7 +33,7 @@ namespace pubsub {
     namespace {
 
         template < class Base >
-        class callback_base : public Base 
+        class callback_base : public Base
         {
         public:
             callback_base( const json::string& function_name, const node_name& node, std::ostream& log, const boost::shared_ptr< Base >& cb )
@@ -82,13 +82,13 @@ namespace pubsub {
         class call_back : public callback_base< validation_call_back >
         {
         public:
-            call_back( const node_name& node, std::ostream& log, const boost::shared_ptr< validation_call_back >& cb ) 
+            call_back( const node_name& node, std::ostream& log, const boost::shared_ptr< validation_call_back >& cb )
                 : callback_base< validation_call_back >( function_name, node, log, cb )
             {
             }
 
         private:
-            void is_valid() 
+            void is_valid()
             {
                 result( json::true_val() );
                 cb()->is_valid();
@@ -107,10 +107,10 @@ namespace pubsub {
         };
 
         next_entry();
-        adapter_.validate_node( node, boost::shared_ptr< validation_call_back >( 
+        adapter_.validate_node( node, boost::shared_ptr< validation_call_back >(
             static_cast< validation_call_back* >( new call_back( node, log_, cb ) ) ) );
-    }    
-    
+    }
+
     void logging_adapter::authorize( const boost::shared_ptr<subscriber>& subscriber, const node_name& node, const boost::shared_ptr< authorization_call_back >& cb )
     {
         static const json::string function_name( "authorize" );
@@ -118,13 +118,13 @@ namespace pubsub {
         class call_back : public callback_base< authorization_call_back >
         {
         public:
-            call_back( const node_name& node, std::ostream& log, const boost::shared_ptr< authorization_call_back >& cb ) 
+            call_back( const node_name& node, std::ostream& log, const boost::shared_ptr< authorization_call_back >& cb )
                 : callback_base< authorization_call_back >( function_name, node, log, cb )
             {
             }
 
         private:
-            void is_authorized() 
+            void is_authorized()
             {
                 result( json::true_val() );
                 cb()->is_authorized();
@@ -143,10 +143,10 @@ namespace pubsub {
         };
 
         next_entry();
-        adapter_.authorize( subscriber, node, boost::shared_ptr< authorization_call_back >( 
+        adapter_.authorize( subscriber, node, boost::shared_ptr< authorization_call_back >(
             static_cast< authorization_call_back* >( new call_back( node, log_, cb ) ) )  );
     }
-    
+
     void logging_adapter::node_init( const node_name& node, const boost::shared_ptr< initialization_call_back >& cb )
     {
         static const json::string function_name( "node_init" );
@@ -154,7 +154,7 @@ namespace pubsub {
         class call_back : public callback_base< initialization_call_back >
         {
         public:
-            call_back( const node_name& node, std::ostream& log, const boost::shared_ptr< initialization_call_back >& cb ) 
+            call_back( const node_name& node, std::ostream& log, const boost::shared_ptr< initialization_call_back >& cb )
                 : callback_base< initialization_call_back >( function_name, node, log, cb )
             {
             }
@@ -173,8 +173,8 @@ namespace pubsub {
         };
 
         next_entry();
-        adapter_.node_init( node, boost::shared_ptr< initialization_call_back >( 
+        adapter_.node_init( node, boost::shared_ptr< initialization_call_back >(
             static_cast< initialization_call_back* >( new call_back( node, log_, cb ) ) ) );
     }
-    
+
 }

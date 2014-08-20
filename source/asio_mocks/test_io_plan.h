@@ -10,15 +10,15 @@
 
 namespace asio_mocks
 {
-    class read;
+    struct read;
 
     /**
      * @brief plan for simulated reads from a socket, with the data to be read and delays between them
      */
-    class read_plan 
+    class read_plan
     {
     public:
-        /** 
+        /**
          * @brief an empty plan
          */
         read_plan();
@@ -31,7 +31,7 @@ namespace asio_mocks
         typedef std::pair< std::string, boost::posix_time::time_duration > item;
 
         /**
-         * @brief returns the data for the next, read to perform. The time duration is the time until the read 
+         * @brief returns the data for the next, read to perform. The time duration is the time until the read
          * should be simulated.
          * @pre the plan must not be empty
          */
@@ -56,7 +56,7 @@ namespace asio_mocks
          */
         void execute( const boost::function< void() >& f );
 
-        /** 
+        /**
          * @brief returns true, if the list is empty
          */
         bool empty() const;
@@ -125,7 +125,7 @@ namespace asio_mocks
     read_plan operator<<( read_plan plan, const boost::function< void() >& );
 
     /**
-     * @brief plan, that describes, how large issued writes are performed and how much 
+     * @brief plan, that describes, how large issued writes are performed and how much
      * delay it to be issued between writes
      */
     class write_plan
@@ -144,7 +144,7 @@ namespace asio_mocks
         };
 
         /**
-         * @brief returns the data for the next, write to perform. The time duration is the time until the write 
+         * @brief returns the data for the next, write to perform. The time duration is the time until the write
          * should be simulated.
          * @pre the plan must not be empty
          */
@@ -166,7 +166,7 @@ namespace asio_mocks
          */
         void error( const boost::system::error_code& ec );
 
-        /** 
+        /**
          * @brief returns true, if the list is empty
          */
         bool empty() const;

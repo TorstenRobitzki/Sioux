@@ -1,10 +1,10 @@
 #ifndef SIOUX_JSON_UDATE_CODES_H
 #define SIOUX_JSON_UDATE_CODES_H
 
-namespace json 
+namespace json
 {
     class number;
-    
+
     /**
      * @brief Enumeration to name the update operations used by delta() and update()
      * @relates delta
@@ -51,4 +51,4 @@ namespace json
     const number& edit_at_operation();
 }
 
-#endif 
+#endif

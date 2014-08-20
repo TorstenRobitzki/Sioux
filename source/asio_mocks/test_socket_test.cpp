@@ -133,8 +133,8 @@ BOOST_AUTO_TEST_CASE(use_test_plan)
 
     sock.async_read_some(boost::asio::buffer(read_buffer), first_read);
     sock.async_read_some(
-        boost::asio::buffer(&read_buffer[first_read.bytes_transferred], 
-            sizeof read_buffer - first_read.bytes_transferred), 
+        boost::asio::buffer(&read_buffer[first_read.bytes_transferred],
+            sizeof read_buffer - first_read.bytes_transferred),
         second_read);
 
     sock.async_write_some(boost::asio::buffer(read_buffer), first_write);
@@ -143,7 +143,6 @@ BOOST_AUTO_TEST_CASE(use_test_plan)
     sock.async_write_some(boost::asio::buffer(read_buffer), second_write);
     tools::run(queue);
 
-    const boost::posix_time::ptime          now = boost::posix_time::microsec_clock::universal_time();
     const boost::posix_time::time_duration  tolerance = boost::posix_time::millisec( 100 );
 
     BOOST_CHECK_GE(first_read.when, start_time - tolerance);

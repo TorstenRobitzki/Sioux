@@ -70,7 +70,6 @@ namespace pubsub
 			boost::mutex					mutex_;
 			pubsub::root&					root_;
 			unsigned						remaining_actions_;
-			pubsub::test::stress_adapter&	adapter_;
 
 	        typedef boost::uniform_int<std::size_t> rand_distribution_type;
 	        typedef boost::variate_generator<boost::minstd_rand&, rand_distribution_type> rand_gen_type;

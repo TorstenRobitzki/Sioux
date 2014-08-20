@@ -57,11 +57,6 @@ namespace
         return out;
     }
 
-    std::string to_string( const json::operations::update_operation& op )
-    {
-        return tools::as_string( to_array( op ) );
-    }
-
     boost::shared_ptr< json::operations::update_operation > merge( const json::operations::update_operation& op1,
         const json::operations::update_operation& op2 )
     {

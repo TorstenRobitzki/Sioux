@@ -15,7 +15,6 @@ namespace pubsub
 				pubsub::root& root, pubsub::test::stress_adapter& adapter, unsigned number_of_simulated_actions, unsigned seed )
 		  : root_( root )
 		  , remaining_actions_( number_of_simulated_actions )
-		  , adapter_( adapter )
 		  , random_generator_()
 		{
 			random_generator_.seed( seed );
