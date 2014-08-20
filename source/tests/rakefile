@@ -1,17 +1,22 @@
-build_example 'bayeux_reply', 
-    :libraries => ['bayeux', 'pubsub', 'server', 'json', 'http', 'asio_mocks', 'tools'], 
-    :extern_libs => ['boost_date_time', 'boost_regex', 'boost_system', 'boost_thread'], 
-    :sources =>  FileList['./source/tests/bayeux_reply.cpp'] 
+build_example 'bayeux_reply',
+    :libraries => ['bayeux', 'pubsub', 'server', 'json', 'http', 'asio_mocks', 'tools'],
+    :extern_libs => ['boost_date_time', 'boost_regex', 'boost_system', 'boost_thread'],
+    :sources =>  FileList['./source/tests/bayeux_reply.cpp']
 
-build_example 'hello_world', 
-    :libraries => ['server', 'file', 'http', 'tools'], 
-    :extern_libs => ['boost_filesystem', 'boost_date_time', 'boost_regex', 'boost_system', 'boost_thread'], 
-    :sources =>  FileList['./source/tests/hello_world.cpp'] 
+build_example 'hello_world',
+    :libraries => ['server', 'file', 'http', 'tools'],
+    :extern_libs => ['boost_filesystem', 'boost_date_time', 'boost_regex', 'boost_system', 'boost_thread'],
+    :sources =>  FileList['./source/tests/hello_world.cpp']
 
-build_example 'chat', 
-    :libraries => [ 'json_handler', 'pubsub_http', 'pubsub', 'server', 'json', 'file', 'asio_mocks', 'http', 'tools' ], 
-    :extern_libs => [ 'boost_filesystem', 'boost_date_time', 'boost_regex', 'boost_random', 'boost_system', 'boost_thread' ], 
-    :sources =>  FileList[ './source/tests/chat.cpp' ] 
+build_example 'chat',
+    :libraries => [ 'json_handler', 'pubsub_http', 'pubsub', 'server', 'json', 'file', 'asio_mocks', 'http', 'tools' ],
+    :extern_libs => [ 'boost_filesystem', 'boost_date_time', 'boost_regex', 'boost_random', 'boost_system', 'boost_thread' ],
+    :sources =>  FileList[ './source/tests/chat.cpp' ]
+
+build_example 'bayeux_chat',
+    :libraries => ['bayeux', 'pubsub', 'server', 'json', 'file', 'asio_mocks', 'http', 'tools'],
+    :extern_libs => ['boost_filesystem', 'boost_date_time', 'boost_regex', 'boost_random', 'boost_system', 'boost_thread'],
+    :sources =>  FileList['./source/tests/bayeux_chat.cpp']
 
 LOCAL_PUBSUB_CLIENT = File.expand_path( '../', __FILE__ ) + '/chat/pubsub.js'
 
@@ -22,7 +27,7 @@ file LOCAL_PUBSUB_CLIENT => PUBSUB_CLIENT_LIBRARY_FILE_NAME do | file |
     cp PUBSUB_CLIENT_LIBRARY_FILE_NAME, LOCAL_PUBSUB_CLIENT, verbose: true
 end
 
-task :rack_chat => :pubsub_js_library do 
+task :rack_chat => :pubsub_js_library do
     ruby './source/tests/rack_chat.rb'
 end
 
@@ -30,7 +35,7 @@ FLAVORS.each do |flavor|
     CLEAN.include File.join(OUTPUT_FOLDER, flavor, 'tests', '*.' + OBJECT_FILE_EXT)
     CLEAN.include File.join(OUTPUT_FOLDER, flavor, 'tests', '*.' + DEPENDS_FILE_EXT)
 
-    GCOV_PATTERN.each { |p| CLEAN.include File.join(OUTPUT_FOLDER, flavor, 'tests', p)  }       
-    
+    GCOV_PATTERN.each { |p| CLEAN.include File.join(OUTPUT_FOLDER, flavor, 'tests', p)  }
+
     CLOBBER.include File.join(LIBRARY_FOLDER, flavor, '*');
 end

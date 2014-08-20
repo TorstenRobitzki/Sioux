@@ -3,6 +3,7 @@
 
 #include "pubsub_http/response_decl.h"
 #include "pubsub_http/sessions.h"
+#include "pubsub/node.h"
 #include "json/json.h"
 #include "http/server_header.h"
 #include "tools/asstring.h"
