@@ -115,12 +115,14 @@ int main()
     // routing
     server.add_action( "/pubsub", boost::bind( on_pubsub_request, boost::ref( pubsub_connector ), _1, _2 ) );
     server.add_action( "/publish", boost::bind( &chat_adapter::create_response, boost::ref( adapter ), _1, _2 ) );
+    server.add_action( "/say", boost::bind( &chat_adapter::create_response, boost::ref( adapter ), _1, _2 ) );
 
     file::add_file_handler( server, "/jquery", boost::filesystem::canonical( __FILE__ ).parent_path() );
     file::add_file_handler( server, "/", boost::filesystem::canonical( __FILE__ ).parent_path() / "chat" );
 
     using namespace boost::asio::ip;
-    server.add_listener( tcp::endpoint( address( address_v4::any() ), 8080u ) );
+    // JRL -- comment out for boost 1_55 support otherwise an exception is thrown "bind: Address already in use"
+    // server.add_listener( tcp::endpoint( address( address_v4::any() ), 8080u ) );
     server.add_listener( tcp::endpoint( address( address_v6::any() ), 8080u ) );
 
     std::cout << "browse for \"http://localhost:8080/\"" << std::endl;
