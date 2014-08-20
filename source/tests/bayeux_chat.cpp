@@ -129,7 +129,7 @@ int main()
     file::add_file_handler( server, "/", boost::filesystem::canonical( __FILE__ ).parent_path() / "bayeux_chat" );
 
     using namespace boost::asio::ip;
-	// JRL -- comment out for boost 1_55 support otherwise an exception is thrown "bind: Address already in use"
+	// JRL -- comment out for boost 1_54 support otherwise an exception is thrown "bind: Address already in use"
     // server.add_listener( tcp::endpoint( address( address_v4::any() ), 8080u ) );
     server.add_listener( tcp::endpoint( address( address_v6::any() ), 8080u ) );
 
