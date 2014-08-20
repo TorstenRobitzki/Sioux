@@ -23,6 +23,9 @@ DOCUMENTATION_FOLDER = File.expand_path 'documentation'
 HOME_FOLDER = Dir.home
 BOOST_LIBRARY_FOLDER =  File.absolute_path("/usr/lib/x86_64-linux-gnu")
 BOOST_INCLUDE_FOLDER = File.absolute_path("/usr/include/boost")
+RUBY_INSTALL_FOLDER = File.absolute_path("#{HOME_FOLDER}/.rvm/rubies/ruby-1.9.3-p547/include/ruby-1.9.1/")
+RUBY_H_FOLDER = File.absolute_path("#{RUBY_INSTALL_FOLDER}/x86_64-linux")
+
 
 OBJECT_FILE_EXT = 'o'
 DEPENDS_FILE_EXT = 'd'
@@ -37,8 +40,8 @@ ADDITIONAL_DEFINES_FLAG = ADDITIONAL_DEFINES.nil? ? '' : "-D#{ADDITIONAL_DEFINES
 COMPILER_FLAGS = "-Wall -pedantic -Wno-parentheses -Wno-sign-compare \
   -fPIC -c -pipe -I#{INCLUDE_FOLDER}   \
   -I #{BOOST_INCLUDE_FOLDER} \
-  -I #{HOME_FOLDER}/.rvm/rubies/ruby-1.9.3-p547/include/ruby-1.9.1/ \
-  -I #{HOME_FOLDER}/.rvm/rubies/ruby-1.9.3-p547/include/ruby-1.9.1/x86_64-linux \
+  -I #{RUBY_INSTALL_FOLDER} \
+  -I #{RUBY_H_FOLDER} \
   #{ADDITIONAL_DEFINES_FLAG}"
 COMPILER_FLAGS_BY_FLAVORS = {
 	'debug' => '-ggdb -O0',

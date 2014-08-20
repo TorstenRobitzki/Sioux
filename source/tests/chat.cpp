@@ -121,8 +121,9 @@ int main()
     file::add_file_handler( server, "/", boost::filesystem::canonical( __FILE__ ).parent_path() / "chat" );
 
     using namespace boost::asio::ip;
-    server.add_listener( tcp::endpoint( address( address_v4::any() ), 8080u ) );
-    // server.add_listener( tcp::endpoint( address( address_v6::any() ), 8080u ) );
+    // JRL -- comment out for boost 1_55 support otherwise an exception is thrown "bind: Address already in use"
+    // server.add_listener( tcp::endpoint( address( address_v4::any() ), 8080u ) );
+    server.add_listener( tcp::endpoint( address( address_v6::any() ), 8080u ) );
 
     std::cout << "browse for \"http://localhost:8080/\"" << std::endl;
 
