@@ -8,14 +8,14 @@
 
 namespace http {
 
-char const * reason_phrase(http_error_code ec) 
+char const * reason_phrase(http_error_code ec)
 {
 	switch (ec)
 	{
 	case http_continue:
 		return "Continue";
 	case http_switching_protocols:
-		return "Switsching Protocols";	
+		return "Switsching Protocols";
 	case http_ok:
 		return "OK";
 	case http_created:
@@ -80,6 +80,8 @@ char const * reason_phrase(http_error_code ec)
 		return "Requested range not satisfiable";
 	case http_expectation_failed:
 		return "Expectation Failed";
+	case http_im_a_teapot:
+		return "I'm a teapot";
 	case http_internal_server_error:
 		return "Internal Server Error";
 	case http_not_implemented:
@@ -93,7 +95,7 @@ char const * reason_phrase(http_error_code ec)
 	case http_http_version_not_supported:
 		return "HTTP Version not supported";
 	}
-	
+
 	return "unknown Error Code";
 }
 
@@ -143,10 +145,10 @@ bool entity_expected(http_error_code ec, http_method_code method)
 	// accoding to 4.3 of rfc 2616
 	if ( method == http_head )
 		return false;
-	
+
 	if ( ec >= 100 && ec < 200 || ec == http_no_content || ec == http_not_modified )
 		return false;
-	
+
 	return true;
 }
 

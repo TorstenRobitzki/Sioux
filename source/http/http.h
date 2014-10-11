@@ -12,7 +12,7 @@
 namespace http {
 
 /**
- * @brief http 1.1 status codes 
+ * @brief http 1.1 status codes
  *
  * see rfc 2616 for more details
  */
@@ -51,6 +51,7 @@ enum http_error_code {
 	http_unsupported_media_type			= 415,
 	http_request_range_not_satisfiable	= 416,
 	http_expectation_failed				= 417,
+	http_im_a_teapot					= 418,
 	http_internal_server_error			= 500,
 	http_not_implemented				= 501,
 	http_bad_gateway					= 502,
