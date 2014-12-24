@@ -1,13 +1,11 @@
-# Copyright (c) Torrox GmbH & Co KG. All rights reserved.
-# Please note that the content of this file is confidential or protected by law.
-# Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
+require 'rubygems/package'
 
-namespace :rack do 
+namespace :rack do
     ruby_extension 'bayeux_sioux',
         :sources        => FileList['./source/rack/*.cpp'],
-        :libraries      => [ 'bayeux', 'pubsub_http', 'json_handler', 'server', 'pubsub', 'http', 'json', 'asio_mocks', 'tools' ], 
+        :libraries      => [ 'bayeux', 'pubsub_http', 'json_handler', 'server', 'pubsub', 'http', 'json', 'asio_mocks', 'tools' ],
         :extern_libs    => [ 'boost_regex', 'boost_date_time', 'boost_system', 'boost_random', 'boost_thread', 'ruby' ]
-    
+
     desc 'build the ruby extension shared library'
     task :bayeux_sioux
 
@@ -20,31 +18,31 @@ namespace :rack do
 
     desc 'build a gem file (\'sioux-m.m.gem\') for the ruby rack component'
     task :gem => [ JS_LIBRARY_FILE, GEM_SPEC_FILE ] do | build_gem |
-         
+
         Dir.chdir( File.expand_path('..', __FILE__ ) ) do
             load File.expand_path('../sioux.gemspec', __FILE__ )
-            Gem::Builder.new( RACK_GEM_SPEC ).build
-        end 
+            Gem::Package.build( RACK_GEM_SPEC )
+        end
     end
 end
-    
+
 task :all_rack_bayeux do
     FLAVORS.each do | flavor |
         Rake::Task[ 'rack:bayeux_sioux' ].execute( Rake::TaskArguments.new( [ :flavor ], [ flavor ] ) )
     end
 end
 
-# rack_*_test is using different flavors of the shared library, so all used have to be used    
+# rack_*_test is using different flavors of the shared library, so all used have to be used
 task :rack_bayeux_test => :all_rack_bayeux
 task :rack_pubsub_test => :all_rack_bayeux
 
 component_test 'rack_bayeux_test',
     :sources => FileList['./source/rack/rack_bayeux_test.rb']
-    
+
 
 component_test 'rack_pubsub_test'
-    
-js_test 'rack_pubsub_test', 
+
+js_test 'rack_pubsub_test',
     :sources => FileList[ './source/rack/*_test.coffee' ]
 
 task :rack_pubsub_test => :pubsub_js_library
