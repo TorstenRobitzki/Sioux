@@ -4,7 +4,7 @@
 #include "json/internal/heuristic.h"
 #include "tools/asstring.h"
 #include <stdexcept>
-#include <set>
+#include <boost/container/set.hpp>
 
 namespace json {
 
@@ -12,14 +12,14 @@ namespace json {
     namespace {
         struct vertex;
 
-        typedef std::set< vertex > vertex_list_t;
+        typedef boost::container::set< vertex > vertex_list_t;
 
         struct v_compare : std::binary_function<bool, vertex_list_t::const_iterator, vertex_list_t::const_iterator>
         {
             bool operator()(vertex_list_t::const_iterator lhs, vertex_list_t::const_iterator rhs) const;
         };
 
-        typedef std::multiset< vertex_list_t::const_iterator, v_compare > cost_list_t;
+        typedef boost::container::multiset< vertex_list_t::const_iterator, v_compare > cost_list_t;
 
         struct vertex
         {

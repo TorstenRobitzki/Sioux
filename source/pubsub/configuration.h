@@ -31,7 +31,7 @@ namespace pubsub
 
         /**
          * @brief The time that have to elapse, before a new version of a document will
-         *        be published. 
+         *        be published.
          *
          * If at the time, where the update was made, the time isn't elapsed, the update
          * will be published, when the time elapses.
@@ -88,7 +88,7 @@ namespace pubsub
         const configurator& authorization_not_required() const;
         const configurator& max_update_size( unsigned ) const;
 
-        operator const configuration() const;
+        operator configuration() const;
     private:
         mutable configuration config_;
     };

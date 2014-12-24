@@ -6,7 +6,7 @@
 
 namespace server {
 
-    const char* connection_error_category::name() const
+    const char* connection_error_category::name() const BOOST_SYSTEM_NOEXCEPT
     {
         return "server.connection";
     }

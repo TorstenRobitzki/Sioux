@@ -60,8 +60,8 @@ namespace
     typedef server::connection< trait_t > connection_t;
 }
 
-static const char get_this_file[] =
-    "GET "__FILE__" HTTP/1.1\r\n"
+static const std::string get_this_file =
+    std::string("GET ") + __FILE__ + " HTTP/1.1\r\n"
     "Host: google.de\r\n"
     "User-Agent: Web-sniffer/1.0.31 (+http://web-sniffer.net/)\r\n"
     "Accept-Encoding: gzip\r\n"
@@ -83,7 +83,7 @@ static bool equal_to_this_file( const std::vector<char>& read )
 BOOST_AUTO_TEST_CASE( retrieve_an_existing_file )
 {
     boost::asio::io_service queue;
-    socket_t                socket( queue, tools::begin( get_this_file ), tools::end( get_this_file ) -1 );
+    socket_t                socket( queue, get_this_file.data(), get_this_file.data() + get_this_file.size());
     trait_t                 trait;
 
     boost::shared_ptr< connection_t > connection( new connection_t( socket, trait ) );

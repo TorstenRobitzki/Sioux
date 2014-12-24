@@ -9,7 +9,7 @@
 
 namespace server {
 
-    enum error_codes 
+    enum error_codes
     {
     	no_error,
         canceled_by_error,
@@ -17,9 +17,9 @@ namespace server {
         time_out
     };
 
-    class connection_error_category : public boost::system::error_category 
+    class connection_error_category : public boost::system::error_category
     {
-        virtual const char *     name() const;
+        virtual const char *     name() const BOOST_SYSTEM_NOEXCEPT;
         virtual std::string      message( int ev ) const;
     };
 

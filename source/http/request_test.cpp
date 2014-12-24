@@ -1,7 +1,3 @@
-// Copyright (c) Torrox GmbH & Co KG. All rights reserved.
-// Please note that the content of this file is confidential or protected by law.
-// Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
-
 #include <boost/test/unit_test.hpp>
 #include "http/request.h"
 #include "http/test_request_texts.h"
@@ -29,15 +25,6 @@ namespace {
         }
 
         return true;
-    }
-
-    template <unsigned S>
-    http::request_header feed_to_request(const char(&text)[S])
-    {
-    	http::request_header  request;
-        feed_to_request(text, request);
-
-        return request;
     }
 }
 
@@ -102,7 +89,7 @@ BOOST_AUTO_TEST_CASE(parse_broken_methods)
     const http::request_header connect("CONNECTGET / HTTP/1.1\r\nhost:\r\n\r\n");
     BOOST_CHECK_EQUAL(http::request_header::syntax_error, connect.state());
 }
- 
+
 BOOST_AUTO_TEST_CASE(simple_request)
 {
     http::request_header  request;
@@ -244,7 +231,7 @@ BOOST_AUTO_TEST_CASE(check_header_value_test)
 
 BOOST_AUTO_TEST_CASE(check_host_and_port)
 {
-    { // no port given, default is 80        
+    { // no port given, default is 80
         const http::request_header request(
             "GET / HTTP/1.1\r\n"
             "host :foobar\r\n"
@@ -255,7 +242,7 @@ BOOST_AUTO_TEST_CASE(check_host_and_port)
         BOOST_CHECK_EQUAL(80u, request.port());
     }
 
-    { // 3.2.2 http URL " If the port is _empty_ or not given, port 80 is assumed. 
+    { // 3.2.2 http URL " If the port is _empty_ or not given, port 80 is assumed.
         const http::request_header request(
             "GET / HTTP/1.1\r\n"
             "host :foobar.com:\r\n"

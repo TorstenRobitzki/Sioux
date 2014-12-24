@@ -301,7 +301,7 @@ BOOST_AUTO_TEST_CASE( write_callback_is_called )
     boost::asio::const_buffer       buffer;
     asio_mocks::io_completed        io_result;
 
-    socket.write_callback( var( buffer ) = boost::lambda::_1 );
+    socket.write_callback( [&buffer]( const boost::asio::const_buffer& b ){ buffer = b; } );
     BOOST_REQUIRE_EQUAL( buffer_size( buffer ), 0 );
 
     socket.async_write_some( boost::asio::buffer( "Hallo" ), io_result );

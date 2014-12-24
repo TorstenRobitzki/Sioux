@@ -37,7 +37,9 @@ FLAVORS = %w{debug release coverage}
 
 ADDITIONAL_DEFINES_FLAG = ADDITIONAL_DEFINES.nil? ? '' : "-D#{ADDITIONAL_DEFINES}"
 
-COMPILER_FLAGS = "-Wall -pedantic -Wno-parentheses -Wno-sign-compare \
+HAS_GCOV = false # system "#{CPP} -lgcov"
+
+COMPILER_FLAGS = "-Wall -pedantic -Wno-parentheses -Wno-sign-compare -std=c++11 \
   -fPIC -c -pipe -I#{INCLUDE_FOLDER}   \
   -I #{BOOST_INCLUDE_FOLDER} \
   -I #{RUBY_INSTALL_FOLDER} \
@@ -46,14 +48,14 @@ COMPILER_FLAGS = "-Wall -pedantic -Wno-parentheses -Wno-sign-compare \
 COMPILER_FLAGS_BY_FLAVORS = {
 	'debug' => '-ggdb -O0',
 	'release' => '-O3 -DNDEBUG',
-	'coverage' => '-ggdb -O0 -fno-inline -fprofile-arcs -ftest-coverage',
+	'coverage' => HAS_GCOV ? '-ggdb -O0 -fno-inline -fprofile-arcs -ftest-coverage' : '-ggdb -O0'
 }
 
 LINK_FLAGS = "-ggdb -fPIC"
 LINK_FLAGS_BY_FLAVORS = {
 	'debug' => '',
 	'release' => '',
-	'coverage' => '-fprofile-arcs -ftest-coverage -lgcov',
+	'coverage' => HAS_GCOV ? '-fprofile-arcs -ftest-coverage -lgcov' : '',
 }
 
 def test_system_library library
@@ -74,7 +76,7 @@ RUBY_EXTENSION_LINK_FLAGS = '-static'
 BOOST_LIBRARY_PREFIX=ENV['SIOUX_BOOST_VERSION_PREFIX'].nil? ? '' : "-#{ENV['SIOUX_BOOST_VERSION_PREFIX']}"
 BOOST_LIBRARY_POST_FIX_BY_FLAVOR = {
 	'debug' => "-mt#{BOOST_LIBRARY_PREFIX}",
-	'release' => "-mt-d#{BOOST_LIBRARY_PREFIX}",
+	'release' => "-mt#{BOOST_LIBRARY_PREFIX}",
 	'coverage' => "-mt#{BOOST_LIBRARY_PREFIX}"
 }
 

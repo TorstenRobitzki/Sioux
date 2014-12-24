@@ -138,7 +138,7 @@ BOOST_AUTO_TEST_CASE( handshake_hook_is_called )
 BOOST_AUTO_TEST_CASE( handshake_hook_result_is_applied )
 {
     test::adapter< json::string > adapter;
-    adapter.handshake_result( std::make_pair( false, "you can not pass!"), json::string() );
+    adapter.handshake_result( std::make_pair( false, json::string( "you can not pass!" ) ), json::string() );
 
     bayeux::test::context context( adapter );
 
@@ -246,7 +246,7 @@ BOOST_AUTO_TEST_CASE( publish_hook_is_called )
 BOOST_AUTO_TEST_CASE( publish_hook_result_is_applied )
 {
     test::adapter< int > adapter;
-    adapter.publish_result( std::make_pair( false, "come back later" ), 0 );
+    adapter.publish_result( std::make_pair( false, json::string( "come back later" ) ), 0 );
 
     bayeux::test::context context( adapter );
 
@@ -292,7 +292,7 @@ BOOST_AUTO_TEST_CASE( publish_hook_result_is_applied )
 BOOST_AUTO_TEST_CASE( session_data_is_transported )
 {
     test::adapter< json::string > adapter;
-    adapter.handshake_result( std::make_pair( true, "" ), json::string( "First Value" ) );
+    adapter.handshake_result( std::make_pair( true, json::string() ), json::string( "First Value" ) );
 
     bayeux::test::context context( adapter );
 
@@ -309,7 +309,7 @@ BOOST_AUTO_TEST_CASE( session_data_is_transported )
         context, boost::posix_time::time_duration() );
 
     BOOST_CHECK( adapter.handshake_called( json::null(), json::string( "" ) ) );
-    adapter.publish_result( std::make_pair( true, "" ), json::string( "Second Value" ) );
+    adapter.publish_result( std::make_pair( true, json::string() ), json::string( "Second Value" ) );
 
     bayeux::test::bayeux_session(
         asio_mocks::read_plan()

@@ -1,7 +1,3 @@
-// Copyright (c) Torrox GmbH & Co KG. All rights reserved.
-// Please note that the content of this file is confidential or protected by law.
-// Any unauthorised copying or unauthorised distribution of the information contained herein is prohibited.
-
 #ifndef SIOUX_SRC_HTTP_MESSAGE_H
 #define SIOUX_SRC_HTTP_MESSAGE_H
 
@@ -10,7 +6,7 @@
 #include <boost/asio/buffer.hpp>
 #include <iosfwd>
 
-namespace http 
+namespace http
 {
     class filter;
 
@@ -46,9 +42,9 @@ namespace http
         enum copy_trailing_buffer_t { copy_trailing_buffer };
 
         /**
-         * @brief returns the write pointer and remaining buffer size 
-         * 
-         * It guarantied that pointer is not null and the size is not 0
+         * @brief returns the write pointer and remaining buffer size
+         *
+         * It is guarantied that pointer is not null and the size is not 0
          */
         std::pair<char*, std::size_t> read_buffer();
 
@@ -97,23 +93,23 @@ namespace http
         /**
          * @brief if there is a header with the given name a pointer to it will be returned.
          *
-         * The returned object will become invalid, when the request_header, where the pointer 
-         * is obtained from, becomes invalid. When searching for the corresponding header, is 
+         * The returned object will become invalid, when the request_header, where the pointer
+         * is obtained from, becomes invalid. When searching for the corresponding header, is
          * not case sensitive.
-         * Trailing and leading \\r\n and tabs and spaces are removed in the returned value. If 
+         * Trailing and leading \\r\n and tabs and spaces are removed in the returned value. If
          * the header values spawns multiple lines, \\r\n within the value are _not_ removed.
          */
         const header* find_header(const char* header_name) const;
 
         /**
-         * @brief returns true, if this is a 1.0 header, or in case of an 1.1 (or later) 
+         * @brief returns true, if this is a 1.0 header, or in case of an 1.1 (or later)
          * header, the "Connection : close" header was found
          */
         bool close_after_response() const;
 
-        /** 
+        /**
          * @brief filters the specified headers from the request and returns the result as sequence of tools::substring
-         * for further sending 
+         * for further sending
          */
         std::vector<tools::substring> filtered_request_text(const http::filter&) const;
 
@@ -156,7 +152,7 @@ namespace http
 
         bool parse_version(const tools::substring& version_text);
 
-        // implementation of find_header that doesn't jet expects a fully, correctly parsed header, but instead 
+        // implementation of find_header that doesn't jet expects a fully, correctly parsed header, but instead
         // searchs the header parsed to far
         const header* find_header_impl(const char* header_name) const;
 
@@ -188,6 +184,6 @@ namespace http
         header_list_t               headers_;
     };
 
-} // namespace http 
+} // namespace http
 
 #endif // include guard

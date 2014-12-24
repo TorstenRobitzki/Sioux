@@ -92,7 +92,7 @@ namespace pubsub
         return *this;
     }
 
-    configurator::operator const configuration() const
+    configurator::operator configuration() const
     {
         return config_;
     }
