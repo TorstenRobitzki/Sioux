@@ -506,5 +506,10 @@ task :list_flavors do
 STOP
 end
 
+desc 'run travis-lint'
+task 'travis-lint' do
+    sh 'travis-lint'
+end
+
 task :default => [:libs]
 
