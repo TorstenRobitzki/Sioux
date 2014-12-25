@@ -3,7 +3,10 @@ before_install:
     - bundler
 
 install:
-    - sudo apt-get install libboost-dev libboost-regex-dev libboost-date-time-dev libboost-system-dev libboost-random-dev libboost-thread-dev
+    - sudo apt-get install clang-3.4
+    - sudo apt-get install libboost-dev-1.57 libboost-regex-dev-1.57 libboost-date-time-dev libboost-system-dev libboost-random-dev libboost-thread-dev
+
+compiler: clang
 
 script:
     - rake unit_tests
