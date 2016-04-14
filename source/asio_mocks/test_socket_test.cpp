@@ -10,11 +10,56 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/read.hpp>
+#include <boost/asio/read_until.hpp>
+#include <boost/asio/streambuf.hpp>
 #include <boost/thread/condition_variable.hpp>
 #include <boost/bind.hpp>
 #include <boost/lambda/lambda.hpp>
 
 using namespace http::test;
+
+BOOST_AUTO_TEST_CASE(read_until_eof_in_one_chunk)
+{
+    asio_mocks::io_completed result;
+    asio_mocks::io_completed end_of_file;
+
+    boost::asio::io_service queue;
+    asio_mocks::socket<const char*> sock(queue, begin(simple_get_11), end(simple_get_11));
+    char b[sizeof simple_get_11];
+
+    sock.async_read_some(boost::asio::buffer(b), result);
+    sock.async_read_some(boost::asio::buffer(b), end_of_file);
+    tools::run(queue);
+
+    BOOST_CHECK_EQUAL(sizeof simple_get_11 -1, result.bytes_transferred);
+    BOOST_CHECK(!result.error);
+
+    BOOST_CHECK_EQUAL(end_of_file.error, boost::asio::error::eof);
+}
+
+BOOST_AUTO_TEST_CASE(read_until_eof_in_two_chunks)
+{
+    asio_mocks::io_completed result1;
+    asio_mocks::io_completed result2;
+    asio_mocks::io_completed end_of_file;
+
+    boost::asio::io_service queue;
+    asio_mocks::socket<const char*> sock(queue, begin(simple_get_11), end(simple_get_11));
+    char b[sizeof simple_get_11];
+
+    sock.async_read_some(boost::asio::buffer(b, sizeof(simple_get_11) -5), result1);
+    sock.async_read_some(boost::asio::buffer(b), result2);
+    sock.async_read_some(boost::asio::buffer(b), end_of_file);
+    tools::run(queue);
+
+    BOOST_CHECK_EQUAL(sizeof(simple_get_11) -5, result1.bytes_transferred);
+    BOOST_CHECK(!result1.error);
+
+    BOOST_CHECK_EQUAL(4, result2.bytes_transferred);
+    BOOST_CHECK(!result2.error);
+
+    BOOST_CHECK_EQUAL(end_of_file.error, boost::asio::error::eof);
+}
 
 BOOST_AUTO_TEST_CASE(read_timeout_test)
 {
@@ -320,3 +365,31 @@ BOOST_AUTO_TEST_CASE( write_callback_is_called )
     BOOST_CHECK_EQUAL( std::string( "Welt" ), boost::asio::buffer_cast< const char* >( buffer ) );
 }
 
+BOOST_AUTO_TEST_CASE( read_until_found )
+{
+    asio_mocks::io_completed result;
+
+    boost::asio::io_service         queue;
+    asio_mocks::socket<const char*> sock( queue, begin(simple_get_11), end(simple_get_11) );
+    boost::asio::streambuf          input;
+
+    boost::asio::async_read_until( sock, input, "\r\n\r\n", result );
+    tools::run( queue );
+
+    BOOST_CHECK_EQUAL( result.bytes_transferred, end(simple_get_11) - begin(simple_get_11) );
+    BOOST_CHECK(!result.error);
+}
+
+BOOST_AUTO_TEST_CASE( read_until_not_found )
+{
+    asio_mocks::io_completed result;
+
+    boost::asio::io_service         queue;
+    asio_mocks::socket<const char*> sock( queue, begin(simple_get_11), end(simple_get_11) );
+    boost::asio::streambuf          input;
+
+    boost::asio::async_read_until( sock, input, "*****", result );
+    tools::run( queue );
+
+    BOOST_CHECK( result.error );
+}
