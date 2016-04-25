@@ -925,6 +925,12 @@ void socket<Iterator, Timer, Trait>::impl::async_read_some(
         return;
     }
 
+    if ( boost::asio::buffer_size( buffers ) == 0 )
+    {
+        io_service_.post(boost::bind<void>(handler, boost::system::error_code(), 0));
+        return;
+    }
+
     if ( !read_plan_.empty() )
     {
         const read_plan::item plan = read_plan_.next_read();
@@ -941,8 +947,7 @@ void socket<Iterator, Timer, Trait>::impl::async_read_some(
             io_service_.post(boost::bind<void>(handler, boost::system::error_code(), size));
         }
     }
-    else
-    if ( read_delay_ != boost::posix_time::time_duration() )
+    else if ( read_delay_ != boost::posix_time::time_duration() )
     {
         read_timer_.expires_from_now(read_delay_);
         read_timer_.async_wait(

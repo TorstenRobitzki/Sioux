@@ -6,6 +6,7 @@ namespace asio_mocks
         : error()
         , bytes_transferred(0)
         , when()
+        , called(false)
         , next_(this)
     {
     }
@@ -14,6 +15,7 @@ namespace asio_mocks
         : error(org.error)
         , bytes_transferred(org.bytes_transferred)
         , when(org.when)
+        , called(org.called)
         , next_(org.next_)
     {
         org.next_ = this;
@@ -45,6 +47,7 @@ namespace asio_mocks
         std::swap(error, other.error);
         std::swap(bytes_transferred, other.bytes_transferred);
         std::swap(when, other.when);
+        std::swap(called, other.called);
         std::swap(next_, other.next_);
     }
 
@@ -53,6 +56,7 @@ namespace asio_mocks
         error = e;
         bytes_transferred = b;
         when = boost::posix_time::microsec_clock::universal_time();
+        called = true;
 
         // update all copies
         for ( io_completed* p = next_; p != this; p = p->next_ )
@@ -60,6 +64,7 @@ namespace asio_mocks
             p->error = error;
             p->bytes_transferred = bytes_transferred;
             p->when = when;
+            p->called = called;
         }
     }
 

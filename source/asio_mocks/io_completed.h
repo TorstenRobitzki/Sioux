@@ -23,6 +23,7 @@ namespace asio_mocks
         boost::system::error_code   error;
         size_t                      bytes_transferred;
         boost::posix_time::ptime    when;
+        bool                        called;
 
     private:
         mutable io_completed*       next_;
