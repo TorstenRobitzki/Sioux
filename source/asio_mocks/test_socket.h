@@ -1025,6 +1025,12 @@ void socket<Iterator, Timer, Trait>::impl::async_write_some(
         return;
     }
 
+    if ( boost::asio::buffer_size( buffers ) == 0 )
+    {
+        io_service_.post(boost::bind<void>(handler, boost::system::error_code(), 0));
+        return;
+    }
+
     if ( !write_plan_.empty() )
     {
         const write_plan::item item = write_plan_.next_write();

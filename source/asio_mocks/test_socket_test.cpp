@@ -412,3 +412,22 @@ BOOST_AUTO_TEST_CASE( reading_into_a_zero_byte_buffer )
     BOOST_CHECK( result.called );
     BOOST_CHECK_EQUAL( result.bytes_transferred, 0 );
 }
+
+BOOST_AUTO_TEST_CASE( writing_from_zero_byte_buffer )
+{
+    asio_mocks::io_completed result;
+
+    boost::asio::io_service         queue;
+    asio_mocks::socket<const char*> sock( queue, begin(simple_get_11), end(simple_get_11) );
+    const char                      buf = 0x42;
+
+    sock.async_write_some(
+        boost::asio::buffer( &buf, 0 ),
+        result );
+
+    tools::run( queue );
+
+    BOOST_CHECK( !result.error );
+    BOOST_CHECK( result.called );
+    BOOST_CHECK_EQUAL( result.bytes_transferred, 0 );
+}
