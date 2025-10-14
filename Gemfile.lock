@@ -2,7 +2,7 @@ GEM
   remote: https://rubygems.org/
   specs:
     json (2.3.1)
-    rack (2.2.19)
+    rack (2.2.20)
     rake (12.3.3)
     travis-lint (2.0.0)
       json
